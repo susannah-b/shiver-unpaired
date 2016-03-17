@@ -2,59 +2,54 @@
 
 set -u
 
-# TODO: check contig / seq names are unique? wc -l == sort | uniq | wc -l ?
-
 ################################################################################
 # PRELIMINARIES
 
 # Check for the right number of arguments. Assign them to variables.
-if [ "$#" -neq 7 ]; then
-  echo "$#" 'arguments specified; exactly 7 are required. Quitting' >&2
+NumArgsExpected=8
+if [ "$#" -ne "$NumArgsExpected" ]; then
+  echo "$#" 'arguments specified;' "$NumArgsExpected" 'expected. Quitting' >&2
   exit 1
 fi
-reads1="$1"
-reads2="$2"
-RawContigsFile="$3"
-ConfigFile="$4"
-SID="$5" # Needs to match contig names in FastaFile. Otherwise just for labelling
+InitDir="$1"
+ConfigFile="$2"
+reads1="$3"
+reads2="$4"
+RawContigsFile="$5"
 ContigBlastFile="$6"
 FastaFile="$7"
-# dispense with this: just check whether FastaFile has one, or several, seq(s).
-#  FastaFileType="$7"
-#  if [ "$FastaFileType" == '-alignedcontigs' ]; then
-#    ConstructRef=true
-#  elif [ "$FastaFileType" == '-oneref' ]; then
-#    ConstructRef=false
-#  else
-#    echo 'The seventh argument should be either -alignedcontigs or -oneref.'\
-#    'Quitting' >&2
-#    exit 1
+SID="$8"
 
+RefList="$InitDir"/'ExistingRefNamesSorted.txt'
+ExistingRefAlignment="$InitDir"/'ExistingRefAlignment.fasta'
+
+# Source required code & check files exist
+ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$ThisDir"/'shiver_funcs.bash'
+CheckFilesExist "$ConfigFile" "$reads1" "$reads2" "$RawContigsFile" \
+"$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment"
 source "$ConfigFile"
 
-# Check the reads end in _1 then the specified extension
-# TODO: check this wasn't needed...
-#if [[ ! "$reads1" == *'_1'"$ReadExtension" ]]; then
-#  echo "$reads1" 'does not terminate with _1'"$ReadExtension"'. Quitting.' >&2
-#  exit 1
-#fi
-# TODO: define SID to be SID=$(basename "${reads1%_1$ReadExtension}") or the user arg?
-
-
+# Some files we'll create
+TheRef="$SID$OutputRefSuffix"
+consensus="$SID"'_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
+ConsensusForGlobalAln="$SID"'_MinCov_'"$MinCov1"'_'"$MinCov2$GlobalAlnSuffix"
+MappedContaminantReads="$SID$MappedContaminantReadsSuffix"
+cleaned1reads="$SID$CleanedReads1Suffix"
+cleaned2reads="$SID$CleanedReads2Suffix"
+CoordsDict="$SID$CoordsDictSuffix"
+BaseFreqs="$SID$BaseFreqsSuffix"
+InsertSizeCounts="$SID$InsertSizeCountsSuffix"
 ################################################################################
 
 
 
 ################################################################################
-# CONSTRUCT A REFERENCE, OR USE A REAL ONE
+# CONSTRUCT A REFERENCE, OR USE THE ONE SUPPLIED
 
-TheRef="$SID""$OutputRefSuffix"
-RefWithGaps="$SID""$OutputRefWgapsSuffix"
-ConsensusBasename="$SID"'_MinCov_'"$MinCoverage1"'_'"$MinCoverage2"
-TestFile='dummy.fasta'
-
-# FastaFile should either contain a single seq, which we map to as is, or else
-# be an alignment of contigs to real refs.
+# FastaFile should be either a single seq, which we map to as is, or else an 
+# alignment of contigs to real refs.
+RefIsInAlignment=true
 NumSeqsInFastaFile=$(grep -e '^>' "$FastaFile" | wc -l)
 if [ "$NumSeqsInFastaFile" -eq 0 ]; then
   echo 'Error: there are no sequences in' "$FastaFile". 'Quitting.' >&2
@@ -62,62 +57,74 @@ if [ "$NumSeqsInFastaFile" -eq 0 ]; then
 
 elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
 
-  # Try to find the sequence in FastaFile in AlignmentOfRealRefs.
+  # Try to find the sequence in FastaFile in ExistingRefAlignment.
   RefName=$(awk '/^>/ {print substr($1,2)}' "$FastaFile")
-  RefIsInAlignment=true
-  "$Code_FindSeqsInFasta" "$AlignmentOfRealRefs" -g "$RefName" > "$TestFile" ||\
-  { echo 'Could not find seq' "$RefName" 'in' "$AlignmentOfRealRefs"'. After' \
+  "$Code_FindSeqsInFasta" "$ExistingRefAlignment" -g "$RefName" > \
+  "$RefFromAlignment" || \
+  { echo 'Could not find seq' "$RefName" 'in' "$ExistingRefAlignment"'. After' \
   'mapping we will not be able to produce a version of the consensus seq' \
   'suitable for a global alignment. Continuing.' ; RefIsInAlignment=false ; }
 
-  # Compare the sequence in FastaFile to the one in AlignmentOfRealRefs.
-  "$FastaFileComparer" "$TestFile" "$FastaFile"
+  # Compare the sequence in FastaFile to the one in ExistingRefAlignment.
+  "$FastaFileComparer" "$RefFromAlignment" "$FastaFile"
   ComparisonExitStatus=$?
   if [ $ComparisonExitStatus -eq 111 ]; then
     echo 'Seq' "$RefName" 'differs between' "$FastaFile" 'and' \
-    "$AlignmentOfRealRefs"'. After mapping we will not be able to produce a' \
+    "$ExistingRefAlignment"'. After mapping we will not be able to produce a' \
     'version of the consensus seq suitable for a global alignment. Continuing.'
     RefIsInAlignment=false
-  elif [ $ComparisonExitStatus -eq 0 ]; then
+  elif [ $ComparisonExitStatus -neq 0 ]; then
     echo 'Problem running' "$FastaFileComparer"'. Quitting.' >&2
     exit 1
   fi 
 
   # Set the flag appropriate for use of a real ref, when it comes to
   # coordinate translation for a global alignment.
-  GlobalAlignmentExcisionFlag='-d'
+  GlobalAlignExcisionFlag='-d'
 
   cp "$FastaFile" "$TheRef"
-  cp "$AlignmentOfRealRefs" "$TempRefAlignment"
+  cp "$ExistingRefAlignment" "$TempRefAlignment"
 
 else
 
   ContigToRefAlignment="$FastaFile"
-  # Find the contig names in the alignment, assumed to be any sequence names
-  # containing the SID. If no contigs are found, quit.
-  # TODO: test this works as intended - only maches SID in the first word
-  ContigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigToRefAlignment" | \
-  awk '/'"$SID"'/ {print}')
-  #ContigNames=$(awk '/^>/' "$ContigToRefAlignment" | \
+
+  #HIVcontigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigToRefAlignment" | \
+  #awk '/'"$SID"'/ {print}')
+  #HIVcontigNames=$(awk '/^>/' "$ContigToRefAlignment" | \
   #awk '/'"$SID"'/ {printf substr($1,2) " "}')
-  #ContigNames=$(awk '/^>CPZ.US.85.US_Marilyn.AF103818$/ {FoundLastRef=1; next} FoundLastRef && /^>/ {printf substr($0,2) " "}' "$ContigToRefAlignment")
-  NumContigs=$(echo $ContigNames | wc -w)
-  if [ $NumContigs -eq 0 ]; then
-    echo 'No contigs found in' "$ContigToRefAlignment"'. Quitting' >&2
+  #HIVcontigNames=$(awk '/^>CPZ.US.85.US_Marilyn.AF103818$/ {FoundLastRef=1; next} FoundLastRef && /^>/ {printf substr($0,2) " "}' "$ContigToRefAlignment")
+  #HIVcontigNames=$(awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq)
+
+  # ContigToRefAlignment should contain the same set of sequences in the input
+  # existing reference alignment, plus the contigs.
+  awk '/^>/ {print substr($1,2)}' "$ContigToRefAlignment" | sort > \
+  "$AllSeqsInAln"
+  MissingRefs=$(comm -1 -3 "$AllSeqsInAln" "$RefList")
+  NumMissingRefs=$(echo $MissingRefs | wc -w)
+  if [ $NumMissingRefs -gt 0 ]; then
+    echo "Error: the following references from $ExistingRefAlignment are"\
+    "missing from $ContigToRefAlignment: $MissingRefs. Quitting." >&2
+    exit 1
+  fi
+  HIVcontigNames=$(comm -2 -3 "$AllSeqsInAln" "$RefList")
+  NumHIVContigs=$(wc -l "$HIVcontigNames" | awk '{print $1}')
+  if [ $NumHIVContigs -eq 0 ]; then
+    echo "Error: no contigs found in $ContigToRefAlignment. Quitting" >&2
     exit 1
   fi
 
   # Construct the tailored ref
-  "$Code_ConstructRef" "$ContigToRefAlignment" $ContigNames \
+  "$Code_ConstructRef" "$ContigToRefAlignment" $HIVcontigNames \
   > "$GappyRefWithExtraSeq" || \
   { echo 'Failed to construct a ref from the alignment. Quitting.' >&2 ; \
   exit 1 ; }
 
   # Extract just the constructed ref (the first sequence)
-  awk '/^>/{if(N)exit;++N;} {print;}' "$GappyRefWithExtraSeq" \
-  > "$RefWithGaps"
+  awk '/^>/{if(N)exit;++N;} {print;}' "$GappyRefWithExtraSeq" > "$RefWithGaps"
 
   # Remove any gaps from the reference
+  # TODO: use UngapFasta.py instead?
   "$Code_RemoveGaps" "$RefWithGaps" > "$TheRef" || \
   { echo 'Gap stripping code failed. Quitting.' >&2 ; exit 1 ; }
 
@@ -125,13 +132,13 @@ else
 
   # Set the flag appropriate for use of a constructed ref, when it comes to
   # coordinate translation for a global alignment.
-  GlobalAlignmentExcisionFlag='-e'
+  GlobalAlignExcisionFlag='-e'
 
   # In the alignment of contigs to real refs, replace the contigs by the
   # constructed ref ready for coordinate translation later.
   # Do this by first extracting all sequences except the contigs, then adding
   # the constructed ref with gaps.
-  "$Code_FindSeqsInFasta" "$ContigToRefAlignment" $ContigNames -v > \
+  "$Code_FindSeqsInFasta" "$ContigToRefAlignment" $HIVcontigNames -v > \
   "$TempRefAlignment" || { echo 'Problem extracting just the real refs from '\
   "$ContigToRefAlignment"'. Quitting.' >&2 ; exit 1 ; }  
   cat "$RefWithGaps" >> "$TempRefAlignment"
@@ -145,16 +152,17 @@ fi
 
 ################################################################################
 
+################################################################################
+# TODO: trim reads
+################################################################################
 
 ################################################################################
 # REMOVE CONTAMINANT READS
 
-# Copy some files to the working directory.
-cp "$RawContigsFile" "$ContigBlastFile" .
-RawContigsFile=$(basename "$RawContigsFile")
-ContigBlastFile=$(basename "$ContigBlastFile")
+ReadsNeededCleaning=true
 
 # List all the contigs and the HIV ones.
+# TODO: later on we assume the blast file first field has no whitespace in it...
 awk '/^>/ {print substr($1,2)}' "$RawContigsFile" | sort > "$AllContigsList"
 awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq > "$HIVContigsList"
 
@@ -178,42 +186,30 @@ if [ "$NumUnknownContigsInBlastHits" -ne 0 ]; then
   exit 1
 fi
 
-MappedContaminantReads="$SID""$MappedContaminantReadsSuffix"
-
 # Find the contaminant contigs.
-comm -3 "$AllContigsList" "$HIVContigsList" > "$ContaminantContigsList"
-NumContaminantContigs=$(wc -l "$ContaminantContigsList" | awk '{print $1}')
+ContaminantContigNames=$(comm -3 "$AllContigsList" "$HIVContigsList")
+NumContaminantContigs=$(echo $ContaminantContigNames | wc -w)
 
 # Copy the reads to the working directory. Unzip them if they end in .gz.
 cp "$reads1" "$reads2" .
 reads1=$(basename "$reads1")
 reads2=$(basename "$reads2")
-if [[ "$ReadExtension" == *.gz ]]; then
+if [[ "$reads1" == *.gz ]]; then
   gunzip -f "$reads1"
-  gunzip -f "$reads2"
   reads1="${reads1%.gz}"
+fi
+if [[ "$reads2" == *.gz ]]; then
+  gunzip -f "$reads2"
   reads2="${reads2%.gz}"
-  ReadExtension="${ReadExtension%.gz}"
 fi
 
 # If there are no contaminant contigs, we don't need to clean.
-# We create a blank mapping file to indicate that there wasn't a failure to
-# map, it was just unnecessary.
+# We create a blank mapping file to more easily keep track of the fact that 
+# there are no contaminant reads in this case.
 if [ "$NumContaminantContigs" -eq 0 ]; then
   echo 'There are no contaminant contigs. The cleaned reads = the orginal reads'
+  ReadsNeededCleaning=false
   echo -n > "$MappedContaminantReads"
-  #cp "$reads1" "$SID"'_cleaned_1'"$ReadExtension"
-  #cp "$reads2" "$SID"'_cleaned_2'"$ReadExtension"
-  #if [[ "$ReadExtension" == *.gz ]]; then
-  #  mv "$reads1" "$cleaned1reads"
-  #  mv "$reads2" "$cleaned2reads"
-  #else
-  #  cleaned1reads="$cleaned1reads".gz
-  #  cleaned2reads="$cleaned2reads".gz
-  #  gzip -f "$reads1" "$reads2" 
-  #  mv "$reads1".gz "$cleaned1reads"
-  #  mv "$reads2".gz "$cleaned2reads"
-  #fi
   cleaned1reads="$reads1"
   cleaned2reads="$reads2"
 
@@ -221,65 +217,57 @@ if [ "$NumContaminantContigs" -eq 0 ]; then
 else
 
   # Make a blast database out of the contaminant contigs and the ref.
-  "$Code_FindSeqsInFasta" "$RawContigsFile" $(cat "$ContaminantContigsList" | xargs echo) \
-  > "$RefAndContaminantContigs"
+  "$Code_FindSeqsInFasta" "$RawContigsFile" $ContaminantContigNames > \
+  "$RefAndContaminantContigs"
   cat "$TheRef" >> "$RefAndContaminantContigs"
   "$BlastDBcommand" -dbtype nucl -in "$RefAndContaminantContigs" \
   -input_type fasta -out "$BlastDB" || \
   { echo 'Problem creating a blast database. Quitting.' >&2 ; exit 1 ; }
 
   # Convert fastq to fasta.
-  reads1asFasta="${reads1%$ReadExtension}".fasta
-  reads2asFasta="${reads2%$ReadExtension}".fasta
   sed -n '1~4s/^@/>/p;2~4p' "$reads1" > "$reads1asFasta" &&
   sed -n '1~4s/^@/>/p;2~4p' "$reads2" > "$reads2asFasta" || \
   { echo 'Problem converting the reads from fastq to fasta. Quitting.' >&2 ; \
   exit 1 ; }
 
   # Blast the reads.
-  reads1blast="${reads1%$ReadExtension}".blast
-  reads2blast="${reads2%$ReadExtension}".blast
-  blastn -query "$reads1asFasta" -db "$BlastDB" -out "$reads1blast".temp \
+  echo 'Now blasting the reads - typically a slow step.'
+  blastn -query "$reads1asFasta" -db "$BlastDB" -out "$reads1blast1" \
   -max_target_seqs 1 -outfmt \
   '10 qacc sacc sseqid evalue pident qstart qend sstart send' &&
-  blastn -query "$reads2asFasta" -db "$BlastDB" -out "$reads2blast".temp \
+  blastn -query "$reads2asFasta" -db "$BlastDB" -out "$reads2blast1" \
   -max_target_seqs 1 -outfmt \
   '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
   { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
 
   # For multiple blast hits, keep the one with the highest evalue
-  sort -t, -k1,1 -k4,4g "$reads1blast".temp | sort -t, -k1,1 -u --merge > \
-  "$reads1blast"
-  sort -t, -k1,1 -k4,4g "$reads2blast".temp | sort -t, -k1,1 -u --merge > \
-  "$reads2blast"
+  # TODO: test what blast does with fasta headers that have comments in them -
+  # does it include them too?
+  sort -t, -k1,1 -k4,4g "$reads1blast1" | sort -t, -k1,1 -u --merge > \
+  "$reads1blast2"
+  sort -t, -k1,1 -k4,4g "$reads2blast1" | sort -t, -k1,1 -u --merge > \
+  "$reads2blast2"
 
   # Find the read pairs that blast best to something other than the reference.
-  "$Code_FindContaminantReadPairs" "$reads1blast" "$reads2blast" "$RefName" \
+  "$Code_FindContaminantReadPairs" "$reads1blast2" "$reads2blast2" "$RefName" \
   "$BadReadsBaseName" && ls "$BadReadsBaseName"_1.txt \
   "$BadReadsBaseName"_2.txt > /dev/null 2>&1 || \
   { echo 'Problem finding contaminant read pairs using' \
-  "$Code_FindContaminantReadPairs"'. Quitting.' >&2 ; exit 1 ; }
+  "$Code_FindContaminantReadPairs. Quitting." >&2 ; exit 1 ; }
 
   # If none of the read pairs blast better to contaminant contigs than the
   # reference, we just duplicate the original short read files.
   NumContaminantReadPairs=$(wc -l "$BadReadsBaseName"_1.txt | awk '{print $1}')
   if [ "$NumContaminantReadPairs" -eq 0 ]; then
-    echo 'There are no contaminant read pairs. Duplicating the short read files.'
+    echo 'There are no contaminant read pairs.'
+    ReadsNeededCleaning=false
     echo -n > "$MappedContaminantReads"
-    #cleaned1reads="$cleaned1reads".gz
-    #cleaned2reads="$cleaned2reads".gz
-    #gzip -f "$reads1" "$reads2" 
-    #mv "$reads1".gz "$cleaned1reads"
-    #mv "$reads2".gz "$cleaned2reads"
     cleaned1reads="$reads1"
     cleaned2reads="$reads2"
 
   # We enter this scope if there are some read pairs that blast better to 
   # contaminant contigs than the reference.
   else
-
-    cleaned1reads="$SID"'_cleaned_1'"$ReadExtension"
-    cleaned2reads="$SID"'_cleaned_2'"$ReadExtension"
 
     # Sort the raw reads by name. Check every read has a mate.
     # TODO: this breaks if there's a tab in the fastq header line: grep or awk
@@ -289,13 +277,13 @@ else
     # Verify this: check that printing only the last two characters, we get only
     # one thing from each file. Move the 'unpaired' check right to the beginning.
     cat "$reads1" | paste - - - - | sort -k1,1 -t$'\t' | tr "\t" "\n" > \
-    "$reads1".sorted
+    "$reads1sorted"
     cat "$reads2" | paste - - - - | sort -k1,1 -t$'\t' | tr "\t" "\n" > \
-    "$reads2".sorted
+    "$reads2sorted"
     if ! cmp <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
-    "$reads1".sorted | sort) \
+    "$reads1sorted" | sort) \
     <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
-    "$reads2".sorted | sort); then
+    "$reads2sorted" | sort); then
       echo 'At least one read in' "$reads1" 'or' "$reads2" 'is unpaired.' \
       'Quitting.' >&2 ; exit 1 ;
     fi
@@ -305,33 +293,28 @@ else
     mv "$BadReadsBaseName"_2.txt "$BadReadsBaseName"_2_unsorted.txt
     sort "$BadReadsBaseName"_1_unsorted.txt > "$BadReadsBaseName"_1.txt
     sort "$BadReadsBaseName"_2_unsorted.txt > "$BadReadsBaseName"_2.txt
-    "$Code_FindReadsInFastq" -v "$reads1".sorted "$BadReadsBaseName"_1.txt > \
+    "$Code_FindReadsInFastq" -v "$reads1sorted" "$BadReadsBaseName"_1.txt > \
     "$cleaned1reads" &&
-    "$Code_FindReadsInFastq" -v "$reads2".sorted "$BadReadsBaseName"_2.txt > \
+    "$Code_FindReadsInFastq" -v "$reads2sorted" "$BadReadsBaseName"_2.txt > \
     "$cleaned2reads" || \
     { echo 'Problem extracting the non-contaminant reads using' \
     "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
 
-    # Zip the cleaned reads
-    #gzip -f "$cleaned1reads" "$cleaned2reads"
-    #cleaned1reads="$cleaned1reads".gz
-    #cleaned2reads="$cleaned2reads".gz
-
     # Map the contaminant reads to the reference, to measure how useful the
     # cleaning procedure was.
-    "$Code_FindReadsInFastq" "$reads1".sorted "$BadReadsBaseName"_1.txt > \
+    "$Code_FindReadsInFastq" "$reads1sorted" "$BadReadsBaseName"_1.txt > \
     "$BadReadsBaseName"_1.fastq &&
-    "$Code_FindReadsInFastq" "$reads2".sorted "$BadReadsBaseName"_2.txt > \
+    "$Code_FindReadsInFastq" "$reads2sorted" "$BadReadsBaseName"_2.txt > \
     "$BadReadsBaseName"_2.fastq || \
     { echo 'Problem extracting the contaminant reads using' \
-    "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
+    "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
     "$samtools" faidx "$TheRef" &&
     "$smalt" map $smaltMapOptions -o "$AllMappedContaminantReads" \
     "$smaltIndex" "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq &&
     "$samtools" view -bS -F 4 -t "$TheRef".fai -o "$MappedContaminantReads" \
     "$AllMappedContaminantReads" || \
-    { echo 'Problem mapping the contaminant reads to' "$RefName" 'using' \
-    'smalt. Quitting.' >&2 ; exit 1 ; }
+    { echo "Problem mapping the contaminant reads to $RefName using smalt." \
+    'Quitting.' >&2 ; exit 1 ; }
 
   fi
 fi
@@ -341,44 +324,49 @@ fi
 
 
 # Do the mapping!
-"$smalt" map $smaltMapOptions -o "$SID".sam "$smaltIndex" "$cleaned1reads" \
+echo 'Now mapping - typically a slow step.'
+"$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" "$cleaned1reads" \
 "$cleaned2reads" || \
 { echo 'Smalt mapping failed. Quitting.' >&2 ; exit 1 ; }
 
-# Convert that sam file into a bam file.
-"$samtools" view -bS $samtoolsReadFlags -t "$TheRef".fai -o "$SID"_step1.bam \
-"$SID".sam &&
-"$samtools" sort -n "$SID"_step1.bam "$SID"_step2 &&
-"$samtools" fixmate "$SID"_step2.bam "$SID"_step3.bam &&
-"$samtools" sort "$SID"_step3.bam "$SID" &&
-"$samtools" index "$SID""$OutputBamSuffix" || \
+# Convert that sam file into a bam file. Thanks Nick Croucher!
+"$samtools" view -bS $samtoolsReadFlags -t "$TheRef".fai -o \
+"$MapOutConversion1" "$MapOutAsSam" &&
+"$samtools" sort -n "$MapOutConversion1" "$MapOutConversion2" &&
+"$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3" &&
+"$samtools" sort "$MapOutConversion3" "$SID" &&
+"$samtools" index "$SID.bam" || \
 { echo 'Failed to convert from sam to bam format. Quitting.' >&2 ; exit 1 ; }
 
-"$samtools" view "$SID""$OutputBamSuffix" | awk '{if ($9 > 0) print $9}' > \
-"$SID"_InsertSizes.txt
-sort -n "$SID"_InsertSizes.txt | uniq -c > "$SID"_InsertSizeCounts_temp.txt
-InsertCount=$(awk '{sum+=$1} END {print sum}' "$SID"_InsertSizes.txt)
-
-awk '{print $2 "," $1 "," $1/'$InsertCount'}' \
-"$SID"_InsertSizeCounts_temp.txt > "$SID""$InsertSizeCountsSuffix"
+# Calculate the normalised insert size distribution.
+"$samtools" view "$SID.bam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
+sort -n "$InsertSizes1" | uniq -c > "$InsertSizes2"
+InsertCount=$(awk '{sum+=$1} END {print sum}' "$InsertSizes1")
+awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" > \
+"$InsertSizeCounts"
 
 # Generate pileup
-"$samtools" mpileup $mpileupOptions -f "$TheRef" "$SID""$OutputBamSuffix" > \
-"$SID".pileup || { echo 'Failed to generate pileup. Quitting.' >&2 ; exit 1 ; }
+echo 'Now calculating pileup - typically a slow step.'
+"$samtools" mpileup $mpileupOptions -f "$TheRef" "$SID.bam" > "$PileupFile" || \
+{ echo 'Failed to generate pileup. Quitting.' >&2 ; exit 1 ; }
 
 # Generate base frequencies and consensuses
-"$Code_AnalysePileup" "$SID".pileup "$TheRef" > "$SID""$BaseFreqsSuffix" && \
-"$Code_CallConsensus" "$SID""$BaseFreqsSuffix" "$MinCoverage1" "$MinCoverage2" > \
-"$ConsensusBasename""$FastaExtension" || \
+"$Code_AnalysePileup" "$PileupFile" "$TheRef" > "$BaseFreqs" && \
+"$Code_CallConsensus" "$BaseFreqs" "$MinCov1" "$MinCov2" > \
+"$consensus" || \
 { echo 'Problem analysing the pileup or calling the consensus.' >&2 ; exit 1 ; }
 
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.
 if $RefIsInAlignment; then
-  "$Code_MergeAlignments" "$GlobalAlignmentExcisionFlag" -L \
-  "$SID""$CoordsDictSuffix" "$TempRefAlignment" \
-  "$ConsensusBasename""$FastaExtension" > \
-  "$ConsensusBasename"'_ForGlobalAln'"$FastaExtension"
+  "$Code_MergeAlignments" "$GlobalAlignExcisionFlag" -L "$CoordsDict" \
+  "$TempRefAlignment" "$consensus" > "$ConsensusForGlobalAln"
 fi
 
+# TODO: merge CoordsDict with BaseFreqs, like this?
+#  ~/Dropbox\ \(Infectious\ Disease\)/chris/SeqAnal/MergeBaseFreqsAndCoords.py "$BaseFreqs" "$CoordsDict" > "$CoordsDict"_wGlobal.csv; 
 
+# Zip the cleaned reads
+if [[ "$ReadsNeededCleaning" == "true" ]]; then
+  gzip -f "$cleaned1reads" "$cleaned2reads"
+fi

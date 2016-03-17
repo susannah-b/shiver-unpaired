@@ -1,6 +1,7 @@
 # shiver
 Sequences from HIV Easily Reconstructed.  
-<object data="info/AssemblyPipelineDiagram_ForPaper.pdf" type='application/pdf'></object>
+
+<p align="center"><img src="info/AssemblyPipelineDiagram_ForPaper.png" width=500" height="290"/></p>
 
 Dependencies: [smalt](http://www.sanger.ac.uk/science/tools/smalt-0), [blast](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download), [Fastaq](https://github.com/sanger-pathogens/Fastaq), [trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) [samtools](http://www.htslib.org/), [biopython](http://biopython.org/wiki/Download), [mafft](http://mafft.cbrc.jp/alignment/software/).  
 An alignment of existing references is required; lots of these are available to download from the [Los Alamos National Lab](http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html). You also need to set some variables in a config file; make a copy of `config.bash` and personalise to taste.  

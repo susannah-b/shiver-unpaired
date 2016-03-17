@@ -1,11 +1,23 @@
 # shiver
 Sequences from HIV Easily Reconstructed.  
 
-<p align="center"><img src="info/AssemblyPipelineDiagram_ForPaper.png" width=500" height="290"/></p>
+<p align="center"><img src="info/AssemblyPipelineDiagram_ForPaper.png" width=800" height="370"/></p>
 
 Dependencies: [smalt](http://www.sanger.ac.uk/science/tools/smalt-0), [blast](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download), [Fastaq](https://github.com/sanger-pathogens/Fastaq), [trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic) [samtools](http://www.htslib.org/), [biopython](http://biopython.org/wiki/Download), [mafft](http://mafft.cbrc.jp/alignment/software/).  
-An alignment of existing references is required; lots of these are available to download from the [Los Alamos National Lab](http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html). You also need to set some variables in a config file; make a copy of `config.bash` and personalise to taste.  
-Before running shiver over a set of samples, you need to run a one-off initialisation step.
+An alignment of existing reference genomes is required; lots of these are available to download from the [Los Alamos National Lab](http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html).
+
+Pipeline parameters can be customised in `config.bash`.  
+Before running shiver over a set of samples, you need to run a one-off initialisation step, or the form
+```bash
+$ ./intialise.bash config.bash MyRefAlignment.fasta MyInitDir
+```
+This will create a directory `MyInitDir` containing things needed for each sample you process.  
+Let's say you have a single sample with forward reads in a file `reads_1.fastq.gz`, reverse reads in a file `reads_1.fastq.gz`, and contigs in a file `contigs.fasta`. Processing that sample is achieved with two commands, with a visual check in between:
+```bash
+$ ./PerPatientCode_Align.bash MyInitDir contigs.fasta MyOutputID
+```
+
+
 
 NB all of the file suffixes below (.blast etc.) can be changed from their default values.
 

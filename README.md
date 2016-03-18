@@ -20,13 +20,22 @@ Say you have forward reads in `reads_1.fastq.gz`, reverse reads in `reads_1.fast
 ```bash
 $ ./shiver_align_contigs.bash MyInitDir config.bash contigs.fasta SID
 ```
-Amongst the files this step produces is `SID_raw_wRefs.fasta` - an alignment of your HIV contigs to your input existing reference genomes - which you should should visually check, deleting ragged ends which arise occasionally.
+Amongst the files this step produces is `SID_raw_wRefs.fasta` - an alignment of your HIV contigs to your input existing reference genomes - which you should should visually check, and manually delete ragged ends which arise occasionally.  
 Also produced is `SID.blast` (the result of blasting your contigs to those existing references).
 Now run
 ```bash
 $ ./shiver_map_reads.bash MyInitDir config.bash contigs.fasta SID SID.blast SID_raw_wRefs.fasta reads_1.fastq.gz reads_2.fastq.gz
 ```
 and you're done.
+
+#### I notice there's a manual step between the two automatic steps. Blasphemy!
+Correct alignment has already been attempted automatically in the first step, but unfortunately aligning HIV sequences automatically, perfectly, 100% of the time is a dream: HIV has the highest mutation rate known to biology, and the alignment algorithm has an unimaginably large space of possibilities to explore.
+Most of the time it works, and inspecting the alignment it will take you one or two seconds to see that that's the case.
+Most of the cases in which it fails, all you have to do is to delete a short stretch of sequence separated from the main body of the contig by a long erroneous gap, and possibly delete a whole contig if it scored a blast hit (and so was considered to be HIV, and was aligned) but is actually not HIV, so when 'aligned' is just a mess.
+Performing this step manually ensures an alignment you can trust, allowing the second `shiver` command to reliably construct a) a tailored reference that minimises mapping bias, and b) a global alignment of all samples, instantly, without further need for an alignment algorithm: see the end of section *Processing example 2*.  
+[This](https://github.com/olli0601/PANGEAhaircut) R package by Oliver Ratmann uses machine learning to correct these cases of failed alignment; however for each sample you must manually check the corrections to ensure they are correct, instead of checking the alignment itself, and incorrect corrections must be corrected manually.
+
+
 
 #### What output do I get?
 
@@ -71,7 +80,7 @@ $ for ContigFile in ../contigs/*.fasta; do
 done
 ```
 For samples for which contig correction is necessary, `SID_cut_wRefs.fasta` will be produced as well as `SID_raw_wRefs.fasta` (the former containing the modified contigs).
-In such cases, spliced contigs (those concatenating separed parts of the genome, detected by multiple separated blast hits) have been cut into pieces, and reverse-complement contigs (detected by inverted blast hits) are reverse complemented.
+In such cases, spliced contigs (those concatenating separated parts of the genome, detected by multiple separated blast hits) have been cut into pieces, and reverse-complement contigs (detected by inverted blast hits) are reverse complemented.
 This doesn't work perfectly every time - a large indel in a contig can cause two separate blast hits, and cutting the contig at slightly the wrong spot can cause alignment difficulty - and so where `SID_cut_wRefs.fasta` exists you're advised to inspect both it and `SID_raw_wRefs.fasta`, choose the better looking and discard the other, and delete ragged ends if they appear (as previously).
 ```bash
 # For samples that had an SID_cut_wRefs.fasta file, we kept either that file or
@@ -133,13 +142,13 @@ You can generate another consensus sequence using different values of `foo` and 
 ```bash
 $ tools/CallConsensus.py SID_BaseFreqs.csv foo bar > MyNewConsensus.fasta
 ```
-If you decrease the value of these (or more specifically if you decrease `foo`), you will see more bases and fewer `?` characters: the less strict you are with your requirement on 'vertical' coverage (the height at a given position in the bam file, if you like), the more 'horizontal' coverage (i.e. genomic coverage, the total number of bases called) will increase.
+If you decrease the value of `foo` you will see more bases and fewer `?` characters: the less strict you are with your requirement on 'vertical' coverage (the height at a given position in the bam file, if you like), the more 'horizontal' coverage (i.e. genomic coverage, the total number of bases called) will increase.
 That's good right?
 Yes and no.
-You could also increase your horizontal coverage by replacing all `?` characters by a random selection of As, Cs, Gs and Ts.
+You could also increase your horizontal coverage by replacing all `?` characters by a random selection of As, Cs, Gs and Ts, but it's not recommended.
 Decreasing these thresholds increases sensitivity to HIV reads at the cost of specificity (since some reads are bound to be contaminants).
-Choose values that maximise the information you get out of a _batch_ of samples, not a single sample.
-(For example with dated sequences you could strike the balance between sensitivity and specificity that gives the strongest correlation between real time and neutral-evolutionary distance - the molecular clock R^2.)
+Choose your thresholds to maximise the information you get out of a _batch_ of samples, not a single sample.
+(For example with dated sequences, you could try balancing sensitivity and specificity to get the strongest correlation between real time and the evolutionary distance inferred from a phylogeny - the R^2 of the molecular clock - since too little real sequence and too much contaminant sequence will both screw up your phylogeny.)
 
 
 

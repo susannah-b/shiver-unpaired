@@ -129,7 +129,7 @@ If that sequence is one of the existing references you provided at the initialis
 
 To script this kind of thing, you can just check whether the alignment of contigs to existing references exists for this sample: if not, choose a sequence to use as your reference to mapping.
 This would probably be most easily achieved by making a big look-up table before you start.
-(e.g. running the program [kraken](https://ccb.jhu.edu/software/kraken/) on the reads for each sample, one can see which of the existing references has the largest number of reads attributed to it; from experience one often obtained a non-null result even when no HIV contigs were assembled.)
+(e.g. running the program [kraken](https://ccb.jhu.edu/software/kraken/) on the reads for each sample, one can see which of the existing references has the largest number of reads attributed to it; from experience one often obtains a non-null result even when no HIV contigs were assembled.)
 For example in processing example 2, after `alignment=../AlignmentOutput/"$SID"_wRefs.fasta`, you could have
 ```bash
   if [ ! -f "$alignment" ]; then

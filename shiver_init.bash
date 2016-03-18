@@ -8,15 +8,18 @@ if [ "$#" -ne "$NumArgsExpected" ]; then
   echo "$#" 'arguments specified;' "$NumArgsExpected" 'expected. Quitting' >&2
   exit 1
 fi
-ConfigFile="$1"
-RefAlignment="$2"
-OutDir="$3"
+OutDir="$1"
+ConfigFile="$2"
+RefAlignment="$3"
+
 
 # Source required code & check files exist
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.bash'
 CheckFilesExist "$ConfigFile" "$RefAlignment"
 source "$ConfigFile"
+
+# TODO: sanity checks on ConfigFile, e.g. MinCov2 >= MinCov1
 
 # If OutDir does not exist, try to create it.
 if [ ! -d "$OutDir" ]; then

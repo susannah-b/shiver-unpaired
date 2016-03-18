@@ -13,12 +13,12 @@ if [ "$#" -ne "$NumArgsExpected" ]; then
 fi
 InitDir="$1"
 ConfigFile="$2"
-reads1="$3"
-reads2="$4"
-RawContigsFile="$5"
-ContigBlastFile="$6"
-FastaFile="$7"
-SID="$8"
+RawContigsFile="$3"
+SID="$4"
+ContigBlastFile="$5"
+FastaFile="$6"
+reads1="$7"
+reads2="$8"
 
 RefList="$InitDir"/'ExistingRefNamesSorted.txt'
 ExistingRefAlignment="$InitDir"/'ExistingRefAlignment.fasta'

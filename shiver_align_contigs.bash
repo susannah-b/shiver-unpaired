@@ -22,8 +22,11 @@ if [ "$#" -ne "$NumArgsExpected" ]; then
   exit 1
 fi
 InitDir="$1"
-ContigFile="$2"
-SID="$3"
+ConfigFile="$2"
+ContigFile="$3"
+SID="$4"
+# NB the ConfigFile is not actually needed - it's here only so that all three
+# shiver commands take the same first two args, for ease of use.
 
 BlastDatabase="$InitDir/ExistingRefsBlastDatabase"
 RefAlignment="$InitDir/ExistingRefAlignment.fasta"

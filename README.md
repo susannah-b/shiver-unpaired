@@ -44,7 +44,8 @@ Performing this step manually ensures an alignment you can trust, allowing the s
 `SID_MinCov_foo_bar.fasta`: the consensus genome.
 In place of `foo` and `bar` here you'll see the two coverage thresholds specified in `config.bash`: `foo` is the minimum number of reads to call a base (if there are fewer than `foo` reads we call `?` instead of a base), `bar` the minimum number to use upper case for the base (to signal increased confidence).  
 `SID_MinCov_foo_bar_ForGlobalAln.fasta`, `SID_coords.csv`: these files are useful for when multiple samples are processed, so we postpone their explanation.  
-`SID_clean_1.fastq.gz`, `SID_clean_2.fastq.gz`: the reads after removal of adapters, primers, low-quality bases, and those read pairs suspected of being contamination.
+`SID_clean_1.fastq.gz`, `SID_clean_2.fastq.gz`: the reads after removal of adapters, primers, low-quality bases, and those read pairs suspected of being contamination.  
+`SID_InsertSizeCounts.csv`: the inferred insert-size distribution.
 
 #### Processing example 2: scripting over samples, all with HIV contigs, some of which need correcting
 Say your directory looks like this:
@@ -151,7 +152,7 @@ Choose your thresholds to maximise the information you get out of a _batch_ of s
 (For example with dated sequences, you could try balancing sensitivity and specificity to get the strongest correlation between real time and the evolutionary distance inferred from a phylogeny - the R^2 of the molecular clock - since too little real sequence and too much contaminant sequence will both screw up your phylogeny.)
 
 
-
+##### TODO: say something about global alignment coords
 ##### Some extra info, not properly formatted yet
 Running the aligning step,
 

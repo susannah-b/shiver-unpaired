@@ -16,7 +16,7 @@ $ ./shiver_init.bash MyInitDir config.bash MyRefAlignment.fasta
 (ignoring that first $ character, which just indicates this should be run from command line).   Sample processing generates (many) files in the working directory, so to avoid overwriting files you're advised to work in an empty directory.
 
 #### Processing example 1: one sample, for which the contigs don't need correcting
-Say you have forward reads in `reads_1.fastq.gz`, reverse reads in `reads_1.fastq.gz`, and contigs in `contigs.fasta`. Processing is achieved with the following two commands, replacing `SID` (sample ID) by a name used for labelling all your output files:
+Say you have forward reads in `reads_1.fastq.gz`, reverse reads in `reads_2.fastq.gz`, and contigs in `contigs.fasta`. Processing is achieved with the following two commands, replacing `SID` (sample ID) by a name used for labelling all your output files:
 ```bash
 $ ./shiver_align_contigs.bash MyInitDir config.bash contigs.fasta SID
 ```

@@ -8,7 +8,9 @@ Before you begin processing samples there's a one-off initialisation step.
 This requires  
 1. your choice of pipeline parameters, specified in `config.bash`;  
 2. an alignment of existing reference genomes, lots of which are available to download from the [Los Alamos National Lab](http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html);  
-3. fasta files containing the adapters and primers used for sequencing: ask your sequencing team for these.  
+3. fasta files containing the adapters and primers used for sequencing: ask your sequencing team for these.
+(Adapters are removed with trimmomatic, and "The naming of the various sequences within this file determines how they are used" - trimmomatic docs.
+A default Illumina adapters file can be found in the [source code for IVA](https://github.com/sanger-pathogens/iva/).)  
 Initialisation files will be put into a directory called `MyInitDir` if you run
 ```bash
 $ ./shiver_init.bash MyInitDir config.bash MyRefAlignment.fasta
@@ -16,12 +18,13 @@ $ ./shiver_init.bash MyInitDir config.bash MyRefAlignment.fasta
 (ignoring that first $ character, which just indicates this should be run from command line).   Sample processing generates (many) files in the working directory, so to avoid overwriting files you're advised to work in an empty directory.
 
 #### Processing example 1: one sample, for which the contigs don't need correcting
-Say you have forward reads in `reads_1.fastq.gz`, reverse reads in `reads_1.fastq.gz`, and contigs in `contigs.fasta`. Processing is achieved with the following two commands, replacing `SID` (sample ID) by a name used for labelling all your output files:
+Say you have forward reads in `reads_1.fastq.gz`, reverse reads in `reads_2.fastq.gz`, and contigs in `contigs.fasta`. Processing is achieved with the following two commands, replacing `SID` (sample ID) by a name used for labelling all your output files:
 ```bash
 $ ./shiver_align_contigs.bash MyInitDir config.bash contigs.fasta SID
 ```
-Amongst the files this step produces is `SID_raw_wRefs.fasta` - an alignment of your HIV contigs to your input existing reference genomes - which you should should visually check, and manually delete ragged ends which arise occasionally.  
-Also produced is `SID.blast` (the result of blasting your contigs to those existing references).
+Amongst the files this step produces is `SID_raw_wRefs.fasta` - an alignment of your HIV contigs to your input existing reference genomes - which you should should visually check, and manually delete ragged contig ends which arise occasionally.
+(NB you may modify the contigs but not the existing reference sequences in the alignment.)
+Also produced is `SID.blast` - the result of blasting your contigs to those existing references.
 Now run
 ```bash
 $ ./shiver_map_reads.bash MyInitDir config.bash contigs.fasta SID SID.blast SID_raw_wRefs.fasta reads_1.fastq.gz reads_2.fastq.gz
@@ -33,7 +36,7 @@ Correct alignment has already been attempted automatically in the first step, bu
 Most of the time it works, and inspecting the alignment it will take you one or two seconds to see that that's the case.
 Most of the cases in which it fails, all you have to do is to delete a short stretch of sequence separated from the main body of the contig by a long erroneous gap, and possibly delete a whole contig if it scored a blast hit (and so was considered to be HIV, and was aligned) but is actually not HIV, so when 'aligned' is just a mess.
 Performing this step manually ensures an alignment you can trust, allowing the second `shiver` command to reliably construct a) a tailored reference that minimises mapping bias, and b) a global alignment of all samples, instantly, without further need for an alignment algorithm: see the end of section *Processing example 2*.  
-[This](https://github.com/olli0601/PANGEAhaircut) R package by Oliver Ratmann uses machine learning to correct these cases of failed alignment; however for each sample you must manually check the corrections to ensure they are correct, instead of checking the alignment itself, and incorrect corrections must be corrected manually.
+[This](https://github.com/olli0601/PANGEAhaircut) R package by Oliver Ratmann uses machine learning to correct these cases of failed alignment; however for each sample you must manually check the corrections to ensure they are correct, instead of checking the alignment itself.
 
 
 
@@ -129,7 +132,7 @@ If that sequence is one of the existing references you provided at the initialis
 
 To script this kind of thing, you can just check whether the alignment of contigs to existing references exists for this sample: if not, choose a sequence to use as your reference to mapping.
 This would probably be most easily achieved by making a big look-up table before you start.
-(e.g. running the program [kraken](https://ccb.jhu.edu/software/kraken/) on the reads for each sample, one can see which of the existing references has the largest number of reads attributed to it; from experience one often obtained a non-null result even when no HIV contigs were assembled.)
+(e.g. running the program [kraken](https://ccb.jhu.edu/software/kraken/) on the reads for each sample, one can see which of the existing references has the largest number of reads attributed to it; from experience one often obtains a non-null result even when no HIV contigs were assembled.)
 For example in processing example 2, after `alignment=../AlignmentOutput/"$SID"_wRefs.fasta`, you could have
 ```bash
   if [ ! -f "$alignment" ]; then

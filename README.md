@@ -24,7 +24,7 @@ $ ./shiver_align_contigs.bash MyInitDir config.bash contigs.fasta SID
 ```
 Amongst the files this step produces is `SID_raw_wRefs.fasta` - an alignment of your HIV contigs to your input existing reference genomes - which you should should visually check, and manually delete ragged contig ends which arise occasionally.
 (NB you may modify the contigs but not the existing reference sequences in the alignment.)
-Also produced is `SID.blast` (the result of blasting your contigs to those existing references).
+Also produced is `SID.blast` - the result of blasting your contigs to those existing references.
 Now run
 ```bash
 $ ./shiver_map_reads.bash MyInitDir config.bash contigs.fasta SID SID.blast SID_raw_wRefs.fasta reads_1.fastq.gz reads_2.fastq.gz

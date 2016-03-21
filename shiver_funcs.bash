@@ -10,7 +10,7 @@ Code_FindContaminantReadPairs="$ToolsDir/FindContaminantReadPairs.py"
 Code_FindReadsInFastq="$ToolsDir/FindNamedReadsInSortedFastq.py"
 Code_FindSeqsInFasta="$ToolsDir/FindSeqsInFasta.py"
 Code_MergeAlignments="$ToolsDir/MergeAlignments.py"
-Code_RemoveGaps="$ToolsDir/RemoveGaps.py"
+Code_RemoveBlankCols="$ToolsDir/RemoveBlankColumns.py"
 Code_ContigCutter="$ToolsDir/sort.blast.output.standalone.R"
 Code_UngapFasta="$ToolsDir/UngapFasta.py"
 

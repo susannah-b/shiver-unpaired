@@ -21,12 +21,42 @@ FastaqSequenceTrim='fastaq_sequence_trim'
 IlluminaClipParams='2:10:7:1:true'
 BaseQualityParams='MINLEN:50 LEADING:20 TRAILING:20 SLIDINGWINDOW:4:20'
 NumThreadsTrimmomatic=1
+
+# Check the smalt documentation for a full explanation of mapping parameters,
+# including those not used by default here.
+# A summary of the index options used below:
+# -k sets the word (kmer) length, -s the sampling step size (i.e. is every word
+#  hashed, or every second word, or one word in every 3, ...), when a hash table
+# is made using the reference.
+# A summary of the mapping options used below:
+# -x means a read and its mate are mapped independently (not constraining them
+# to be close), -y sets the minimum fraction of identical nucleotides a read
+# must have to its reference before it is considered mapped, -j is the minimum 
+# insert size and -i the maximum insert size: outside of this range, the read
+# pair is still mapped, but flagged as improperly paired.
 smaltIndexOptions="-k 15 -s 3"
 smaltMapOptions="-x -y 0.75 -j 0 -i 2000"
+
+# For a description of the SAM format flags, look at
+# https://samtools.github.io/hts-specs/SAMv1.pdf
+# Note that the flags are combined in a bitwise manner, which is fiddly. See 
+# http://onetipperday.blogspot.co.uk/2012/04/understand-flag-code-of-sam-format.html
+# for a discussion. The flags used below mean unmapped reads are excluded (-F 4)
+# and only properly aligned pairs are kept (-f 3).
 samtoolsReadFlags='-f 3 -F 4'
+# See http://www.htslib.org/doc/samtools.html for a description of samtools
+# mpileup options. Those used below mean that the minimum of the base quality
+# the 'BAQ' quantity (see http://samtools.sourceforge.net/mpileup.shtml for an
+# explanation) must be at least 5, and only the first 1000000 reads mapped to
+# each point will be considered (NB a limit must be provided; the default is
+# 250).
 mpileupOptions='--min-BQ 5 --max-depth 1000000'
 
+# The minimum number of reads mapped to reference to call a base at that
+# position: if there are fewer reads we call '?' instead of a base.
 MinCov1=10
+# The minimum number of reads to use upper case (to signal increased confidence)
+# for the base called.
 MinCov2=20
 
 # Suffixes we'll append to the sample ID for output files.

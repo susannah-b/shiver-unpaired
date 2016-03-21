@@ -8,7 +8,9 @@ Before you begin processing samples there's a one-off initialisation step.
 This requires  
 1. your choice of pipeline parameters, specified in `config.bash`;  
 2. an alignment of existing reference genomes, lots of which are available to download from the [Los Alamos National Lab](http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html);  
-3. fasta files containing the adapters and primers used for sequencing: ask your sequencing team for these.  
+3. fasta files containing the adapters and primers used for sequencing: ask your sequencing team for these.
+(Adapters are removed with trimmomatic, and "The naming of the various sequences within this file determines how they are used" - trimmomatic docs.
+A default Illumina adapters file can be found in the [source code for IVA](https://github.com/sanger-pathogens/iva/).)  
 Initialisation files will be put into a directory called `MyInitDir` if you run
 ```bash
 $ ./shiver_init.bash MyInitDir config.bash MyRefAlignment.fasta
@@ -20,7 +22,8 @@ Say you have forward reads in `reads_1.fastq.gz`, reverse reads in `reads_2.fast
 ```bash
 $ ./shiver_align_contigs.bash MyInitDir config.bash contigs.fasta SID
 ```
-Amongst the files this step produces is `SID_raw_wRefs.fasta` - an alignment of your HIV contigs to your input existing reference genomes - which you should should visually check, and manually delete ragged ends which arise occasionally.  
+Amongst the files this step produces is `SID_raw_wRefs.fasta` - an alignment of your HIV contigs to your input existing reference genomes - which you should should visually check, and manually delete ragged contig ends which arise occasionally.
+(NB you may modify the contigs but not the existing reference sequences in the alignment.)
 Also produced is `SID.blast` (the result of blasting your contigs to those existing references).
 Now run
 ```bash

@@ -33,7 +33,7 @@ Correct alignment has already been attempted automatically in the first step, bu
 Most of the time it works, and inspecting the alignment it will take you one or two seconds to see that that's the case.
 Most of the cases in which it fails, all you have to do is to delete a short stretch of sequence separated from the main body of the contig by a long erroneous gap, and possibly delete a whole contig if it scored a blast hit (and so was considered to be HIV, and was aligned) but is actually not HIV, so when 'aligned' is just a mess.
 Performing this step manually ensures an alignment you can trust, allowing the second `shiver` command to reliably construct a) a tailored reference that minimises mapping bias, and b) a global alignment of all samples, instantly, without further need for an alignment algorithm: see the end of section *Processing example 2*.  
-[This](https://github.com/olli0601/PANGEAhaircut) R package by Oliver Ratmann uses machine learning to correct these cases of failed alignment; however for each sample you must manually check the corrections to ensure they are correct, instead of checking the alignment itself, and incorrect corrections must be corrected manually.
+[This](https://github.com/olli0601/PANGEAhaircut) R package by Oliver Ratmann uses machine learning to correct these cases of failed alignment; however for each sample you must manually check the corrections to ensure they are correct, instead of checking the alignment itself.
 
 
 

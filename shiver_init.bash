@@ -3,7 +3,7 @@
 set -u
 
 # Check for the right number of arguments. Assign them to variables.
-NumArgsExpected=3
+NumArgsExpected=5
 if [ "$#" -ne "$NumArgsExpected" ]; then
   echo "$#" 'arguments specified;' "$NumArgsExpected" 'expected. Quitting' >&2
   exit 1
@@ -11,7 +11,8 @@ fi
 OutDir="$1"
 ConfigFile="$2"
 RefAlignment="$3"
-
+adapters="$4"
+primers="$5"
 
 # Source required code & check files exist
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -32,7 +33,7 @@ OutDir=$(cd "$OutDir"; pwd)
 
 # Check OutDir is empty
 if ! find "$OutDir"/ -maxdepth 0 -empty | read v; then
-  echo "$OutDir" 'is not empty. Delete or move its contents. Quitting.' >&2
+  echo "$OutDir is not empty. Delete or move its contents. Quitting." >&2
   exit 1;
 fi
 
@@ -42,8 +43,13 @@ RefList="$OutDir"/'ExistingRefNamesSorted.txt'
 UngappedRefs="$OutDir"/'ExistingRefsUngapped.fasta'
 database="$OutDir"/'ExistingRefsBlastDatabase'
 
-# TODO: strip pure-gap columns - global alignment reconstruction depends on it.
-cp "$RefAlignment" "$NewRefAlignment"
+# Copy the three input fasta files into the initialisation directory, removing
+# pure-gap columns from RefAlignment.
+"$Code_RemoveBlankCols" "$RefAlignment" > "$NewRefAlignment" || \
+{ echo "Problem removing pure-gap columns from $RefAlignment. Quitting." >&2 ; \
+exit 1; }
+cp "$adapters" "$OutDir"/'adapters.fasta'
+cp "$primers" "$OutDir"/'primers.fasta'
 
 # List all names in the reference alignment
 awk '/^>/ {print substr($1,2)}' "$NewRefAlignment" | sort > "$RefList"
@@ -63,7 +69,7 @@ fi
 
 # Ungap RefAlignment
 "$Code_UngapFasta" "$NewRefAlignment" > "$UngappedRefs" || \
-{ echo 'Problem ungapping' "$RefAlignment"'. Quitting.' >&2 ; exit 1; }
+{ echo "Problem ungapping $RefAlignment. Quitting." >&2 ; exit 1; }
 
 # Check that OutDir does not have whitespace in it
 if [[ "$OutDir" =~ ( |\') ]]; then
@@ -81,4 +87,4 @@ fi
 "$BlastDBcommand" -dbtype nucl -in "$UngappedRefs" -input_type fasta -out \
 "$database" || \
 { echo 'Problem creating a blast database out of' \
-"$OutDir"/'ExistingRefsUngapped.fasta. Quitting.' >&2 ; exit 1; }
+"$OutDir/ExistingRefsUngapped.fasta. Quitting." >&2 ; exit 1; }

@@ -16,7 +16,7 @@
 set -u
 
 # Check for the right number of arguments. Assign them to variables.
-NumArgsExpected=3
+NumArgsExpected=4
 if [ "$#" -ne "$NumArgsExpected" ]; then
   echo "$#" 'arguments specified;' "$NumArgsExpected" 'expected. Quitting' >&2
   exit 1
@@ -27,6 +27,13 @@ ContigFile="$3"
 SID="$4"
 # NB the ConfigFile is not actually needed - it's here only so that all three
 # shiver commands take the same first two args, for ease of use.
+
+# Check InitDir exists. Remove a trailing slash, if present.
+if [ ! -d "$InitDir" ]; then
+  echo "$InitDir does not exist. Quitting." >&2
+  exit 1
+fi
+InitDir=$(cd "$InitDir"; pwd)
 
 BlastDatabase="$InitDir/ExistingRefsBlastDatabase"
 RefAlignment="$InitDir/ExistingRefAlignment.fasta"

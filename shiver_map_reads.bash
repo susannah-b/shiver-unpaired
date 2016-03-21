@@ -20,14 +20,24 @@ FastaFile="$6"
 reads1="$7"
 reads2="$8"
 
+# Check InitDir exists. Remove a trailing slash, if present.
+if [ ! -d "$InitDir" ]; then
+  echo "$InitDir does not exist. Quitting." >&2
+  exit 1
+fi
+InitDir=$(cd "$InitDir"; pwd)
+
 RefList="$InitDir"/'ExistingRefNamesSorted.txt'
 ExistingRefAlignment="$InitDir"/'ExistingRefAlignment.fasta'
+adapters="$InitDir"/'adapters.fasta'
+primers="$InitDir"/'primers.fasta'
 
 # Source required code & check files exist
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.bash'
 CheckFilesExist "$ConfigFile" "$reads1" "$reads2" "$RawContigsFile" \
-"$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment"
+"$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
+"$primers"
 source "$ConfigFile"
 
 # Some files we'll create
@@ -108,9 +118,31 @@ else
     exit 1
   fi
   HIVcontigNames=$(comm -2 -3 "$AllSeqsInAln" "$RefList")
-  NumHIVContigs=$(wc -l "$HIVcontigNames" | awk '{print $1}')
+  NumHIVContigs=$(echo "$HIVcontigNames" | wc -w)
   if [ $NumHIVContigs -eq 0 ]; then
     echo "Error: no contigs found in $ContigToRefAlignment. Quitting" >&2
+    exit 1
+  fi
+
+  # Extract just the existing references (i.e. everything but the contigs) from
+  # ContigToRefAlignment, and check that they are the same as in
+  # ExistingRefAlignment.
+  "$Code_FindSeqsInFasta" "$ContigToRefAlignment" $HIVcontigNames -v > \
+  "$TempRefAlignment" || { echo 'Problem extracting just the existing refs'\
+  "from $ContigToRefAlignment. Quitting." >&2 ; exit 1 ; }
+  "$Code_RemoveBlankCols" "$TempRefAlignment" > "$AlignmentForTesting" || \
+  { echo "Problem removing pure-gap columns from $TempRefAlignment (which was"\
+  "created by removing the contigs from $ContigToRefAlignment - that's"\
+  "probably the problematic file). Quitting." >&2 ; exit 1; }
+  "$Code_FastaFileComparer" "$AlignmentForTesting" "$ExistingRefAlignment"
+  ComparisonExitStatus=$?
+  if [ $ComparisonExitStatus -eq 111 ]; then
+    echo "The reference sequences in $ContigToRefAlignment are different from"\
+    "those in $ExistingRefAlignment. When modifying $ContigToRefAlignment you"\
+    "should only have modified the contigs. Quitting." >&2  
+    exit 1
+  elif [ $ComparisonExitStatus -ne 0 ]; then
+    echo 'Problem running' "$Code_FastaFileComparer"'. Quitting.' >&2
     exit 1
   fi
 
@@ -124,8 +156,7 @@ else
   awk '/^>/{if(N)exit;++N;} {print;}' "$GappyRefWithExtraSeq" > "$RefWithGaps"
 
   # Remove any gaps from the reference
-  # TODO: use UngapFasta.py instead?
-  "$Code_RemoveGaps" "$RefWithGaps" > "$TheRef" || \
+  "$Code_UngapFasta" "$RefWithGaps" > "$TheRef" || \
   { echo 'Gap stripping code failed. Quitting.' >&2 ; exit 1 ; }
 
   RefName=$(awk '/^>/ {print substr($1,2)}' "$TheRef")
@@ -134,13 +165,8 @@ else
   # coordinate translation for a global alignment.
   GlobalAlignExcisionFlag='-e'
 
-  # In the alignment of contigs to real refs, replace the contigs by the
-  # constructed ref ready for coordinate translation later.
-  # Do this by first extracting all sequences except the contigs, then adding
-  # the constructed ref with gaps.
-  "$Code_FindSeqsInFasta" "$ContigToRefAlignment" $HIVcontigNames -v > \
-  "$TempRefAlignment" || { echo 'Problem extracting just the real refs from '\
-  "$ContigToRefAlignment"'. Quitting.' >&2 ; exit 1 ; }  
+  # Create a version of the alignment of contigs to real refs, with the contigs 
+  # replaced by the constructed ref, ready for coordinate translation later.
   cat "$RefWithGaps" >> "$TempRefAlignment"
 
 fi
@@ -153,13 +179,37 @@ fi
 ################################################################################
 
 ################################################################################
-# TODO: trim reads
-################################################################################
+# TRIM & CLEAN READS
 
-################################################################################
-# REMOVE CONTAMINANT READS
+# Copy the reads to the working directory. Unzip them if they end in .gz.
+cp "$reads1" "$reads2" .
+reads1=$(basename "$reads1")
+reads2=$(basename "$reads2")
+if [[ "$reads1" == *.gz ]]; then
+  gunzip -f "$reads1"
+  reads1="${reads1%.gz}"
+fi
+if [[ "$reads2" == *.gz ]]; then
+  gunzip -f "$reads2"
+  reads2="${reads2%.gz}"
+fi
 
-ReadsNeededCleaning=true
+# Trim reads for adapters and low-quality bases
+echo 'Now trimming reads  - typically a slow step.'
+java -jar "$trimmomatic" PE -threads $NumThreadsTrimmomatic \
+"$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
+"$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
+$BaseQualityParams || { echo 'Problem running trimmomatic. Quitting.' >&2 ; \
+exit 1 ; }
+
+# Trim reads for primers
+$FastaqSequenceTrim "$reads1trim1" "$reads2trim1" "$reads1trim2" \
+"$reads2trim2" "$primers" || \
+{ echo 'Problem running fastaq. Quitting.' >&2 ; exit 1 ; }
+
+# We'll only work with the trimmed reads now, so rename for brevity:
+reads1="$reads1trim2"
+reads2="$reads2trim2"
 
 # List all the contigs and the HIV ones.
 # TODO: later on we assume the blast file first field has no whitespace in it...
@@ -190,28 +240,14 @@ fi
 ContaminantContigNames=$(comm -3 "$AllContigsList" "$HIVContigsList")
 NumContaminantContigs=$(echo $ContaminantContigNames | wc -w)
 
-# Copy the reads to the working directory. Unzip them if they end in .gz.
-cp "$reads1" "$reads2" .
-reads1=$(basename "$reads1")
-reads2=$(basename "$reads2")
-if [[ "$reads1" == *.gz ]]; then
-  gunzip -f "$reads1"
-  reads1="${reads1%.gz}"
-fi
-if [[ "$reads2" == *.gz ]]; then
-  gunzip -f "$reads2"
-  reads2="${reads2%.gz}"
-fi
-
 # If there are no contaminant contigs, we don't need to clean.
 # We create a blank mapping file to more easily keep track of the fact that 
 # there are no contaminant reads in this case.
 if [ "$NumContaminantContigs" -eq 0 ]; then
-  echo 'There are no contaminant contigs. The cleaned reads = the orginal reads'
-  ReadsNeededCleaning=false
+  echo 'There are no contaminant contigs: read cleaning unnecessary.'
   echo -n > "$MappedContaminantReads"
-  cleaned1reads="$reads1"
-  cleaned2reads="$reads2"
+  mv "$reads1" "$cleaned1reads"
+  mv "$reads2" "$cleaned2reads"
 
 # We enter this scope if there are some contaminant contigs:
 else
@@ -260,10 +296,9 @@ else
   NumContaminantReadPairs=$(wc -l "$BadReadsBaseName"_1.txt | awk '{print $1}')
   if [ "$NumContaminantReadPairs" -eq 0 ]; then
     echo 'There are no contaminant read pairs.'
-    ReadsNeededCleaning=false
     echo -n > "$MappedContaminantReads"
-    cleaned1reads="$reads1"
-    cleaned2reads="$reads2"
+    mv "$reads1" "$cleaned1reads"
+    mv "$reads2" "$cleaned2reads"
 
   # We enter this scope if there are some read pairs that blast better to 
   # contaminant contigs than the reference.
@@ -321,7 +356,7 @@ fi
 
 
 ################################################################################
-
+# MAP
 
 # Do the mapping!
 echo 'Now mapping - typically a slow step.'
@@ -367,6 +402,5 @@ fi
 #  ~/Dropbox\ \(Infectious\ Disease\)/chris/SeqAnal/MergeBaseFreqsAndCoords.py "$BaseFreqs" "$CoordsDict" > "$CoordsDict"_wGlobal.csv; 
 
 # Zip the cleaned reads
-if [[ "$ReadsNeededCleaning" == "true" ]]; then
-  gzip -f "$cleaned1reads" "$cleaned2reads"
-fi
+gzip -f "$cleaned1reads" "$cleaned2reads"
+

@@ -15,6 +15,11 @@ trimmomatic="$HOME/Trimmomatic-0.33/trimmomatic-0.33.jar"
 # to the fastaq binary, it may not contain whitespace.
 FastaqSequenceTrim='fastaq_sequence_trim'
 
+# Shall we trim (remove adapters, primers and low quality bases)?
+# Shall we clean (remove read pairs that look like contaminants)?
+TrimReads=true
+CleanReads=true
+
 # The trimmomatic manual explains at length the parameters controlling read
 # trimming; the reader is referred to it for explanations of the following two
 # variables and other options not used here:
@@ -72,6 +77,10 @@ GlobalAlnSuffix='_ForGlobalAln.fasta'
 ################################################################################
 # The names of temporary files we'll create in the working directory.
 # If you change the extension, you may well break something.
+RawContigFile='temp_HIVcontigs_raw.fasta'
+CutContigFile='temp_HIVcontigs_cut.fasta'
+TempRawContigAlignment='temp_HIVcontigs_raw_wRefs_swap.fasta'
+TempCutContigAlignment='temp_HIVcontigs_cut_wRefs_swap.fasta'
 TempRefAlignment='temp_RefAlignment.fasta'
 GappyRefWithExtraSeq='temp_GappyRefWithExtraSeq.fasta'
 FlattenedContigs='temp_FlattenedContigs.fasta'

@@ -76,7 +76,7 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
   'suitable for a global alignment. Continuing.' ; RefIsInAlignment=false ; }
 
   # Compare the sequence in FastaFile to the one in ExistingRefAlignment.
-  "$FastaFileComparer" "$RefFromAlignment" "$FastaFile"
+  "$Code_CheckFastaFileEquality" "$RefFromAlignment" "$FastaFile"
   ComparisonExitStatus=$?
   if [ $ComparisonExitStatus -eq 111 ]; then
     echo 'Seq' "$RefName" 'differs between' "$FastaFile" 'and' \
@@ -84,7 +84,7 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
     'version of the consensus seq suitable for a global alignment. Continuing.'
     RefIsInAlignment=false
   elif [ $ComparisonExitStatus -neq 0 ]; then
-    echo 'Problem running' "$FastaFileComparer"'. Quitting.' >&2
+    echo 'Problem running' "$Code_CheckFastaFileEquality"'. Quitting.' >&2
     exit 1
   fi 
 
@@ -134,7 +134,7 @@ else
   { echo "Problem removing pure-gap columns from $TempRefAlignment (which was"\
   "created by removing the contigs from $ContigToRefAlignment - that's"\
   "probably the problematic file). Quitting." >&2 ; exit 1; }
-  "$Code_FastaFileComparer" "$AlignmentForTesting" "$ExistingRefAlignment"
+  "$Code_CheckFastaFileEquality" "$AlignmentForTesting" "$ExistingRefAlignment"
   ComparisonExitStatus=$?
   if [ $ComparisonExitStatus -eq 111 ]; then
     echo "The reference sequences in $ContigToRefAlignment are different from"\
@@ -142,7 +142,7 @@ else
     "should only have modified the contigs. Quitting." >&2  
     exit 1
   elif [ $ComparisonExitStatus -ne 0 ]; then
-    echo 'Problem running' "$Code_FastaFileComparer"'. Quitting.' >&2
+    echo 'Problem running' "$Code_CheckFastaFileEquality"'. Quitting.' >&2
     exit 1
   fi
 
@@ -194,166 +194,202 @@ if [[ "$reads2" == *.gz ]]; then
   reads2="${reads2%.gz}"
 fi
 
-# Trim reads for adapters and low-quality bases
-echo 'Now trimming reads  - typically a slow step.'
-java -jar "$trimmomatic" PE -threads $NumThreadsTrimmomatic \
-"$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
-"$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
-$BaseQualityParams || { echo 'Problem running trimmomatic. Quitting.' >&2 ; \
-exit 1 ; }
+HaveModifiedReads=false
 
-# Trim reads for primers
-$FastaqSequenceTrim "$reads1trim1" "$reads2trim1" "$reads1trim2" \
-"$reads2trim2" "$primers" || \
-{ echo 'Problem running fastaq. Quitting.' >&2 ; exit 1 ; }
+# Read trimming:
+if [[ "$TrimReads" == "true" ]]; then 
 
-# We'll only work with the trimmed reads now, so rename for brevity:
-reads1="$reads1trim2"
-reads2="$reads2trim2"
-
-# List all the contigs and the HIV ones.
-# TODO: later on we assume the blast file first field has no whitespace in it...
-awk '/^>/ {print substr($1,2)}' "$RawContigsFile" | sort > "$AllContigsList"
-awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq > "$HIVContigsList"
-
-# Check there are some contigs
-NumContigs=$(wc -l "$AllContigsList" | awk '{print $1}')
-if [ "$NumContigs" -eq 0 ]; then
-  echo 'Error: there are no contigs in' "$RawContigsFile"
-  echo 'Quitting.' >&2
-  exit 1
-fi
-
-# Check that there aren't any contigs appearing in the blast file & missing from
-# the file of contigs.
-NumUnknownContigsInBlastHits=$(comm -1 -3 "$AllContigsList" "$HIVContigsList" \
-| wc -l | awk '{print $1}')
-if [ "$NumUnknownContigsInBlastHits" -ne 0 ]; then
-  echo 'Error: the following contigs are named in' "$ContigBlastFile"\
-  'but are not in' "$RawContigsFile"':'
-  comm -1 -3 "$AllContigsList" "$HIVContigsList"
-  echo 'Quitting.' >&2
-  exit 1
-fi
-
-# Find the contaminant contigs.
-ContaminantContigNames=$(comm -3 "$AllContigsList" "$HIVContigsList")
-NumContaminantContigs=$(echo $ContaminantContigNames | wc -w)
-
-# If there are no contaminant contigs, we don't need to clean.
-# We create a blank mapping file to more easily keep track of the fact that 
-# there are no contaminant reads in this case.
-if [ "$NumContaminantContigs" -eq 0 ]; then
-  echo 'There are no contaminant contigs: read cleaning unnecessary.'
-  echo -n > "$MappedContaminantReads"
-  mv "$reads1" "$cleaned1reads"
-  mv "$reads2" "$cleaned2reads"
-
-# We enter this scope if there are some contaminant contigs:
-else
-
-  # Make a blast database out of the contaminant contigs and the ref.
-  "$Code_FindSeqsInFasta" "$RawContigsFile" $ContaminantContigNames > \
-  "$RefAndContaminantContigs"
-  cat "$TheRef" >> "$RefAndContaminantContigs"
-  "$BlastDBcommand" -dbtype nucl -in "$RefAndContaminantContigs" \
-  -input_type fasta -out "$BlastDB" || \
-  { echo 'Problem creating a blast database. Quitting.' >&2 ; exit 1 ; }
-
-  # Convert fastq to fasta.
-  sed -n '1~4s/^@/>/p;2~4p' "$reads1" > "$reads1asFasta" &&
-  sed -n '1~4s/^@/>/p;2~4p' "$reads2" > "$reads2asFasta" || \
-  { echo 'Problem converting the reads from fastq to fasta. Quitting.' >&2 ; \
+  # Trim adapters and low-quality bases
+  echo 'Now trimming reads  - typically a slow step.'
+  java -jar "$trimmomatic" PE -threads $NumThreadsTrimmomatic \
+  "$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
+  "$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
+  $BaseQualityParams || { echo 'Problem running trimmomatic. Quitting.' >&2 ; \
   exit 1 ; }
 
-  # Blast the reads.
-  echo 'Now blasting the reads - typically a slow step.'
-  blastn -query "$reads1asFasta" -db "$BlastDB" -out "$reads1blast1" \
-  -max_target_seqs 1 -outfmt \
-  '10 qacc sacc sseqid evalue pident qstart qend sstart send' &&
-  blastn -query "$reads2asFasta" -db "$BlastDB" -out "$reads2blast1" \
-  -max_target_seqs 1 -outfmt \
-  '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
-  { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
+  # Trim primers
+  $FastaqSequenceTrim "$reads1trim1" "$reads2trim1" "$reads1trim2" \
+  "$reads2trim2" "$primers" || \
+  { echo 'Problem running fastaq. Quitting.' >&2 ; exit 1 ; }
 
-  # For multiple blast hits, keep the one with the highest evalue
-  # TODO: test what blast does with fasta headers that have comments in them -
-  # does it include them too?
-  sort -t, -k1,1 -k4,4g "$reads1blast1" | sort -t, -k1,1 -u --merge > \
-  "$reads1blast2"
-  sort -t, -k1,1 -k4,4g "$reads2blast1" | sort -t, -k1,1 -u --merge > \
-  "$reads2blast2"
-
-  # Find the read pairs that blast best to something other than the reference.
-  "$Code_FindContaminantReadPairs" "$reads1blast2" "$reads2blast2" "$RefName" \
-  "$BadReadsBaseName" && ls "$BadReadsBaseName"_1.txt \
-  "$BadReadsBaseName"_2.txt > /dev/null 2>&1 || \
-  { echo 'Problem finding contaminant read pairs using' \
-  "$Code_FindContaminantReadPairs. Quitting." >&2 ; exit 1 ; }
-
-  # If none of the read pairs blast better to contaminant contigs than the
-  # reference, we just duplicate the original short read files.
-  NumContaminantReadPairs=$(wc -l "$BadReadsBaseName"_1.txt | awk '{print $1}')
-  if [ "$NumContaminantReadPairs" -eq 0 ]; then
-    echo 'There are no contaminant read pairs.'
-    echo -n > "$MappedContaminantReads"
-    mv "$reads1" "$cleaned1reads"
-    mv "$reads2" "$cleaned2reads"
-
-  # We enter this scope if there are some read pairs that blast better to 
-  # contaminant contigs than the reference.
-  else
-
-    # Sort the raw reads by name. Check every read has a mate.
-    # TODO: this breaks if there's a tab in the fastq header line: grep or awk
-    # for that.
-    # TODO: this assumes that trimming two characters off the end fastq id field
-    # gives something that matches between forward & backward reads.
-    # Verify this: check that printing only the last two characters, we get only
-    # one thing from each file. Move the 'unpaired' check right to the beginning.
-    cat "$reads1" | paste - - - - | sort -k1,1 -t$'\t' | tr "\t" "\n" > \
-    "$reads1sorted"
-    cat "$reads2" | paste - - - - | sort -k1,1 -t$'\t' | tr "\t" "\n" > \
-    "$reads2sorted"
-    if ! cmp <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
-    "$reads1sorted" | sort) \
-    <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
-    "$reads2sorted" | sort); then
-      echo 'At least one read in' "$reads1" 'or' "$reads2" 'is unpaired.' \
-      'Quitting.' >&2 ; exit 1 ;
-    fi
-
-    # Extract the non-contaminant read pairs
-    mv "$BadReadsBaseName"_1.txt "$BadReadsBaseName"_1_unsorted.txt
-    mv "$BadReadsBaseName"_2.txt "$BadReadsBaseName"_2_unsorted.txt
-    sort "$BadReadsBaseName"_1_unsorted.txt > "$BadReadsBaseName"_1.txt
-    sort "$BadReadsBaseName"_2_unsorted.txt > "$BadReadsBaseName"_2.txt
-    "$Code_FindReadsInFastq" -v "$reads1sorted" "$BadReadsBaseName"_1.txt > \
-    "$cleaned1reads" &&
-    "$Code_FindReadsInFastq" -v "$reads2sorted" "$BadReadsBaseName"_2.txt > \
-    "$cleaned2reads" || \
-    { echo 'Problem extracting the non-contaminant reads using' \
-    "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
-
-    # Map the contaminant reads to the reference, to measure how useful the
-    # cleaning procedure was.
-    "$Code_FindReadsInFastq" "$reads1sorted" "$BadReadsBaseName"_1.txt > \
-    "$BadReadsBaseName"_1.fastq &&
-    "$Code_FindReadsInFastq" "$reads2sorted" "$BadReadsBaseName"_2.txt > \
-    "$BadReadsBaseName"_2.fastq || \
-    { echo 'Problem extracting the contaminant reads using' \
-    "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
-    "$samtools" faidx "$TheRef" &&
-    "$smalt" map $smaltMapOptions -o "$AllMappedContaminantReads" \
-    "$smaltIndex" "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq &&
-    "$samtools" view -bS -F 4 -t "$TheRef".fai -o "$MappedContaminantReads" \
-    "$AllMappedContaminantReads" || \
-    { echo "Problem mapping the contaminant reads to $RefName using smalt." \
-    'Quitting.' >&2 ; exit 1 ; }
-
-  fi
+  HaveModifiedReads=true
+  reads1="$reads1trim2"
+  reads2="$reads2trim2"
 fi
 
+# Read trimming:
+if [[ "$CleanReads" != "true" ]]; then
+
+  # If we have trimmed the reads, change the trimmed file name into the cleaned
+  # one: we'll be saving them at the end, so the filess shouldn't begin 'temp'.
+  # If we haven't trimmed, then just make the cleaned reads variables point to
+  # the unprocessed reads: we're not doing anything to the read files provided
+  # as input so the copy in the local dir can remain called 'temp'.
+  if $HaveModifiedReads; then
+    mv "$reads1" "$cleaned1reads"
+    mv "$reads2" "$cleaned2reads"
+  else
+    cleaned1reads="$reads1"
+    cleaned2reads="$reads2"
+  fi
+else
+
+  # List all the contigs and the HIV ones.
+  # TODO: later on we assume the blast file first field has no whitespace in it.
+  awk '/^>/ {print substr($1,2)}' "$RawContigsFile" | sort > "$AllContigsList"
+  awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq > "$HIVContigsList"
+
+  # Check there are some contigs
+  NumContigs=$(wc -l "$AllContigsList" | awk '{print $1}')
+  if [ "$NumContigs" -eq 0 ]; then
+    echo 'Error: there are no contigs in' "$RawContigsFile"
+    echo 'Quitting.' >&2
+    exit 1
+  fi
+
+  # Check that there aren't any contigs appearing in the blast file & missing from
+  # the file of contigs.
+  NumUnknownContigsInBlastHits=$(comm -1 -3 "$AllContigsList" "$HIVContigsList" \
+  | wc -l | awk '{print $1}')
+  if [ "$NumUnknownContigsInBlastHits" -ne 0 ]; then
+    echo 'Error: the following contigs are named in' "$ContigBlastFile"\
+    'but are not in' "$RawContigsFile"':'
+    comm -1 -3 "$AllContigsList" "$HIVContigsList"
+    echo 'Quitting.' >&2
+    exit 1
+  fi
+
+  # Find the contaminant contigs.
+  ContaminantContigNames=$(comm -3 "$AllContigsList" "$HIVContigsList")
+  NumContaminantContigs=$(echo $ContaminantContigNames | wc -w)
+
+  # If there are no contaminant contigs, we don't need to clean.
+  # We create a blank mapping file to more easily keep track of the fact that 
+  # there are no contaminant reads in this case.
+  if [ "$NumContaminantContigs" -eq 0 ]; then
+    echo 'There are no contaminant contigs: read cleaning unnecessary.'
+    echo -n > "$MappedContaminantReads"
+    if $HaveModifiedReads; then
+      mv "$reads1" "$cleaned1reads"
+      mv "$reads2" "$cleaned2reads"
+    else
+      cleaned1reads="$reads1"
+      cleaned2reads="$reads2"
+    fi
+
+  # We enter this scope if there are some contaminant contigs:
+  else
+
+    # Make a blast database out of the contaminant contigs and the ref.
+    "$Code_FindSeqsInFasta" "$RawContigsFile" $ContaminantContigNames > \
+    "$RefAndContaminantContigs"
+    cat "$TheRef" >> "$RefAndContaminantContigs"
+    "$BlastDBcommand" -dbtype nucl -in "$RefAndContaminantContigs" \
+    -input_type fasta -out "$BlastDB" || \
+    { echo 'Problem creating a blast database. Quitting.' >&2 ; exit 1 ; }
+
+    # Convert fastq to fasta.
+    sed -n '1~4s/^@/>/p;2~4p' "$reads1" > "$reads1asFasta" &&
+    sed -n '1~4s/^@/>/p;2~4p' "$reads2" > "$reads2asFasta" || \
+    { echo 'Problem converting the reads from fastq to fasta. Quitting.' >&2 ; \
+    exit 1 ; }
+
+    # Blast the reads.
+    echo 'Now blasting the reads - typically a slow step.'
+    blastn -query "$reads1asFasta" -db "$BlastDB" -out "$reads1blast1" \
+    -max_target_seqs 1 -outfmt \
+    '10 qacc sacc sseqid evalue pident qstart qend sstart send' &&
+    blastn -query "$reads2asFasta" -db "$BlastDB" -out "$reads2blast1" \
+    -max_target_seqs 1 -outfmt \
+    '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
+    { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
+
+    # For multiple blast hits, keep the one with the highest evalue
+    # TODO: test what blast does with fasta headers that have comments in them -
+    # does it include them too?
+    sort -t, -k1,1 -k4,4g "$reads1blast1" | sort -t, -k1,1 -u --merge > \
+    "$reads1blast2"
+    sort -t, -k1,1 -k4,4g "$reads2blast1" | sort -t, -k1,1 -u --merge > \
+    "$reads2blast2"
+
+    # Find the read pairs that blast best to something other than the reference.
+    "$Code_FindContaminantReadPairs" "$reads1blast2" "$reads2blast2" \
+    "$RefName" "$BadReadsBaseName" && ls "$BadReadsBaseName"_1.txt \
+    "$BadReadsBaseName"_2.txt > /dev/null 2>&1 || \
+    { echo 'Problem finding contaminant read pairs using' \
+    "$Code_FindContaminantReadPairs. Quitting." >&2 ; exit 1 ; }
+
+    # If none of the read pairs blast better to contaminant contigs than the
+    # reference, we just duplicate the original short read files.
+    NumContaminantReadPairs=$(wc -l "$BadReadsBaseName"_1.txt | \
+    awk '{print $1}')
+    if [ "$NumContaminantReadPairs" -eq 0 ]; then
+      echo 'There are no contaminant read pairs.'
+      echo -n > "$MappedContaminantReads"
+      if $HaveModifiedReads; then
+        mv "$reads1" "$cleaned1reads"
+        mv "$reads2" "$cleaned2reads"
+      else
+        cleaned1reads="$reads1"
+        cleaned2reads="$reads2"
+      fi
+
+    # We enter this scope if there are some read pairs that blast better to 
+    # contaminant contigs than the reference.
+    else
+
+      # Sort the raw reads by name. Check every read has a mate.
+      # TODO: this breaks if there's a tab in the fastq header line: grep or awk
+      # for that.
+      # TODO: this assumes that trimming two characters off the end fastq id field
+      # gives something that matches between forward & backward reads.
+      # Verify this: check that printing only the last two characters, we get only
+      # one thing from each file. Move the 'unpaired' check right to the beginning.
+      cat "$reads1" | paste - - - - | sort -k1,1 -t$'\t' | tr "\t" "\n" > \
+      "$reads1sorted"
+      cat "$reads2" | paste - - - - | sort -k1,1 -t$'\t' | tr "\t" "\n" > \
+      "$reads2sorted"
+      if ! cmp <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
+      "$reads1sorted" | sort) \
+      <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
+      "$reads2sorted" | sort); then
+        echo 'At least one read in' "$reads1" 'or' "$reads2" 'is unpaired.' \
+        'Quitting.' >&2 ; exit 1 ;
+      fi
+
+      # Extract the non-contaminant read pairs
+      mv "$BadReadsBaseName"_1.txt "$BadReadsBaseName"_1_unsorted.txt
+      mv "$BadReadsBaseName"_2.txt "$BadReadsBaseName"_2_unsorted.txt
+      sort "$BadReadsBaseName"_1_unsorted.txt > "$BadReadsBaseName"_1.txt
+      sort "$BadReadsBaseName"_2_unsorted.txt > "$BadReadsBaseName"_2.txt
+      "$Code_FindReadsInFastq" -v "$reads1sorted" "$BadReadsBaseName"_1.txt > \
+      "$cleaned1reads" &&
+      "$Code_FindReadsInFastq" -v "$reads2sorted" "$BadReadsBaseName"_2.txt > \
+      "$cleaned2reads" || \
+      { echo 'Problem extracting the non-contaminant reads using' \
+      "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
+
+      # Map the contaminant reads to the reference, to measure how useful the
+      # cleaning procedure was.
+      "$Code_FindReadsInFastq" "$reads1sorted" "$BadReadsBaseName"_1.txt > \
+      "$BadReadsBaseName"_1.fastq &&
+      "$Code_FindReadsInFastq" "$reads2sorted" "$BadReadsBaseName"_2.txt > \
+      "$BadReadsBaseName"_2.fastq || \
+      { echo 'Problem extracting the contaminant reads using' \
+      "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
+      "$samtools" faidx "$TheRef" &&
+      "$smalt" map $smaltMapOptions -o "$AllMappedContaminantReads" \
+      "$smaltIndex" "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq &&
+      "$samtools" view -bS -F 4 -t "$TheRef".fai -o "$MappedContaminantReads" \
+      "$AllMappedContaminantReads" || \
+      { echo "Problem mapping the contaminant reads to $RefName using smalt." \
+      'Quitting.' >&2 ; exit 1 ; }
+
+      HaveModifiedReads=true
+
+    fi
+  fi
+fi
 
 ################################################################################
 # MAP
@@ -401,6 +437,8 @@ fi
 # TODO: merge CoordsDict with BaseFreqs, like this?
 #  ~/Dropbox\ \(Infectious\ Disease\)/chris/SeqAnal/MergeBaseFreqsAndCoords.py "$BaseFreqs" "$CoordsDict" > "$CoordsDict"_wGlobal.csv; 
 
-# Zip the cleaned reads
-gzip -f "$cleaned1reads" "$cleaned2reads"
+# If we did something to the reads, zip them
+if $HaveModifiedReads; then
+  gzip -f "$cleaned1reads" "$cleaned2reads"
+fi
 

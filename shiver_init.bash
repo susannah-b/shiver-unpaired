@@ -31,6 +31,15 @@ exit 1; }
 # Remove a trailing slash, if present.
 OutDir=$(cd "$OutDir"; pwd)
 
+# Check that OutDir does not have whitespace in it
+if [[ "$OutDir" =~ ( |\') ]]; then
+  echo "Your specified directory $OutDir contains whitespace; we need to be"\
+  "able to build a blast database in there, and unfortunately, blast cannot"\
+  "handle whitespace in paths (stupid, I know). Try again with a different"\
+  "directory. Quitting." >&2
+  exit 1;
+fi
+
 # Check OutDir is empty
 if ! find "$OutDir"/ -maxdepth 0 -empty | read v; then
   echo "$OutDir is not empty. Delete or move its contents. Quitting." >&2
@@ -70,18 +79,6 @@ fi
 # Ungap RefAlignment
 "$Code_UngapFasta" "$NewRefAlignment" > "$UngappedRefs" || \
 { echo "Problem ungapping $RefAlignment. Quitting." >&2 ; exit 1; }
-
-# Check that OutDir does not have whitespace in it
-if [[ "$OutDir" =~ ( |\') ]]; then
-  echo 'Unfortunately, blast cannot handle whitespace in paths.'\
-  '(Stupid, I know.) This script therefore cannot execute the command' >&2
-  echo "$BlastDBcommand" -dbtype nucl -in "$UngappedRefs" -input_type fasta \
-  -out "$database" >&2
-  echo "You'll have to use a directory without whitespace, or else move" \
-  "$UngappedRefs to another directory, run the above command, and move its" \
-  "output back to $OutDir. Sorry about that. Quitting." >&2
-  exit 1;
-fi
 
 # Create the blast database
 "$BlastDBcommand" -dbtype nucl -in "$UngappedRefs" -input_type fasta -out \

@@ -25,8 +25,6 @@ InitDir="$1"
 ConfigFile="$2"
 ContigFile="$3"
 SID="$4"
-# NB the ConfigFile is not actually needed - it's here only so that all three
-# shiver commands take the same first two args, for ease of use.
 
 # Check InitDir exists. Remove a trailing slash, if present.
 if [ ! -d "$InitDir" ]; then
@@ -42,6 +40,7 @@ RefAlignment="$InitDir/ExistingRefAlignment.fasta"
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.bash'
 CheckFilesExist "$ContigFile" "$RefAlignment"
+source "$ConfigFile"
 
 # Check that there are some contigs, and their IDs are unique.
 ContigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigFile" | sort)
@@ -59,12 +58,8 @@ fi
 
 # The names for output files we'll produce.
 BlastFile="$SID"'.blast'
-RawContigFile="$SID"'_hiv.fasta'
-CutContigFile="$SID"'_hiv_cut.fasta'
 RawContigAlignment="$SID"'_raw_wRefs.fasta'
 CutContigAlignment="$SID"'_cut_wRefs.fasta'
-TempRawContigAlignment='temp_'"$SID"'_raw_wRefs_swap.fasta'
-TempCutContigAlignment='temp_'"$SID"'_cut_wRefs_swap.fasta'
 
 # Blast the contigs
 blastn -query "$ContigFile" -db "$BlastDatabase" -out "$BlastFile" \
@@ -104,7 +99,7 @@ if Rscript "$Code_ContigCutter" "$BlastFile" "$ContigFile" "$CutContigFile"; \
 then
 
   # The contig cutting & flipping code worked. Check if it did anything.
-  "$Code_FastaFileComparer" "$RawContigFile" "$CutContigFile"
+  "$Code_CheckFastaFileEquality" "$RawContigFile" "$CutContigFile"
   ComparisonExitStatus=$?
 
   # If the contig cutting & flipping code left the contigs untouched do nothing.

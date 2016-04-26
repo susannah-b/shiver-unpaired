@@ -86,11 +86,17 @@ if NumReads == 0:
 ClipPositionCounts = collections.Counter(ClipPositions)
 
 # Print the output
-print('Reference position, Number of reads clipped, Percentage of spanning',\
-'reads clipped')
+output = 'Reference position, Number of reads clipped, Percentage of spanning'+\
+' reads clipped'
+
 for pos, count in sorted(ClipPositionCounts.items(), key=lambda x:x[1], \
 reverse=True):
-  NumberOfSpanningReads = NumbersOfSpanningReads[pos]
-  PercentageClipped = 100 * float(count) / (count + NumberOfSpanningReads)
-  print(pos+1, count, '%.3f' % PercentageClipped, sep=',')
+  # 100% of reads overhanging the start or end of the reference are clipped.
+  if pos == 0 or pos == RefLength:
+    PercentageClipped = 100
+  else:
+    PercentageClipped = 100 * float(count) / \
+    (count + NumbersOfSpanningReads[pos])
+  output += '\n' + str(pos+1) + ',' + str(count) + ',%.3f' % PercentageClipped
 
+print(output)

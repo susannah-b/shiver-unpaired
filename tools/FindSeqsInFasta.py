@@ -125,16 +125,16 @@ if not args.match_start:
     exit(1)
 
 # Trim to the specified window and/or gap strip, if desired
-if args.window != None:
-  LeftCoord, RightCoord = args.window
-  for seq in SeqsWeWant:
+for seq in SeqsWeWant:
+  if args.window != None:
+    LeftCoord, RightCoord = args.window
     if RightCoord > len(seq.seq):
       print('A window', LeftCoord, '-', RightCoord, 'was specified but', \
       seq.id, 'is only', len(seq.seq), 'bases long. Quitting.', file=sys.stderr)
       exit(1)
     seq.seq = seq.seq[LeftCoord-1:RightCoord]
-    if args.gap_strip:
-      seq.seq = seq.seq.ungap("-").ungap("?")
+  if args.gap_strip:
+    seq.seq = seq.seq.ungap("-").ungap("?")
 
 # Skip blank sequences if desired
 if args.skip_blanks:

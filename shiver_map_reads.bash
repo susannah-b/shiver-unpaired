@@ -83,7 +83,7 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
     "$ExistingRefAlignment"'. After mapping we will not be able to produce a' \
     'version of the consensus seq suitable for a global alignment. Continuing.'
     RefIsInAlignment=false
-  elif [ $ComparisonExitStatus -neq 0 ]; then
+  elif [ $ComparisonExitStatus -ne 0 ]; then
     echo 'Problem running' "$Code_CheckFastaFileEquality"'. Quitting.' >&2
     exit 1
   fi 
@@ -173,7 +173,11 @@ fi
 
 # Index the ref
 "$smalt" index $smaltIndexOptions "$smaltIndex" "$TheRef" || \
-{ echo 'Problem indexing the refererence with smalt. Quitting.' >&2 ; exit 1 ; }  
+{ echo 'Problem indexing the refererence with smalt. Quitting.' >&2 ; exit 1 ; }
+# TODO: check that the following line should be here.
+"$samtools" faidx "$TheRef" || \
+{ echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+exit 1 ; }
 
 
 ################################################################################
@@ -200,7 +204,7 @@ HaveModifiedReads=false
 if [[ "$TrimReads" == "true" ]]; then 
 
   # Trim adapters and low-quality bases
-  echo 'Now trimming reads  - typically a slow step.'
+  echo 'Now trimming reads - typically a slow step.'
   java -jar "$trimmomatic" PE -threads $NumThreadsTrimmomatic \
   "$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
   "$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
@@ -377,7 +381,7 @@ else
       "$BadReadsBaseName"_2.fastq || \
       { echo 'Problem extracting the contaminant reads using' \
       "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
-      "$samtools" faidx "$TheRef" &&
+      #"$samtools" faidx "$TheRef" &&
       "$smalt" map $smaltMapOptions -o "$AllMappedContaminantReads" \
       "$smaltIndex" "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq &&
       "$samtools" view -bS -F 4 -t "$TheRef".fai -o "$MappedContaminantReads" \

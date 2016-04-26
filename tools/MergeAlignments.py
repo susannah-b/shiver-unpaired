@@ -219,14 +219,15 @@ if args.log_file != None:
   with open(args.log_file, 'w') as f:
     f.write(TranslationRecord)
 
-# Where NoCoverageChars neighbour GapChars, propagate the former outwards until
-# they touch bases on both sides (because insertions should only be called when
-# the bases on either side are known). e.g.
-# ACTG---?---ACTG
-# becomes
-# ACTG???????ACTG
 def PropagateNoCoverageChar(seq, LeftToRightDone=False):
-  '''Replaces gaps that border "no coverage" by "no coverage".'''
+  '''Replaces gaps that border "no coverage" by "no coverage".
+
+  Where NoCoverageChars neighbour GapChars, propagate the former outwards until
+  they touch bases on both sides (because insertions should only be called when
+  the bases on either side are known). e.g.
+  ACTG---?---ACTG
+  becomes
+  ACTG???????ACTG'''
   
   if LeftToRightDone:
     seq = seq[::-1]

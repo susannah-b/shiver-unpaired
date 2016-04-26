@@ -49,6 +49,7 @@ smaltMapOptions="-x -y 0.75 -j 0 -i 2000"
 # for a discussion. The flags used below mean unmapped reads are excluded (-F 4)
 # and only properly aligned pairs are kept (-f 3).
 samtoolsReadFlags='-f 3 -F 4'
+
 # See http://www.htslib.org/doc/samtools.html for a description of samtools
 # mpileup options. Those used below mean that the minimum of the base quality
 # the 'BAQ' quantity (see http://samtools.sourceforge.net/mpileup.shtml for an

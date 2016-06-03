@@ -1,5 +1,21 @@
 #!/usr/bin/env bash
 
+UsageInstructions=$(echo '
+Arguments for this script:
+(1) the initialisation directory you created using the shiver_init.bash command;
+(2) the configuration file, containing all your parameter choices etc.;
+(3) a fasta file of contigs (output from processing the short reads with an
+assembly program);
+(4) A sample ID ("SID") used for naming the output from this script (a sensible
+choice might be the contig file name minus its path and extension);
+(5) the blast file created by the shiver_align_contigs.bash command;
+(6) either the alignment of contigs to refs produced by the
+shiver_align_contigs.bash command, or a fasta file containing a single reference
+to be used for mapping;
+(7) the forward reads;
+(8) the reverse reads.
+')
+
 set -u
 
 ################################################################################
@@ -8,6 +24,7 @@ set -u
 # Check for the right number of arguments. Assign them to variables.
 NumArgsExpected=8
 if [ "$#" -ne "$NumArgsExpected" ]; then
+  echo $UsageInstructions
   echo "$#" 'arguments specified;' "$NumArgsExpected" 'expected. Quitting' >&2
   exit 1
 fi

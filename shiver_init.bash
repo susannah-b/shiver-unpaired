@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 
+UsageInstructions=$(echo '
+Arguments for this script:
+(1) an output directory for the initialisation files.
+(2) the configuration file, containing all your parameter choices etc.;
+(3) your chosen alignment of references;
+(4) a fasta file of the adapters used in sequencing;
+(5) a fasta file of the primers used in sequencing.
+')
+
 set -u
 
 # Check for the right number of arguments. Assign them to variables.
 NumArgsExpected=5
 if [ "$#" -ne "$NumArgsExpected" ]; then
+  echo $UsageInstructions
   echo "$#" 'arguments specified;' "$NumArgsExpected" 'expected. Quitting' >&2
   exit 1
 fi
@@ -20,13 +30,15 @@ source "$ThisDir"/'shiver_funcs.bash'
 CheckFilesExist "$ConfigFile" "$RefAlignment"
 source "$ConfigFile"
 
-# TODO: sanity checks on ConfigFile, e.g. MinCov2 >= MinCov1
+# TODO: sanity checks on ConfigFile, e.g. MinCov2 >= MinCov1, as a function that
+# gets called with this step and subsequent steps (since the config file could
+# change).
 
 # If OutDir does not exist, try to create it.
 if [ ! -d "$OutDir" ]; then
   mkdir "$OutDir"
-fi || { echo 'Unable to create the specified output directory. Quitting.' >&2 ;\
-exit 1; }
+fi || { echo 'Unable to create the specified output directory. (NB it should' \
+'not exist already.) Quitting.' >&2 ; exit 1; }
 
 # Remove a trailing slash, if present.
 OutDir=$(cd "$OutDir"; pwd)
@@ -63,7 +75,8 @@ cp "$primers" "$OutDir"/'primers.fasta'
 # List all names in the reference alignment
 awk '/^>/ {print substr($1,2)}' "$NewRefAlignment" | sort > "$RefList"
 
-# Check that RefAlignment has some sequences, and that their IDs are unique.
+# Check that RefAlignment has some sequences, that their IDs are unique, and
+# that their IDs don't contain commas.
 NumRefs=$(wc -l "$RefList" | awk '{print $1}')
 if [[ $NumRefs -eq 0 ]]; then
   echo "$RefAlignment contains no sequences. Quitting." >&2
@@ -75,6 +88,11 @@ if [[ $NumUniqueIDs -ne $NumRefs ]]; then
   'these and try again. Quitting.' >&2
   exit 1;
 fi
+RefNames=$(cat "$RefList")
+if [[ "$RefNames" == *","* ]]; then
+  echo "Reference names must not contain commas. Quitting."
+  exit 1
+fi
 
 # Ungap RefAlignment
 "$Code_UngapFasta" "$NewRefAlignment" > "$UngappedRefs" || \
@@ -85,3 +103,12 @@ fi
 "$database" || \
 { echo 'Problem creating a blast database out of' \
 "$OutDir/ExistingRefsUngapped.fasta. Quitting." >&2 ; exit 1; }
+
+# Make a set of files each containing one (ungapped) sequence from the reference
+# alignment.
+IndividualRefDir="$OutDir"/'IndividualRefs'
+mkdir -p "$IndividualRefDir" || \
+{ echo "Problem making the directory $IndividualRefDir. Quitting." >&2 ; \
+exit 1; }
+"$Code_SplitFasta" -G "$RefAlignment" "$IndividualRefDir" || { echo "Problem" \
+"splitting $RefAlignment into one file per sequence. Quitting." >&2 ; exit 1; }

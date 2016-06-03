@@ -4,54 +4,67 @@ from __future__ import print_function
 ## Author: Chris Wymant, c.wymant@imperial.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251 
 ##
-## Overview: we construct the optimal reference for a given sample by flattening
-## its (de novo assembled) contigs with a set of references.
-## How it works:
-## * We flatten the contigs, taking the base of the longest one where they
-## disagree (expecting that the de novo assembly makes the longest contig first
-## with the dominant i.e. most numerous set of short reads).
-## * We compare every reference to the flattened contigs and count the number of
-## agreeing bases. The comparison is not done in the gaps between contigs nor
-## before/after the reference/contigs. When we are inside a contig and inside
-## the reference, however, gaps count - here they are taken to represent a
-## genuine deletion, so the gap character holds equal footing with a base.
-## * Starting with the reference with the highest score, we elongate it both
-## directions using references or progressively lower scores. We stop when both
-## edges reach the edges of the alignment, or when a reference is reached which
-## has a score of zero. This defines the elongated best reference.
-## * We fill in gaps before, between and after (but not within) the contigs
-## using the elongated best reference. This defines the constructed best
-## reference.
-##
+## Overview
+ExplanatoryMessage = '''We construct the optimal reference for a given sample by
+flattening its (de novo assembled) contigs with a set of references.
+How it works:
+(1) We flatten the contigs, taking the base of the longest one where they disagree
+(expecting that the de novo assembly makes the longest contig first with the
+dominant i.e. most numerous set of short reads).
+(2) We compare every reference to the flattened contigs and count the number of
+agreeing bases. The comparison is not done in the gaps between contigs nor
+before/after the reference/contigs. When we are inside a contig and inside the
+reference, however, gaps count - here they are taken to represent a genuine
+deletion, so the gap character holds equal footing with a base.
+(3) Starting with the reference with the highest score, we elongate it both
+directions using references or progressively lower scores. We stop when both
+edges reach the edges of the alignment, or when a reference is reached which has
+a score of zero. This defines the elongated best reference.
+(4) We fill in gaps before, between and after (but not within) the contigs using
+the elongated best reference. This defines the constructed best reference.
+'''
+
 ################################################################################
 ## USER INPUT
 # The character that indicates a gap (missing base). If there are multiple such
 # characters, put the one to be used in the output first.
-GapChars = '-.?'
+GapChars = '-?'
 # Excise unique insertions present in the contigs but not any of the references?
 ExciseUniqueInsertions = False
 ################################################################################
 
 FloatComparisonTolerance = 1e-6
 
-import os.path, sys, collections
+import os.path
+import sys
+import collections
+import argparse
 from string import maketrans
 from AuxiliaryFunctions import ReadSequencesFromFile
 
-# Check this file is called from the command line with the correct number of
-# arguments.
-if len(sys.argv) < 3:
-  print('Incorrect number of arguments given.\n'+\
-  'Usage:\n', sys.argv[0], 'AlignmentFile NameOfContig1',\
-  '[NameOfContig2...]', file=sys.stderr)
-  exit(1)
-AlignmentFile = sys.argv[1]
-ContigNames = sys.argv[2:]
+# Define a function to check files exist, as a type for the argparse.
+def File(MyFile):
+  if not os.path.isfile(MyFile):
+    raise argparse.ArgumentTypeError(MyFile+' does not exist or is not a file.')
+  return MyFile
 
-# Check input data files exist and are files
-if not os.path.isfile(AlignmentFile):
-  print(AlignmentFile, 'does not exist or is not a file.', file=sys.stderr)
-  exit(1)
+# Set up the arguments for this script
+parser = argparse.ArgumentParser(description=ExplanatoryMessage)
+parser.add_argument('FastaFile', type=File)
+parser.add_argument('ContigName', nargs='+')
+parser.add_argument('-P', '--print-best-score', action='store_true', \
+help='Simply print the fractional identity and the name of the reference ' +\
+'with the highest fractional identity, then exit.')
+parser.add_argument('-S1', '--summarise-contigs-1', action='store_true', \
+help='Simply print the length and gap fraction of each contig, then exit.')
+parser.add_argument('-S2', '--summarise-contigs-2', action='store_true', \
+help='Simply print the length and gap fraction of each contig in an alignment'+\
+' in which only the best reference is kept with the contigs (i.e. all other ' +\
+'references are discarded, then pure-gap columns are removed), then exit.')
+args = parser.parse_args()
+AlignmentFile = args.FastaFile
+ContigNames = args.ContigName
+
 
 # Check all contig names are unique
 CounterObject = collections.Counter(ContigNames)
@@ -95,7 +108,7 @@ if len(GapChars) > 1:
     RefDict[SeqName] = seq.translate(maketrans(OtherGapChars,GapCharRepeat))
 
 # A function we'll need more than once:
-def FindSeqStartAndEnd(SeqName,seq):
+def FindSeqStartAndEnd(SeqName, seq, AlignmentLength):
   '''Find the 0-based positions of the start and end of the sequence.'''
   StartOfSeq = 0
   try:
@@ -118,7 +131,8 @@ ContigLengths = {}
 ContigGapFractions = {}
 TotalGapsInContigs = 0
 for ContigName,ContigSeq in ContigDict.items():
-  StartOfContig, EndOfContig = FindSeqStartAndEnd(ContigName, ContigSeq)
+  StartOfContig, EndOfContig = FindSeqStartAndEnd(ContigName, ContigSeq, \
+  AlignmentLength)
   ContigStartsAndEnds[ContigName] = [StartOfContig,EndOfContig]
   NumGapsInAlignedContig = ContigSeq.count(GapChar)
   NumInternalGaps = ContigSeq[StartOfContig:EndOfContig+1].count(GapChar)
@@ -126,6 +140,11 @@ for ContigName,ContigSeq in ContigDict.items():
   ContigLengths[ContigName] = AlignmentLength -NumGapsInAlignedContig
   ContigGapFractions[ContigName] = \
   float(NumInternalGaps)/(EndOfContig+1 - StartOfContig)
+
+if args.summarise_contigs_1:
+  for ContigName, length in ContigLengths.items():
+    print(length, ContigGapFractions[ContigName])
+  exit(0)
 
 #print(' '.join(map(str, sorted(ContigGapFractions.values(), reverse=True) )))
 #print(float(TotalGapsInContigs)/sum(ContigLengths.values()))
@@ -139,8 +158,8 @@ for [ContigStart,ContigEnd] in ContigStartsAndEnds.values():
 StartOfFirstContig = min(AllContigStarts)
 EndOfLastContig = max(AllContigEnds)
 
-GappiestContigName, GapFraction = \
-sorted(ContigGapFractions.items(), key=lambda x:x[1], reverse=True)[0]
+#GappiestContigName, GapFraction = \
+#sorted(ContigGapFractions.items(), key=lambda x:x[1], reverse=True)[0]
 
 # Flatten the contigs.
 # Repeat the gap character until the start of the first contig.
@@ -217,7 +236,7 @@ ListOfRefsAndScores = []
 for RefName,RefSeq in RefDict.items():
   NumBasesAgreeing = 0
   OverlapLength = 0
-  StartOfRef, EndOfRef = FindSeqStartAndEnd(RefName, RefSeq)
+  StartOfRef, EndOfRef = FindSeqStartAndEnd(RefName, RefSeq, AlignmentLength)
   for position in range(StartOfRef, EndOfRef+1):
     if ContigCoverageByPosition[position] > 0:
       OverlapLength += 1
@@ -241,10 +260,38 @@ if all(item[3] < FloatComparisonTolerance for item in ListOfRefsAndScores):
 ListOfRefsAndScores = sorted(ListOfRefsAndScores, key=lambda x:x[3], \
 reverse=True)
 
+BestRefName, BestRefStart, BestRefEnd, BestRefScore = ListOfRefsAndScores[0]
+
+if args.print_best_score:
+  print(BestRefScore, BestRefName)
+  exit(0)
+
+if args.summarise_contigs_2:
+  ContigsWithBestRef = [RefDict[BestRefName]] + ContigDict.values()
+  NumSeqs = len(ContigsWithBestRef)
+  for column in xrange(AlignmentLength-1,-1,-1):
+    if all(seq[column] == '-' for seq in ContigsWithBestRef):
+      for i in range(NumSeqs):
+        ContigsWithBestRef[i] = ContigsWithBestRef[i][:column] + \
+        ContigsWithBestRef[i][column+1:]
+  ThisAlignmentLength = len(ContigsWithBestRef[0])
+  assert all(len(seq) == ThisAlignmentLength for seq in ContigsWithBestRef)
+  #for i in range(NumSeqs):
+  #  print('>'+str(i+1))
+  #  print(ContigsWithBestRef[i])
+  GapFracsAndLengths = []
+  for contig in ContigsWithBestRef[1:]:
+    start, end = FindSeqStartAndEnd('contig', contig, ThisAlignmentLength)
+    NumGaps = contig[start:end+1].count('-')
+    GapFrac = float(NumGaps)/(end - start + 1)
+    Length = end - start + 1 - NumGaps
+    GapFracsAndLengths.append(str(Length) +',' + str(GapFrac))
+  print('\n'.join(GapFracsAndLengths))
+  exit(0)
+
 # Start with the best ref, and iteratively extend it using longer references
 # with lower scores. Break if we reach a reference with zero score, or if our
 # construct becomes as long as the alignment.
-BestRefName, BestRefStart, BestRefEnd, BestRefScore = ListOfRefsAndScores[0]
 ElongatedRef = RefDict[BestRefName]
 ElongatedRefStart, ElongatedRefEnd = BestRefStart, BestRefEnd
 for RefName, StartOfRef, EndOfRef, NumBasesAgreeing in ListOfRefsAndScores[1:]:

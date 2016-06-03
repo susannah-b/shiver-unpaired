@@ -1,23 +1,28 @@
 #!/usr/bin/env bash
 
-# Arguments for this script:
-# 2) a fasta file of contigs (output from processing the short reads with an
-# assembly program),
-# 3) A sample ID ('SID') used for naming the output from this script (a sensible
-# choice might be the contig file name minus its path and extension).
-# If this script completes successfully it will produce a .blast file (detailing
-# the contigs that have blast hits). If the .blast file is not empty it will
-# produce a fasta file of those contigs with hits and another fasta file of
-# these contigs aligned to the refereces; if cutting and/or reversing of contigs
-# is necessary, two more fasta files are produced - the cut/reversed contigs on
-# their own and also aligned to references (i.e. there will be two files of the
-# contigs on their own and two files of the contigs aligned to references).
+UsageInstructions=$(echo '
+Arguments for this script:
+(1) the initialisation directory you created using the shiver_init.bash command;
+(2) the configuration file, containing all your parameter choices etc.;
+(3) a fasta file of contigs (output from processing the short reads with an
+assembly program);
+(4) A sample ID ("SID") used for naming the output from this script (a sensible
+choice might be the contig file name minus its path and extension).
+If this script completes successfully it will produce a .blast file (detailing
+the contigs that have blast hits). If the .blast file is not empty it will
+produce a fasta file of those contigs with hits and another fasta file of
+these contigs aligned to the refereces; if cutting and/or reversing of contigs
+is necessary, two more fasta files are produced - the cut/reversed contigs on
+their own and also aligned to references (i.e. there will be two files of the
+contigs on their own and two files of the contigs aligned to references).
+')
 
 set -u
 
 # Check for the right number of arguments. Assign them to variables.
 NumArgsExpected=4
 if [ "$#" -ne "$NumArgsExpected" ]; then
+  echo $UsageInstructions
   echo "$#" 'arguments specified;' "$NumArgsExpected" 'expected. Quitting' >&2
   exit 1
 fi
@@ -42,7 +47,8 @@ source "$ThisDir"/'shiver_funcs.bash'
 CheckFilesExist "$ContigFile" "$RefAlignment"
 source "$ConfigFile"
 
-# Check that there are some contigs, and their IDs are unique.
+# Check that there are some contigs, that their IDs are unique, and that their
+# IDs don't contain commas.
 ContigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigFile" | sort)
 NumContigs=$(echo "$ContigNames" | wc -w)
 if [[ $NumContigs -eq 0 ]]; then
@@ -54,6 +60,10 @@ if [[ $NumUniqueIDs -ne $NumContigs ]]; then
   echo "$ContigFile contains some identically named sequences. Rename"\
   'these and try again. Quitting.' >&2
   exit 1;
+fi
+if [[ "$ContigNames" == *","* ]]; then
+  echo "Contig names must not contain commas. Quitting."
+  exit 1
 fi
 
 # The names for output files we'll produce.

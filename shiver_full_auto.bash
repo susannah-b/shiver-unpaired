@@ -72,7 +72,7 @@ TheRef="$SID$OutputRefSuffix"
 # Blast the contigs
 blastn -query "$ContigFile" -db "$BlastDatabase" -out "$BlastFile" \
 -max_target_seqs 1 -outfmt \
-'10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
+'10 qseqid sseqid evalue pident qlen qstart qend sstart send' || \
 { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
 
 # If there are no blast hits, nothing needs doing. Exit.
@@ -90,26 +90,12 @@ HIVcontigNames=$(awk -F, '{print $1}' "$BlastFile" | sort | uniq)
 
 # Run the contig cutting & flipping code. Check it works, and quit if it thinks
 # the contigs need correcting.
-if Rscript "$Code_ContigCutter" "$BlastFile" "$ContigFile" "$CutContigFile"; \
-then
-  "$Code_CheckFastaFileEquality" "$RawContigFile" "$CutContigFile"
-  ComparisonExitStatus=$?
-  if [ $ComparisonExitStatus -eq 111 ]; then
-    echo "The contigs in $ContigFile appear to need correcting. Fully" \
-    "automatic processing not possible. Quitting."
-    exit 1
-  elif [ $ComparisonExitStatus -ne 0 ]; then
-    echo "Problem running $Code_FastaFileComparer. Quitting." >&2
-    exit 1
-  fi  
-else
-  echo "Error encountered running $Code_ContigCutter. Quitting."
-  exit 1
-fi
+"$Code_CorrectContigs" "$BlastFile" --min-hit-frac "$MinContigHitFrac" || \
+{ echo "The contigs in $ContigFile appear to need correcting. (Or a problem" \
+"was encountered running $Code_CorrectContigs.) Fully automatic processing" \
+"not possible. Quitting." ; exit 1 ; }
 
-# TODO: rm will no longer be necessary when the contig cutter is re-written.
-rm "$CutContigFile"
-
+# Prepare to iterate through all existing references
 mkdir "$ContigAlignmentsToRefsDir" || \
 { echo "Problem making the directory" "$ContigAlignmentsToRefsDir. (NB it" \
 "should not exist already.) Quitting." >&2; exit 1; }
@@ -117,6 +103,8 @@ echo -n '' > "$RefMatchLog"
 NumRefs=$(ls "$InitDir"/'IndividualRefs'/*'.fasta' | wc -l)
 CurrentRef=0
 OldMafft=false
+
+# Iterate through all existing references
 for ref in "$InitDir"/'IndividualRefs'/*'.fasta'; do
 
   CurrentRef=$((CurrentRef+1))

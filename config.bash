@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
 ################################################################################
+# Two options only needed for the fully automatic version: the maximum allowed
+# percentage of gaps inside contigs when aligned to their closest reference (too
+# much gap content indicates misalignment, rather than deletions), and the
+# minimum fraction of a contig's length that blasts to HIV.
+MaxContigGappiness=0.05
+MinContigHitFrac=0.9
+
 # What do you have to type into the command line to make these commands execute?
 # (If the binary file lives in a directory that is not included in your $PATH
 # variable, you will need to include the path here.)
@@ -75,6 +82,7 @@ CoordsDictSuffix='_coords.csv'
 CleanedReads1Suffix='_clean_1.fastq' # .gz will be added when they're zipped
 CleanedReads2Suffix='_clean_2.fastq' # .gz will be added when they're zipped
 GlobalAlnSuffix='_ForGlobalAln.fasta'
+BestContigToRefAlignmentSuffix='_ContigsAndBestRef.fasta' # only for fully auto.
 ################################################################################
 # The names of temporary files we'll create in the working directory.
 # If you change the extension, you may well break something.
@@ -118,3 +126,6 @@ reads2trim2='temp_reads2trim2.fastq'
 reads1trimmings='temp_trimmings1.fastq'
 reads2trimmings='temp_trimmings2.fastq'
 AlignmentForTesting='temp_test.fasta'
+ContigsWith1ref='temp_ContigsWith1ref.fasta'
+RefMatchLog='temp_RefMatchLog.txt'
+ContigAlignmentsToRefsDir='temp_ContigAlignmentsToRefsDir' # no whitespace!

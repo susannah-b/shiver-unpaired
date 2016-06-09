@@ -74,7 +74,7 @@ CutContigAlignment="$SID"'_cut_wRefs.fasta'
 # Blast the contigs
 blastn -query "$ContigFile" -db "$BlastDatabase" -out "$BlastFile" \
 -max_target_seqs 1 -outfmt \
-'10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
+'10 qseqid sseqid evalue pident qlen qstart qend sstart send' || \
 { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
 
 # If there are no blast hits, nothing needs doing. Exit.

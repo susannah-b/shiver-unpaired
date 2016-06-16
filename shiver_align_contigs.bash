@@ -90,43 +90,16 @@ HIVcontigNames=$(awk -F, '{print $1}' "$BlastFile" | sort | uniq)
 "$Code_FindSeqsInFasta" "$ContigFile" $HIVcontigNames > "$RawContigFile" || \
 { echo 'Problem extracting the HIV contigs. Quitting.' >&2 ; exit 1 ; }
 
-# ...and align them to the refs.
-# TODO: try mafft --addfragments. If it works, take the alignment with the least
-# gappy contigs.
-# TODO: name the alignments with SID, not temp.
-mafft --quiet --add "$RawContigFile" "$RefAlignment" \
-> "$TempRawContigAlignment" || \
-{ echo 'Problem aligning' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
+# ... and align them.
+OldMafft=false
+AlignContigs "$RawContigFile" "$RawContigAlignment" "$OldMafft"
 
-# Swap the contigs from after the references to before them, for easier visual
-# inspection.
-NumRefs=$(grep -e '^>' "$RefAlignment" | wc -l)
-ContigsStartLine=$(awk '/^>/ {N++; if (N=='$((NumRefs+1))') {print NR; exit}}' \
-"$TempRawContigAlignment")
-tail -n +"$ContigsStartLine" "$TempRawContigAlignment" > "$RawContigAlignment"
-head -n "$((ContigsStartLine-1))" "$TempRawContigAlignment" >> \
-"$RawContigAlignment"
-
-# Run the contig cutting & flipping code.
+# Run the contig cutting & flipping code
 "$Code_CorrectContigs" "$BlastFile" -C "$ContigFile" -O "$CutContigFile" || \
 { echo "Problem encountered running $Code_CorrectContigs. Quitting." ; exit 1; }
 
 # If the contigs needed cutting and/or flipping: align the modified contigs.
 if [[ -f "$CutContigFile" ]]; then
-
-  # If the contig cutting & flipping code modified the contigs, align them.
-  mafft --quiet --add "$CutContigFile" "$RefAlignment" \
-  > "$TempCutContigAlignment" || \
-  { echo 'Problem aligning' "$CutContigFile"'. Quitting.' >&2 ; exit 1 ; }
-
-  # Swap the contigs from after the references to before them.
-  ContigsStartLine=$(awk \
-  '/^>/ {N++; if (N=='$((NumRefs+1))') {print NR; exit}}' \
-  "$TempCutContigAlignment")
-  tail -n +"$ContigsStartLine" "$TempCutContigAlignment" > \
-  "$CutContigAlignment"
-  head -n "$((ContigsStartLine-1))" "$TempCutContigAlignment" >> \
-  "$CutContigAlignment"
-
+  AlignContigs "$CutContigFile" "$CutContigAlignment" "$OldMafft"
 fi
 

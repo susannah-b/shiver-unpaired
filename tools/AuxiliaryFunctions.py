@@ -127,7 +127,7 @@ def ReadSequencesFromFile(DataFile,IsAlignment=True):
       # been encountered, then start an empty string to which we'll append the
       # sequence contained in subsequent lines of the file.
       if ThisLine[0] == '>':
-        NameOfCurrentSequence = ThisLine[1:].strip()
+        NameOfCurrentSequence = ThisLine[1:].split()[0]
         if NameOfCurrentSequence in AllSequences:
           print('Found a second sequence titled', NameOfCurrentSequence+\
           '; sequence names should be unique.\nQuitting.', file=sys.stderr)
@@ -199,7 +199,7 @@ def ReadSequencesFromFile_ordered(DataFile,IsAlignment=True):
       # been encountered, then start an empty string to which we'll append the
       # sequence contained in subsequent lines of the file.
       if ThisLine[0] == '>':
-        NameOfCurrentSequence = ThisLine[1:].strip()
+        NameOfCurrentSequence = ThisLine[1:].split()[0]
         AllSequences.append([NameOfCurrentSequence,''])
         HaveReachedFirstSequence = True
         continue

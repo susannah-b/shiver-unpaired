@@ -88,8 +88,8 @@ BestContigToRefAlignmentSuffix='_ContigsAndBestRef.fasta' # only for fully auto.
 # If you change the extension, you may well break something.
 RawContigFile='temp_HIVcontigs_raw.fasta'
 CutContigFile='temp_HIVcontigs_cut.fasta'
-TempRawContigAlignment='temp_HIVcontigs_raw_wRefs_swap.fasta'
-TempCutContigAlignment='temp_HIVcontigs_cut_wRefs_swap.fasta'
+TempContigAlignment1='temp_HIVcontigs_wRefs_swap_1.fasta'
+TempContigAlignment2='temp_HIVcontigs_wRefs_swap_2.fasta'
 TempRefAlignment='temp_RefAlignment.fasta'
 GappyRefWithExtraSeq='temp_GappyRefWithExtraSeq.fasta'
 FlattenedContigs='temp_FlattenedContigs.fasta'

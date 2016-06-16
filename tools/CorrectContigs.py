@@ -130,6 +130,7 @@ if len(HitDict) == 0:
   print(args.BlastFile, 'contains no hits. Quitting.', file=sys.stderr)
   exit(1)
 
+CorrectionsNeeded = False
 for contig, hits in HitDict.items():
 
   # Where a contig has one hit contained entirely inside another, remove the
@@ -162,11 +163,13 @@ for contig, hits in HitDict.items():
 
     # If we're only checking (not correcting) and there are multiple hits or
     # a reverse hit or a too small hit, quit.
-    if not MakeCorrections and len(hits) > 1:
-      print('Contig correction required (contig', contig, 'has multiple hits,',\
-      'after removing any that are fully contained within another). Quitting.',\
-      file=sys.stderr)
-      exit(1)
+    if len(hits) > 1:
+      if not MakeCorrections:
+        print('Contig correction required (contig', contig, 'has multiple hits,',\
+        'after removing any that are fully contained within another). Quitting.',\
+        file=sys.stderr)
+        exit(1)
+      CorrectionsNeeded = True
   FirstHit = hits[0]
   qseqid, sseqid, evalue, pident, qlen, qstart, qend, sstart, send = FirstHit
   HitFrac = float(qend - qstart + 1) / qlen
@@ -177,15 +180,18 @@ for contig, hits in HitDict.items():
     HitFrac, "which is below the specified --min-hit-frac of", \
     str(args.min_hit_frac) + "). Quitting.", file=sys.stderr)
     exit(1)
-  if not MakeCorrections and sstart > send:
-    print('Contig correction required (the hit\n', \
-    ' '.join(map(str, FirstHit)), '\nfor contig', contig + \
-    "is in the reverse direction). Quitting.", file=sys.stderr)
-    exit(1)
+  if sstart > send:
+    if not MakeCorrections:
+      print('Contig correction required (the hit\n', \
+      ' '.join(map(str, FirstHit)), '\nfor contig', contig + \
+      "is in the reverse direction). Quitting.", file=sys.stderr)
+      exit(1)
+    CorrectionsNeeded = True
 
-# If we're only checking (not correcting), quit successfully.
-if not MakeCorrections:
-  print(args.BlastFile, 'seems fine. Quitting successfully.', file=sys.stderr)
+# If no corrections are needed, quit successfully.
+if not CorrectionsNeeded:
+  print('No contig correction needed for', args.BlastFile + '.', \
+  file=sys.stderr)
   exit(0)
 
 # Read in the contigs

@@ -91,6 +91,9 @@ HIVcontigNames=$(awk -F, '{print $1}' "$BlastFile" | sort | uniq)
 { echo 'Problem extracting the HIV contigs. Quitting.' >&2 ; exit 1 ; }
 
 # ...and align them to the refs.
+# TODO: try mafft --addfragments. If it works, take the alignment with the least
+# gappy contigs.
+# TODO: name the alignments with SID, not temp.
 mafft --quiet --add "$RawContigFile" "$RefAlignment" \
 > "$TempRawContigAlignment" || \
 { echo 'Problem aligning' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
@@ -105,38 +108,25 @@ head -n "$((ContigsStartLine-1))" "$TempRawContigAlignment" >> \
 "$RawContigAlignment"
 
 # Run the contig cutting & flipping code.
-if Rscript "$Code_ContigCutter" "$BlastFile" "$ContigFile" "$CutContigFile"; \
-then
+"$Code_CorrectContigs" "$BlastFile" -C "$ContigFile" -O "$CutContigFile" || \
+{ echo "Problem encountered running $Code_CorrectContigs. Quitting." ; exit 1; }
 
-  # The contig cutting & flipping code worked. Check if it did anything.
-  "$Code_CheckFastaFileEquality" "$RawContigFile" "$CutContigFile"
-  ComparisonExitStatus=$?
-
-  # If the contig cutting & flipping code left the contigs untouched do nothing.
-  if [ $ComparisonExitStatus -eq 0 ]; then
-    echo 'No cutting or flipping was necessary for the contigs.'
-    # TODO: rm will no longer be necessary when the contig cutter is re-written.
-    rm "$CutContigFile"
+# If the contigs needed cutting and/or flipping: align the modified contigs.
+if [[ -f "$CutContigFile" ]]; then
 
   # If the contig cutting & flipping code modified the contigs, align them.
-  elif [ $ComparisonExitStatus -eq 111 ]; then
-    mafft --quiet --add "$CutContigFile" "$RefAlignment" \
-    > "$TempCutContigAlignment" || \
-    { echo 'Problem aligning' "$CutContigFile"'. Quitting.' >&2 ; exit 1 ; }
+  mafft --quiet --add "$CutContigFile" "$RefAlignment" \
+  > "$TempCutContigAlignment" || \
+  { echo 'Problem aligning' "$CutContigFile"'. Quitting.' >&2 ; exit 1 ; }
 
-    # Swap the contigs from after the references to before them.
-    ContigsStartLine=$(awk '/^>/ {N++; if (N=='$((NumRefs+1))')'\
-    '{print NR; exit}}' "$TempCutContigAlignment")
-    tail -n +"$ContigsStartLine" "$TempCutContigAlignment" > \
-    "$CutContigAlignment"
-    head -n "$((ContigsStartLine-1))" "$TempCutContigAlignment" >> \
-    "$CutContigAlignment"
+  # Swap the contigs from after the references to before them.
+  ContigsStartLine=$(awk \
+  '/^>/ {N++; if (N=='$((NumRefs+1))') {print NR; exit}}' \
+  "$TempCutContigAlignment")
+  tail -n +"$ContigsStartLine" "$TempCutContigAlignment" > \
+  "$CutContigAlignment"
+  head -n "$((ContigsStartLine-1))" "$TempCutContigAlignment" >> \
+  "$CutContigAlignment"
 
-  else
-    echo 'Problem running' "$Code_FastaFileComparer"'. Quitting.' >&2
-    exit 1
-  fi  
-
-else
-  echo 'Error encountered running' "$Code_ContigCutter"
 fi
+

@@ -238,7 +238,7 @@ for ContigName, hits in HitDict.items():
     StartPoints = [hit[5] for hit in hits]
     assert len(StartPoints) == len(set(StartPoints)), \
     'Internal error cutting contigs. Please report to the code author.'
-    hits = sorted(hits, key=lambda x:x[3])
+    hits = sorted(hits, key=lambda x:x[5])
 
     for i, hit in enumerate(hits):
 

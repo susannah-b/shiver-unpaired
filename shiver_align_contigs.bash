@@ -87,12 +87,13 @@ fi
 
 # Extract those contigs that have a blast hit...
 HIVcontigNames=$(awk -F, '{print $1}' "$BlastFile" | sort | uniq)
-"$Code_FindSeqsInFasta" "$ContigFile" $HIVcontigNames > "$RawContigFile" || \
+"$Code_FindSeqsInFasta" "$ContigFile" $HIVcontigNames > "$RawContigFile1" || \
 { echo 'Problem extracting the HIV contigs. Quitting.' >&2 ; exit 1 ; }
 
-# ... and align them.
+# ... and align them. 
 OldMafft=false
-AlignContigs "$RawContigFile" "$RawContigAlignment" "$OldMafft"
+AlignContigsToRefs "$RawContigFile1" "$RefAlignment" "$RawContigAlignment" \
+"$OldMafft"
 
 # Run the contig cutting & flipping code
 "$Code_CorrectContigs" "$BlastFile" -C "$ContigFile" -O "$CutContigFile" || \
@@ -100,6 +101,7 @@ AlignContigs "$RawContigFile" "$RawContigAlignment" "$OldMafft"
 
 # If the contigs needed cutting and/or flipping: align the modified contigs.
 if [[ -f "$CutContigFile" ]]; then
-  AlignContigs "$CutContigFile" "$CutContigAlignment" "$OldMafft"
+  AlignContigsToRefs "$CutContigFile" "$RefAlignment" "$CutContigAlignment" \
+  "$OldMafft"
 fi
 

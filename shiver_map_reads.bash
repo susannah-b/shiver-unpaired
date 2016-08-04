@@ -61,6 +61,7 @@ source "$ConfigFile"
 TheRef="$SID$OutputRefSuffix"
 consensus="$SID"'_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
 ConsensusForGlobalAln="$SID"'_MinCov_'"$MinCov1"'_'"$MinCov2$GlobalAlnSuffix"
+consensusWcontigs="$SID"'_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fasta'
 MappedContaminantReads="$SID$MappedContaminantReadsSuffix"
 cleaned1reads="$SID$CleanedReads1Suffix"
 cleaned2reads="$SID$CleanedReads2Suffix"
@@ -112,6 +113,12 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
   cp "$FastaFile" "$TheRef"
   cp "$ExistingRefAlignment" "$TempRefAlignment"
 
+  # Extract those contigs that have a blast hit.
+  HIVcontigNames=$(awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq)
+  "$Code_FindSeqsInFasta" "$RawContigsFile" $HIVcontigNames > \
+  "$RawContigFile2" || \
+  { echo 'Problem extracting the HIV contigs. Quitting.' >&2 ; exit 1 ; }
+
 else
 
   ContigToRefAlignment="$FastaFile"
@@ -143,10 +150,13 @@ else
 
   # Extract just the existing references (i.e. everything but the contigs) from
   # ContigToRefAlignment, and check that they are the same as in
-  # ExistingRefAlignment.
+  # ExistingRefAlignment. Also extract just the contigs, stripping gaps, ready
+  # for later.
   "$Code_FindSeqsInFasta" "$ContigToRefAlignment" $HIVcontigNames -v > \
-  "$TempRefAlignment" || { echo 'Problem extracting just the existing refs'\
-  "from $ContigToRefAlignment. Quitting." >&2 ; exit 1 ; }
+  "$TempRefAlignment" &&
+  "$Code_FindSeqsInFasta" "$ContigToRefAlignment" $HIVcontigNames -g > \
+  "$RawContigFile2" || { echo 'Problem separating the contigs and existing'\
+  "refs in $ContigToRefAlignment. Quitting." >&2 ; exit 1 ; }
   "$Code_RemoveBlankCols" "$TempRefAlignment" > "$AlignmentForTesting" || \
   { echo "Problem removing pure-gap columns from $TempRefAlignment (which was"\
   "created by removing the contigs from $ContigToRefAlignment - that's"\
@@ -229,7 +239,7 @@ if [[ "$TrimReads" == "true" ]]; then
   exit 1 ; }
 
   # Trim primers
-  $FastaqSequenceTrim "$reads1trim1" "$reads2trim1" "$reads1trim2" \
+  $FastaqSequenceTrim --revcomp "$reads1trim1" "$reads2trim1" "$reads1trim2" \
   "$reads2trim2" "$primers" || \
   { echo 'Problem running fastaq. Quitting.' >&2 ; exit 1 ; }
 
@@ -423,10 +433,10 @@ echo 'Now mapping - typically a slow step.'
 
 # Convert that sam file into a bam file. Thanks Nick Croucher!
 "$samtools" view -bS $samtoolsReadFlags -t "$TheRef".fai -o \
-"$MapOutConversion1" "$MapOutAsSam" &&
-"$samtools" sort -n "$MapOutConversion1" "$MapOutConversion2" &&
-"$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3" &&
-"$samtools" sort "$MapOutConversion3" "$SID" &&
+"$MapOutConversion1".bam "$MapOutAsSam" &&
+"$samtools" sort -n "$MapOutConversion1".bam "$MapOutConversion2" &&
+"$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
+"$samtools" sort "$MapOutConversion3".bam "$SID" &&
 "$samtools" index "$SID.bam" || \
 { echo 'Failed to convert from sam to bam format. Quitting.' >&2 ; exit 1 ; }
 
@@ -447,6 +457,12 @@ echo 'Now calculating pileup - typically a slow step.'
 "$Code_CallConsensus" "$BaseFreqs" "$MinCov1" "$MinCov2" > \
 "$consensus" || \
 { echo 'Problem analysing the pileup or calling the consensus.' >&2 ; exit 1 ; }
+
+# Add the contigs to the alignment of the consensus and its reference.
+# TODO: use new custom code
+#OldMafft=false
+#AlignContigsToRefs "$RawContigFile2" "$consensus" "$consensusWcontigs" \
+#"$OldMafft" 
 
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.

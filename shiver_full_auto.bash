@@ -85,7 +85,7 @@ fi
 
 # Extract those contigs that have a blast hit.
 HIVcontigNames=$(awk -F, '{print $1}' "$BlastFile" | sort | uniq)
-"$Code_FindSeqsInFasta" "$ContigFile" $HIVcontigNames > "$RawContigFile" || \
+"$Code_FindSeqsInFasta" "$ContigFile" $HIVcontigNames > "$RawContigFile1" || \
 { echo 'Problem extracting the HIV contigs. Quitting.' >&2 ; exit 1 ; }
 
 # Run the contig cutting & flipping code. Check it works, and quit if it thinks
@@ -111,7 +111,7 @@ for ref in "$InitDir"/'IndividualRefs'/*'.fasta'; do
   echo "Aligning contigs to ref $CurrentRef of $NumRefs."
 
   # Make one alignment with regular mafft...
-  cat "$ref" "$RawContigFile" > "$ContigsWith1ref"
+  cat "$ref" "$RawContigFile1" > "$ContigsWith1ref"
   AlnFile1="$ContigAlignmentsToRefsDir"/'temp_1_'$(basename "$ref")
   mafft --quiet "$ContigsWith1ref" > "$AlnFile1"
   NumWordsInAlnFileName=$(echo $AlnFile1 | wc -w)
@@ -128,7 +128,7 @@ for ref in "$InitDir"/'IndividualRefs'/*'.fasta'; do
     continue
   fi
   AlnFile2="$ContigAlignmentsToRefsDir"/'temp_2_'$(basename "$ref")
-  mafft --quiet --addfragments "$RawContigFile" "$ref" > "$AlnFile2" || \
+  mafft --quiet --addfragments "$RawContigFile1" "$ref" > "$AlnFile2" || \
   { echo "Warning: it looks like you're running an old version of mafft: the" \
   "--addfragments option doesn't work. That option can be very helpful for" \
   "correctly aligning contigs, and we advise you to update your mafft." \

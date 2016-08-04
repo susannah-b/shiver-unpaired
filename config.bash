@@ -86,7 +86,8 @@ BestContigToRefAlignmentSuffix='_ContigsAndBestRef.fasta' # only for fully auto.
 ################################################################################
 # The names of temporary files we'll create in the working directory.
 # If you change the extension, you may well break something.
-RawContigFile='temp_HIVcontigs_raw.fasta'
+RawContigFile1='temp_HIVcontigs_uncut1.fasta'
+RawContigFile2='temp_HIVcontigs_uncut2.fasta'
 CutContigFile='temp_HIVcontigs_cut.fasta'
 TempContigAlignment1='temp_HIVcontigs_wRefs_swap_1.fasta'
 TempContigAlignment2='temp_HIVcontigs_wRefs_swap_2.fasta'
@@ -112,9 +113,9 @@ reads2blast2='temp_reads2_2.blast'
 reads1sorted='temp_1_sorted.fastq'
 reads2sorted='temp_2_sorted.fastq'
 MapOutAsSam='temp_MapOut.sam'
-MapOutConversion1='temp_MapOutStep1.bam'
+MapOutConversion1='temp_MapOutStep1'
 MapOutConversion2='temp_MapOutStep2'
-MapOutConversion3='temp_MapOutStep3.bam'
+MapOutConversion3='temp_MapOutStep3'
 InsertSizes1='temp_InsertSizes.txt'
 InsertSizes2='temp_InsertSizes2.txt'
 PileupFile='temp_MapOut.pileup'

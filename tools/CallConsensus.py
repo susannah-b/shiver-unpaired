@@ -18,11 +18,10 @@ case is used for the base present.'''
 # USER INPUT
 # The minimum fraction of reads at a position before we call that base (or those
 # bases, when one base alone does not reach that threshold fraction).
+# TODO: make this a compulsory argument, and change the shiver code appropriately
 MinFraction = 0.6
-# The character we call when coverage is below the specified minumum.
-CharForLowCoverage = '?'
 # Gap characters in the base frequency file.
-GapChars = '-.?'
+GapChar = '-'
 # On the line in the base frequency file containing the reference name, what
 # string comes before the reference name itself?
 RefNamePrefix = '>Reference_'
@@ -35,7 +34,8 @@ PrintRefToo=True
 # Import some modules we'll need.
 import os.path
 import sys
-from AuxiliaryFunctions import ReverseIUPACdict2
+import itertools
+from AuxiliaryFunctions import ReverseIUPACdict2, PropagateNoCoverageChar
 import argparse
 
 # Define a function to check files exist, as a type for the argparse.
@@ -130,7 +130,7 @@ with open(BaseFreqFile, 'r') as f:
     # coverage is certainly < MinCoverage. We test this first in case the
     # coverage is zero - then we don't want to try to interpret the frequencies.
     if coverage < MinCoverage:
-      consensus += CharForLowCoverage
+      consensus += '?'
       continue
 
     # Try to convert the frequencies to floats.
@@ -160,7 +160,7 @@ with open(BaseFreqFile, 'r') as f:
     # Call the appropriate character if coverage is below the threshold.
     MajorityCoverage = coverage * freqs[0]
     if args.require_read_agreement and MajorityCoverage < MinCoverage-0.5:
-      consensus += CharForLowCoverage
+      consensus += '?'
       continue
 
     # Keep including bases until the threshold fraction is reached.
@@ -183,11 +183,7 @@ with open(BaseFreqFile, 'r') as f:
       # If a gap is one of the things most common at this position, call an 'N';
       # otherwise, find the ambiguity code for this set of bases.
       GapHere = False
-      for GapChar in GapChars:
-        if GapChar in BasesToCallHere:
-          GapHere = True
-          break
-      if GapHere:
+      if GapChar in BasesToCallHere:
         BaseHere = 'N'
       else:  
         BasesToCallHere = ''.join(sorted(BasesToCallHere))
@@ -210,6 +206,23 @@ if not FoundRefName:
   print('Did not find a line beginning', RefNamePrefix, 'in', BaseFreqFile +\
   '.\nQuitting.', file=sys.stderr)
   exit(1)
+
+
+# Replaces gaps that border "no coverage" by "no coverage".
+consensus = PropagateNoCoverageChar(consensus)
+
+# Skip positions at which the ref has a gap and the consensus has a gap or
+# missing cov.
+NewConsensus = ''
+NewRefSeq = ''
+for ConsensusBase, RefBase in itertools.izip(consensus, RefSeq):
+  if RefBase == GapChar and (ConsensusBase == '?' or ConsensusBase == GapChar):
+    continue
+  NewConsensus += ConsensusBase
+  NewRefSeq += RefBase
+consensus = NewConsensus
+RefSeq = NewRefSeq
+
 
 # Thanks Stackoverflow:
 def insert_newlines(string, every=FastaSeqLineLength):

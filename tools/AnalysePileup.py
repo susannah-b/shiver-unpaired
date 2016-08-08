@@ -68,7 +68,7 @@ else:
   ReadReferenceFromFile(ReferenceFileOrDir)
   RefSeq = RefSeq.upper()
   
-
+ExpectedBases = ['A', 'C', 'G', 'T', '-', 'N']
 def ProcessBaseCounts(BaseCounts, ReferencePosition, ReferenceBase, \
 IsInsertion, ReferenceLength):
   '''Counts each kind of base present, with sanity checks. Returns
@@ -100,7 +100,7 @@ IsInsertion, ReferenceLength):
 
   # Warn about unexpected bases.
   for base in BaseCounts.keys():
-    if not base in ['A', 'C', 'G', 'T', '-', 'N']:
+    if not base in ExpectedBases:
       warning = 'WARNING: unexpected base '+base+' occurs '+\
       str(BaseCounts[base])+' times '
       if IsInsertion:
@@ -138,6 +138,8 @@ IsInsertion, ReferenceLength):
     SummaryList.append(float(count)/NumberOfReads)
 
   return SummaryList
+  # TODO: delete NormalisedRefPos from SummaryList. Change references to
+  # specific positions in SummaryList.
 
 
 

@@ -28,7 +28,6 @@ from __future__ import print_function
 GapInRefIsError = False
 
 GapChar = '-'
-NoCoverageChar = '?'
 # Wrap the sequence in the output fasta file to this length per line
 FastaSeqLineLength=50
 ################################################################################
@@ -38,7 +37,7 @@ from string import maketrans
 from inspect import currentframe, getframeinfo
 from itertools import groupby
 from operator import itemgetter
-from AuxiliaryFunctions import ReadSequencesFromFile
+from AuxiliaryFunctions import ReadSequencesFromFile, PropagateNoCoverageChar
 import argparse
 
 parser = argparse.ArgumentParser(description='A script for aligning a '+\
@@ -218,38 +217,6 @@ for MainPosition,BaseInMainRef in enumerate(RefSeqFromMain):
 if args.log_file != None:
   with open(args.log_file, 'w') as f:
     f.write(TranslationRecord)
-
-def PropagateNoCoverageChar(seq, LeftToRightDone=False):
-  '''Replaces gaps that border "no coverage" by "no coverage".
-
-  Where NoCoverageChars neighbour GapChars, propagate the former outwards until
-  they touch bases on both sides (because insertions should only be called when
-  the bases on either side are known). e.g.
-  ACTG---?---ACTG
-  becomes
-  ACTG???????ACTG'''
-  
-  if LeftToRightDone:
-    seq = seq[::-1]
-  BaseToLeftIsNoCoverage = False
-  ResultingSeq = ''
-  for base in seq:
-    if base == NoCoverageChar:
-      BaseToLeftIsNoCoverage = True
-      ResultingSeq += NoCoverageChar
-    elif base == GapChar:
-      if BaseToLeftIsNoCoverage:
-        ResultingSeq += NoCoverageChar
-      else:
-        ResultingSeq += GapChar
-    else:
-      BaseToLeftIsNoCoverage = False
-      ResultingSeq += base
-  if LeftToRightDone:
-    ResultingSeq = ResultingSeq[::-1]
-  else:
-    ResultingSeq = PropagateNoCoverageChar(ResultingSeq, True)
-  return ResultingSeq
 
 FinalSeqToAdd = PropagateNoCoverageChar(SeqToAdd_WithGaps)
 

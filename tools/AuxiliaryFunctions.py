@@ -94,6 +94,37 @@ def BaseMatch(base1,base2):
     return base1 in IUPACdict[base2]
   return False
 
+def PropagateNoCoverageChar(seq, LeftToRightDone=False):
+  '''Replaces gaps that border "no coverage" by "no coverage".
+
+  Where NoCoverageChars neighbour GapChars, propagate the former outwards until
+  they touch bases on both sides (because deletions should only be called when
+  the bases on either side are known). e.g.
+  ACTG---?---ACTG
+  becomes
+  ACTG???????ACTG'''
+  
+  if LeftToRightDone:
+    seq = seq[::-1]
+  BaseToLeftIsNoCoverage = False
+  ResultingSeq = ''
+  for base in seq:
+    if base == '?':
+      BaseToLeftIsNoCoverage = True
+      ResultingSeq += '?'
+    elif base == '-':
+      if BaseToLeftIsNoCoverage:
+        ResultingSeq += '?'
+      else:
+        ResultingSeq += '-'
+    else:
+      BaseToLeftIsNoCoverage = False
+      ResultingSeq += base
+  if LeftToRightDone:
+    ResultingSeq = ResultingSeq[::-1]
+  else:
+    ResultingSeq = PropagateNoCoverageChar(ResultingSeq, True)
+  return ResultingSeq
 
 
 def ReadSequencesFromFile(DataFile,IsAlignment=True):

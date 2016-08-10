@@ -41,8 +41,7 @@ RefAlignment="$InitDir/ExistingRefAlignment.fasta"
 # Source required code & check files exist
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.bash'
-CheckFilesExist "$ContigFile" "$RefAlignment"
-# TODO: check the read files exist too
+CheckFilesExist "$ContigFile" "$RefAlignment" "$reads1" "$reads2"
 source "$ConfigFile"
 
 # Check that there are some contigs, that their IDs are unique, and that their
@@ -141,9 +140,6 @@ for ref in "$InitDir"/'IndividualRefs'/*'.fasta'; do
   echo $RefSimilarityScore2 "$AlnFile2" >> "$RefMatchLog"
 
   # TODO: mafft options, including gap extension parameter!
-  # TODO: at each point in the 2D plane of --op and --ep, see how the 2D plot of
-  # contig length vs gap frac compares to the manually curated version of the
-  # plot.
 done
 
 # Find the reference most closely matching the contigs

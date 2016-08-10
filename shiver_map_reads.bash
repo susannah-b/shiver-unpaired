@@ -59,9 +59,9 @@ source "$ConfigFile"
 
 # Some files we'll create
 TheRef="$SID$OutputRefSuffix"
-consensus="$SID"'_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
-ConsensusForGlobalAln="$SID"'_MinCov_'"$MinCov1"'_'"$MinCov2$GlobalAlnSuffix"
-consensusWcontigs="$SID"'_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fasta'
+consensus="$SID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
+ConsensusForGlobalAln="$SID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2$GlobalAlnSuffix"
+consensusWcontigs="$SID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fasta'
 MappedContaminantReads="$SID$MappedContaminantReadsSuffix"
 cleaned1reads="$SID$CleanedReads1Suffix"
 cleaned2reads="$SID$CleanedReads2Suffix"
@@ -452,17 +452,19 @@ echo 'Now calculating pileup - typically a slow step.'
 "$samtools" mpileup $mpileupOptions -f "$TheRef" "$SID.bam" > "$PileupFile" || \
 { echo 'Failed to generate pileup. Quitting.' >&2 ; exit 1 ; }
 
-# Generate base frequencies and consensuses
-"$Code_AnalysePileup" "$PileupFile" "$TheRef" > "$BaseFreqs" && \
-"$Code_CallConsensus" "$BaseFreqs" "$MinCov1" "$MinCov2" > \
+# Generate base frequencies and the consensuses
+"$Code_AnalysePileup" "$PileupFile" "$TheRef" > "$BaseFreqs" || \
+{ echo 'Problem analysing the pileup. Quitting' >&2 ; exit 1 ; }
+"$Code_CallConsensus" "$BaseFreqs" "$MinCov1" "$MinCov2" "$MinBaseFrac" \
+--consensus-seq-name "$SID"'_consensus' --ref-seq-name "$RefName" > \
 "$consensus" || \
-{ echo 'Problem analysing the pileup or calling the consensus.' >&2 ; exit 1 ; }
+{ echo 'Problem calling the consensus. Quitting.' >&2 ; exit 1 ; }
 
 # Add the contigs to the alignment of the consensus and its reference.
-# TODO: use new custom code
-#OldMafft=false
-#AlignContigsToRefs "$RawContigFile2" "$consensus" "$consensusWcontigs" \
-#"$OldMafft" 
+OldMafft=false
+SwapContigsToTop=false
+AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
+"$consensus" "$consensusWcontigs" "$SwapContigsToTop" "$OldMafft" 
 
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.

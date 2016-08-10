@@ -2,6 +2,7 @@
 
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ToolsDir="$ThisDir"/tools
+Code_AlignToConsensus="$ToolsDir/AlignMoreSeqsToPairWithMissingCoverage.py"
 Code_AnalysePileup="$ToolsDir/AnalysePileup.py"
 Code_CallConsensus="$ToolsDir/CallConsensus.py"
 Code_CheckFastaFileEquality="$ToolsDir/CheckFastaFileEquality.py"
@@ -27,13 +28,16 @@ function CheckFilesExist {
 
 function AlignContigsToRefs {
 
-  ContigFile=$1
-  ThisRefAlignment=$2
-  OutputAlignedContigFile=$3
-  OldMafftArg=$4
+  Aligner=$1
+  AlignerOptions=$2
+  ContigFile=$3
+  ThisRefAlignment=$4
+  OutputAlignedContigFile=$5
+  SwapContigsToTopArg=$6
+  OldMafftArg=$7
   ContigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigFile")
 
-  mafft --quiet --add "$ContigFile" "$ThisRefAlignment" > \
+  "$Aligner" $AlignerOptions --add "$ContigFile" "$ThisRefAlignment" > \
   "$TempContigAlignment1" || \
   { echo 'Problem aligning' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
   MaxContigGappiness1=$("$Code_ConstructRef" -S1 "$TempContigAlignment1" \
@@ -45,8 +49,8 @@ function AlignContigsToRefs {
   # ready for the next call of this function; if it does work, use the least
   # gappy alignment.
   if ! $OldMafftArg; then
-    mafft --quiet --addfragments "$ContigFile" "$ThisRefAlignment" \
-    > "$TempContigAlignment2" || \
+    "$Aligner" $AlignerOptions --addfragments "$ContigFile" \
+    "$ThisRefAlignment" > "$TempContigAlignment2" || \
     { echo "Warning: it looks like you're running an old version of mafft: the"\
     "--addfragments option doesn't work. That option can be very helpful for" \
     "correctly aligning contigs, and we advise you to update your mafft." \
@@ -59,21 +63,27 @@ function AlignContigsToRefs {
       if (( $(echo "$MaxContigGappiness2 < $MaxContigGappiness1" | bc -l) )); 
       then
         BestContigAlignment="$TempContigAlignment2"
-        echo 'The --addfragments option gave a better mafft result. Using it.'
+        echo 'Info: the --addfragments mafft option performed better than'\
+        '--add. Using the former.'
       else
-        echo 'The --addfragments option did not improve the mafft result.'
+        echo 'Info: the --addfragments mafft option performed no better than'\
+        '--add. Using the latter.'
       fi
     fi
   fi
 
   # Swap the contigs from after the references to before them, for easier visual
   # inspection.
-  NumRefs=$(grep -e '^>' "$ThisRefAlignment" | wc -l)
-  ContigsStartLine=$(awk '/^>/ {N++; if (N=='$((NumRefs+1))') {print NR; exit}}' \
-  "$BestContigAlignment")
-  tail -n +"$ContigsStartLine" "$BestContigAlignment" > \
-  "$OutputAlignedContigFile"
-  head -n "$((ContigsStartLine-1))" "$BestContigAlignment" >> \
-  "$OutputAlignedContigFile"
+  if [[ "$SwapContigsToTopArg" == "true" ]]; then
+    NumRefs=$(grep -e '^>' "$ThisRefAlignment" | wc -l)
+    ContigsStartLine=$(awk '/^>/ {N++; if (N=='$((NumRefs+1))') {print NR; exit}}' \
+    "$BestContigAlignment")
+    tail -n +"$ContigsStartLine" "$BestContigAlignment" > \
+    "$OutputAlignedContigFile"
+    head -n "$((ContigsStartLine-1))" "$BestContigAlignment" >> \
+    "$OutputAlignedContigFile"
+  else
+    mv "$BestContigAlignment" "$OutputAlignedContigFile"
+  fi
 
 }

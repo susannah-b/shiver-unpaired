@@ -49,12 +49,15 @@ NumThreadsTrimmomatic=1
 smaltIndexOptions="-k 15 -s 3"
 smaltMapOptions="-x -y 0.75 -j 0 -i 2000"
 
-# For a description of the SAM format flags, look at
+# After mapping, the choice of what kinds of reads should be kept is specified
+# with SAM format flags, whose documentation is here:
 # https://samtools.github.io/hts-specs/SAMv1.pdf
-# Note that the flags are combined in a bitwise manner, which is fiddly. See 
-# http://onetipperday.blogspot.co.uk/2012/04/understand-flag-code-of-sam-format.html
-# for a discussion. The flags used below mean unmapped reads are excluded (-F 4)
-# and only properly aligned pairs are kept (-f 3).
+# Flags are combined in a bitwise manner, which is fiddly. This page
+# https://broadinstitute.github.io/picard/explain-flags.html
+# gives a more user-friendly correspondance between SAM flags and kinds of
+# reads.
+# The flags used below mean unmapped reads are excluded (-F 4) and only properly
+# aligned pairs are kept (-f 3).
 samtoolsReadFlags='-f 3 -F 4'
 
 # See http://www.htslib.org/doc/samtools.html for a description of samtools
@@ -65,12 +68,21 @@ samtoolsReadFlags='-f 3 -F 4'
 # 250).
 mpileupOptions='--min-BQ 5 --max-depth 1000000'
 
-# The minimum number of reads mapped to reference to call a base at that
-# position: if there are fewer reads we call '?' instead of a base.
+# Parameters for calling the consensus base at each position:
+# The minimum coverage (number of reads) to call a base instead of a '?'
 MinCov1=10
-# The minimum number of reads to use upper case (to signal increased confidence)
-# for the base called.
+# The minimum coverage to use upper case for the base (to signal increased
+# confidence)
 MinCov2=20
+# The minimum fraction of reads at a position before we call that base (or those
+# bases, when one base alone does not reach that threshold fraction; e.g. say
+# you have 60% A, 30% C and 10% G: if you set this fraction to 0.6 or lower we
+# call an A, if you set it to 0.6-0.9 we call an M for "A or C", if you set it
+# to 0.9-1 we call a V for "A, C or G".). Alternatively, if you choose a
+# negative value, we always call the single most common base regardless of its
+# fraction, unless two or more bases are equally (most) common, then we call the
+# ambiguity code for those bases.
+MinBaseFrac=-1
 
 # Suffixes we'll append to the sample ID for output files.
 # If you change the extension, you may well break something.

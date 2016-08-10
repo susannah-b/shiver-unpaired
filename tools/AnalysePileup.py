@@ -69,6 +69,9 @@ else:
   RefSeq = RefSeq.upper()
   
 ExpectedBases = ['A', 'C', 'G', 'T', '-', 'N']
+MissingCoverageBaseCounts = [0] * len(ExpectedBases)
+MissingCoverageBaseCountsAsStr = ','.join(map(str,MissingCoverageBaseCounts))
+
 def ProcessBaseCounts(BaseCounts, ReferencePosition, ReferenceBase, \
 IsInsertion, ReferenceLength):
   '''Counts each kind of base present, with sanity checks. Returns
@@ -110,14 +113,6 @@ IsInsertion, ReferenceLength):
 
   NumberOfReads = sum(BaseCounts.values())
 
-  if NumberOfReads == 1:
-    homozygosity = 'NA'
-  else:
-    SquareBaseFreqs = [(float(count)/NumberOfReads)**2 for count in \
-    BaseCounts.values()]
-    OneOnN = 1./NumberOfReads
-    homozygosity = (sum(SquareBaseFreqs) - OneOnN)/(1 - OneOnN)
-
   # A list of things we want to record for this position.
   # Firstly, what position is it with respect to the reference.
   # Then, what base does the reference have.
@@ -127,18 +122,16 @@ IsInsertion, ReferenceLength):
   # Then, the frequencies of those bases, in that same order.
   if IsInsertion:
     ReferencePosition = 'NA'
-    NormalisedRefPos = 'NA'
-  else:
-    NormalisedRefPos = float(ReferencePosition)/ReferenceLength
-  SummaryList = [ReferencePosition, NormalisedRefPos, \
-  ReferenceBase, NumberOfReads, homozygosity, '']
-  for base,count in \
-  sorted(BaseCounts.items(), key=operator.itemgetter(1), reverse = True):
-    SummaryList[5] += base
-    SummaryList.append(float(count)/NumberOfReads)
+  SummaryList = [ReferencePosition, ReferenceBase]
+  for base in ExpectedBases:
+    try:
+      count = BaseCounts[base]
+    except KeyError:
+      count = 0
+    SummaryList.append(count)
 
   return SummaryList
-  # TODO: delete NormalisedRefPos from SummaryList. Change references to
+  # TODO: Change references to
   # specific positions in SummaryList.
 
 
@@ -195,8 +188,7 @@ with open(PileupFile, 'r') as f:
     # If no coverage, we'll record '?' for the string describing the bases
     # appearing here and 'NA' for the frequencies (explained later), and skip.
     if NoCoverage:
-      SummaryList = [BasePosition, float(BasePosition)/ReferenceLength, \
-      ReferenceBase, 0, 'NA', '?', 'NA']
+      SummaryList = [BasePosition, ReferenceBase] + MissingCoverageBaseCounts
       InfoFromAllPositions.append(SummaryList)
       continue
 
@@ -261,7 +253,7 @@ with open(PileupFile, 'r') as f:
     False, ReferenceLength)
 
     # Check that our total number of bases matches what the pileup file says.
-    OurNumReads = SummaryList[3]
+    OurNumReads = sum(SummaryList[2:])
     if OurNumReads != NumReads:
       print('Error in the interpretation of the pileup string at line',\
       str(LineNumberMin1+1)+': counted', OurNumReads, \
@@ -301,7 +293,8 @@ if len(InfoFromAllPositions) == 0:
   print('Found no pileup information. Quitting.', file=sys.stderr)
   exit(1)
 
-print('>Reference_'+RefNameInPileup)
+print('position in ', RefNameInPileup, ',base in ', RefNameInPileup, \
+',A count,C count,G count,T count,gap count, N count', sep='')
 
 RightMostReferencePositionSoFar = 0
 for PositionWithPileup in InfoFromAllPositions:
@@ -309,7 +302,7 @@ for PositionWithPileup in InfoFromAllPositions:
 
   if ReferencePosition == 'NA':
     # This is an insertion with respect to the reference  
-    print(','.join(map(str,PositionWithPileup)), sep=',')
+    print(','.join(map(str,PositionWithPileup)))
     continue
 
   if ReferencePosition != RightMostReferencePositionSoFar+1:
@@ -317,8 +310,8 @@ for PositionWithPileup in InfoFromAllPositions:
     # having no pileup information there. Let's fill in those blanks.  
     for SkippedPosition in range(RightMostReferencePositionSoFar+1,\
     ReferencePosition):
-      print(SkippedPosition, float(SkippedPosition)/ReferenceLength, \
-      RefSeq[SkippedPosition-1], '0,NA,?,NA', sep=',')
+      print(SkippedPosition, RefSeq[SkippedPosition-1], \
+      MissingCoverageBaseCountsAsStr, sep=',')
 
   print(','.join(map(str,PositionWithPileup)))
   RightMostReferencePositionSoFar = ReferencePosition
@@ -327,8 +320,8 @@ for PositionWithPileup in InfoFromAllPositions:
 if RightMostReferencePositionSoFar != ReferenceLength:
   for SkippedPosition in range(RightMostReferencePositionSoFar+1,\
     ReferenceLength+1):
-      print(SkippedPosition, float(SkippedPosition)/ReferenceLength, \
-      RefSeq[SkippedPosition-1], '0,NA,?,NA', sep=',')
+      print(SkippedPosition, RefSeq[SkippedPosition-1], \
+      MissingCoverageBaseCountsAsStr, sep=',')
 
 
 '''

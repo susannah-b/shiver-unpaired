@@ -1,33 +1,21 @@
 #!/usr/bin/env python2
 from __future__ import print_function
 #
-## A script to illustrate reading in data files with python,
-## by Chris Wymant c.wymant@imperial.ac.uk
+## Author: Chris Wymant, c.wymant@imperial.ac.uk
+## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
 ExplanatoryMessage = '''
-This script interprets a base frequency file of the format produced
-by AnalysePileup.py and calls the consensus sequence.
-Usage: call it from the command line with the first argument being a base
-frequency file, the second argument being the minimum number of reads in
-agreement with each other before a base is called, and the third argument
-being the minimum number of reads in agreement with each other before upper
-case is used for the base present.'''
+This script interprets a base frequency file of the format produced by
+AnalysePileup.py and calls the consensus sequence, which is printed to stdout
+suitable for redirection to a fasta-format file. The consensus is printed with
+the reference used for mapping, as a pairwise alignment.
+'''
 ##
 ################################################################################
 # USER INPUT
-# The minimum fraction of reads at a position before we call that base (or those
-# bases, when one base alone does not reach that threshold fraction).
-# TODO: make this a compulsory argument, and change the shiver code appropriately
-MinFraction = 0.6
 # Gap characters in the base frequency file.
 GapChar = '-'
-# On the line in the base frequency file containing the reference name, what
-# string comes before the reference name itself?
-RefNamePrefix = '>Reference_'
-# Wrap the sequence in the output fasta file to this length per line
-FastaSeqLineLength=50
-PrintRefToo=True
 ################################################################################
 
 
@@ -37,6 +25,9 @@ import sys
 import itertools
 from AuxiliaryFunctions import ReverseIUPACdict2, PropagateNoCoverageChar
 import argparse
+from Bio import SeqIO
+from Bio import Seq
+
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -45,15 +36,29 @@ def File(MyFile):
   return MyFile
 
 # Set up the arguments for this script
-ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('BaseFreqFile', type=File)
-parser.add_argument('MinCoverage', type=int)
-parser.add_argument('MinCovForUpper', type=int)
-parser.add_argument('-A', '--require-read-agreement', action='store_true', \
-help='Interpret the minumum coverage as the minimum number of reads supporting'\
-+"the most common base here (by default, it's just the minimum number of"+\
-"reads).")
+parser.add_argument('MinCoverage', help='The minimum coverage (number of ' + \
+'reads at a given position in the genome) before a base is called. Below ' + \
+'this we call "?" instead of a base.', type=int)
+parser.add_argument('MinCovForUpper', help='The minimum coverage before upper'+\
+' case is used instead of lower case, to signal increased confidence.', \
+type=int)
+parser.add_argument('MinFracToCall', help='The minimum fraction of reads at a'+\
+' position before we call that base (or those bases, when one base alone does'+\
+' not reach that threshold fraction; e.g. say you have 60%% A, 30%% C and ' +\
+'10%% G: if you set this fraction to 0.6 or lower we call an A, if you set ' +\
+'it to 0.6-0.9 we call an M for "A or C", if you set it to 0.9-1 we call a ' + \
+'V for "A, C or G".). Alternatively, if you choose a negative value, we '+\
+'always call the single most common base regardless of its fraction, unless ' +\
+'two or more bases are equally (most) common, then we call the ' + \
+'ambiguity code for those bases.', type=float)
+parser.add_argument('-C', '--consensus-seq-name', help='The name used for the'+\
+' consensus in the fasta-format output (default: "consensus").', \
+default='consensus')
+parser.add_argument('-R', '--ref-seq-name', help='The name used for the '+\
+'reference in the fasta-format output (default: "MappingReference").', \
+default='MappingReference')
 args = parser.parse_args()
 
 BaseFreqFile = args.BaseFreqFile
@@ -72,142 +77,148 @@ if MinCovForUpper < MinCoverage:
   file=sys.stderr)
   exit(1)
 
+# MinFracToCall should be <= 1 and != 0
+if args.MinFracToCall > 1:
+  print('MinFracToCall cannot be greater than 1. Quitting.', file=sys.stderr)
+  exit(1)
+FloatTolerance = 1e-5
+if abs(args.MinFracToCall) < FloatTolerance:
+  print('MinFracToCall should not equal zero. Quitting.', file=sys.stderr)
+  exit(1)
+
+CallMostCommon = args.MinFracToCall < 0
+
+def CallAmbigBaseIfNeeded(bases, coverage):
+  '''If several bases are supplied, calls an ambiguity code. Uses upper/lower
+  case appropriately.'''
+
+  bases = ''.join(sorted(bases))
+  NumBases = len(bases)
+  assert NumBases > 0, 'CallAmbigBaseIfNeeded function called with no bases.'
+  if len(bases) == 1:
+    BaseHere = bases
+  else:
+    # If a gap is one of the things most common at this position, call an 'N';
+    # otherwise, find the ambiguity code for this set of bases.
+    if GapChar in bases:
+      BaseHere = 'N'
+    else:  
+      try:
+        BaseHere = ReverseIUPACdict2[bases]
+      except KeyError:
+        print('Unexpected set of bases', bases, 'found in', BaseFreqFile, \
+        ', not found amonst those for which we have ambiguity codes, namely:', \
+        ' '.join(ReverseIUPACdict2.keys()) + '. Quitting.', file=sys.stderr)
+        raise
+  if coverage < MinCovForUpper - 0.5:
+    return BaseHere.lower()
+  else:
+    return BaseHere.upper()
+
+ExpectedBasesNoN = ['A', 'C', 'G', 'T', '-']
+NumExpectedBases = len(ExpectedBasesNoN)
+def CallEnoughBases(BaseCounts, MinCoverage, coverage):
+  '''Analyse base counts to see how many bases need to be called to hit the
+  minimum required count.'''
+
+  # Sort the counts from largest to smallest, and sort the associated bases into
+  # a matching order.
+  SortedBaseCounts, SortedExpectedBases = \
+  zip(*sorted(zip(BaseCounts, ExpectedBasesNoN), reverse=True))
+
+  # Iterate through the counts, from largest to smallest, updating the total
+  # so far. We should stop once we reach the desired total, but not if the next
+  # count is the same as the current one - then we should take that one too.
+  # If we reach the end of the list, there's no 'next' to check: we need all the
+  # bases.
+  CountSoFar = 0  
+  for i, count in enumerate(SortedBaseCounts):
+    if i == NumExpectedBases:
+      NumBasesNeeded = i+1
+      break
+    CountSoFar += count
+    if count == SortedBaseCounts[i+1]:
+      continue
+    if CountSoFar >= MinCoverage:
+      NumBasesNeeded = i+1
+      break
+  BasesNeeded = SortedExpectedBases[:NumBasesNeeded]
+  return CallAmbigBaseIfNeeded(BasesNeeded, coverage)
 
 # Read in the base frequency file
 consensus = ''
 RefSeq = ''
-FoundRefName = False
-RefNamePrefixLength = len(RefNamePrefix)
 with open(BaseFreqFile, 'r') as f:
 
   # Loop through all lines in the file
-  for line in f:
+  for LineNumMin1, line in enumerate(f):
 
-    if not FoundRefName and len(line) >= RefNamePrefixLength and \
-    line[0:RefNamePrefixLength] == RefNamePrefix:
-      FoundRefName = True
-      RefName = line[RefNamePrefixLength:].rstrip()
+    if LineNumMin1 == 0:
       continue
 
     # Split up the line into fields separated by commas
     fields = line.split(',')
-
-    # Try to get the columns we want
-    try:
-      RefBase = fields[2]
-      coverage = fields[3]
-      BasesHere = fields[5]
-      freqs = fields[6:]
-    except IndexError:
-      # Not enough fields! Print the line and exit with an error.
-      print('Line\n', line, 'in', BaseFreqFile, 'contains only', \
-      len(fields), 'fields; expected at least 7.\nQuitting', file=sys.stderr)
+    if len(fields) != 8:
+      print('Line', str(LineNumMin1+1), ',\n', line, 'in', BaseFreqFile, \
+      'contains', len(fields), 'fields; expected 8. Quitting', file=sys.stderr)
       exit(1)
+    RefBase = fields[1]
+    counts = fields[2:]
 
-    # Try to convert coverage to an int. Complain if it's negative. If it's
-    # below threshold, call the character reserved for that case.
+    # Convert to ints    
     try:
-      coverage = int(coverage)
+      counts = map(int, counts)
     except ValueError:
-      print('Could not understand the coverage in line\n', line, \
-      'in', BaseFreqFile, 'as an integer.\nQuitting', file=sys.stderr)
+      print('Could not understand the base counts as ints on line', \
+      str(LineNumMin1+1), ',\n', line, 'in', BaseFreqFile + \
+      '. Quitting', file=sys.stderr)
       exit(1)
-    if coverage < 0:
-      print('Negative coverage on line', line, 'in', BaseFreqFile+\
-      '.\nQuitting', file=sys.stderr)
+
+    # Check positive
+    if any(count < 0 for count in counts):
+      print('Negative count on line', str(LineNumMin1+1), ',\n', \
+      line, 'in', BaseFreqFile + '. Quitting', file=sys.stderr)
       exit(1)
 
     # Append the reference base
     if len(RefBase) == 1:
       RefSeq += RefBase
     else:
-      print('The reference base on line', line, 'in', BaseFreqFile, 'is', \
-      RefBase+'. One character only was expected.\nQuitting.', file=sys.stderr)
+      print('The reference base on line', str(LineNumMin1+1), ',\n', line, \
+      'in', BaseFreqFile, 'is', RefBase + \
+      '. One character only was expected. Quitting.', file=sys.stderr)
       exit(1)
 
+    # Ignore the count for 'N'. Sum the counts.
+    counts = counts[:-1]
+    coverage = sum(counts)
+
     # Call the appropriate character if coverage is below the threshold.
-    # We first test whether coverage < MinCoverage; if it is, the majority
-    # coverage is certainly < MinCoverage. We test this first in case the
-    # coverage is zero - then we don't want to try to interpret the frequencies.
     if coverage < MinCoverage:
       consensus += '?'
       continue
 
-    # Try to convert the frequencies to floats.
-    NumBasesHere = len(freqs)
-    try:
-      for i in range(0,NumBasesHere):
-        freqs[i] = float(freqs[i])
-    except ValueError:
-      print('Could not understand a frequency in line\n', line, \
-      'in', BaseFreqFile, 'as a float.\nQuitting', file=sys.stderr)
-      exit(1)
+    # Find the base with the highest count (or bases, if they have joint-highest
+    # counts).
+    MaxCount = max(counts)
+    BasesWithMaxCount = [ExpectedBasesNoN[i] for i,count in enumerate(counts) \
+    if count == MaxCount]
 
-    # Sanity checks on the frequency values
-    if NumBasesHere != len(BasesHere):
-      print('The number of bases and frequencies differ on line', line, 'in', \
-      BaseFreqFile+'.\nQuitting', file=sys.stderr)
-      exit(1)
-    if freqs != sorted(freqs, reverse=True):
-      print('The frequencies on line', line, 'in', BaseFreqFile,\
-      'do not decrease in size.\nQuitting', file=sys.stderr)
-      exit(1)
-    if not 0.999 < sum(freqs) < 1.001:
-      print('The frequencies on line', line, 'in', BaseFreqFile,\
-      'do not sum to 1.\nQuitting', file=sys.stderr)
-      exit(1)
+    # If we're calling the most common base regardless of count:
+    if CallMostCommon: 
+      BaseToCall = CallAmbigBaseIfNeeded(BasesWithMaxCount, coverage)
 
-    # Call the appropriate character if coverage is below the threshold.
-    MajorityCoverage = coverage * freqs[0]
-    if args.require_read_agreement and MajorityCoverage < MinCoverage-0.5:
-      consensus += '?'
-      continue
-
-    # Keep including bases until the threshold fraction is reached.
-    NumBasesToCallHere = 1
-    TheirFraction = freqs[0]
-    while TheirFraction < MinFraction:
-      try:
-        TheirFraction += freqs[NumBasesToCallHere]
-      except IndexError:
-        print('Unexpected error: the sum of all freqencies on line', line, \
-        'in', BaseFreqFile, 'is less than the user-specified threshold', \
-        str(MinFraction)+'.\nQuitting', file=sys.stderr)
-        exit(1)
-      NumBasesToCallHere += 1
-
-    if NumBasesToCallHere == 1:
-      BaseHere = BasesHere[0]
     else:
-      BasesToCallHere = BasesHere[:NumBasesToCallHere]
-      # If a gap is one of the things most common at this position, call an 'N';
-      # otherwise, find the ambiguity code for this set of bases.
-      GapHere = False
-      if GapChar in BasesToCallHere:
-        BaseHere = 'N'
-      else:  
-        BasesToCallHere = ''.join(sorted(BasesToCallHere))
-        try:
-          AmbiguityCode = ReverseIUPACdict2[BasesToCallHere]
-        except KeyError:
-          print('Unexpected set of bases', BasesToCallHere, 'at line',line, \
-          'in', BaseFreqFile, 'not found amonst those for which we have', \
-          'ambiguity codes, namely:', ' '.join(ReverseIUPACdict2.keys()) +\
-          '\nQuitting.', file=sys.stderr)
-          exit(1)
-        BaseHere = AmbiguityCode
-    if MajorityCoverage < MinCovForUpper-0.5:
-      BaseHere = BaseHere.lower()
-    else:
-      BaseHere = BaseHere.upper()
-    consensus += BaseHere
+      CountToCallBase = coverage * args.MinFracToCall
+      # This next 'if' would also be covered by the 'else', but the explicit
+      # 'if' scope is faster and is what is usually needed.
+      if MaxCount * len(BasesWithMaxCount) >= CountToCallBase:
+        BaseToCall = CallAmbigBaseIfNeeded(BasesWithMaxCount, coverage)
+      else:
+        BaseToCall = CallEnoughBases(counts, CountToCallBase, coverage)
 
-if not FoundRefName:
-  print('Did not find a line beginning', RefNamePrefix, 'in', BaseFreqFile +\
-  '.\nQuitting.', file=sys.stderr)
-  exit(1)
-
-
+    consensus += BaseToCall
+      
 # Replaces gaps that border "no coverage" by "no coverage".
 consensus = PropagateNoCoverageChar(consensus)
 
@@ -223,18 +234,20 @@ for ConsensusBase, RefBase in itertools.izip(consensus, RefSeq):
 consensus = NewConsensus
 RefSeq = NewRefSeq
 
+ConsensusSeqObj = SeqIO.SeqRecord(Seq.Seq(consensus), \
+id=args.consensus_seq_name, description='')
+RefSeqObj = SeqIO.SeqRecord(Seq.Seq(RefSeq), \
+id=args.ref_seq_name, description='')
 
-# Thanks Stackoverflow:
-def insert_newlines(string, every=FastaSeqLineLength):
-    lines = []
-    for i in xrange(0, len(string), every):
-        lines.append(string[i:i+every])
-    return '\n'.join(lines)
+SeqIO.write([ConsensusSeqObj, RefSeqObj], sys.stdout, "fasta")
 
-# As a name for the sequence take the file name minus extension and path.
-SeqName = os.path.basename(BaseFreqFile).rsplit('.',1)[0]
-print('>'+SeqName)
-print(insert_newlines(consensus))
-if PrintRefToo:
-  print('>'+RefName)
-  print(insert_newlines(RefSeq))
+## Thanks Stackoverflow:
+#def insert_newlines(string, every=50):
+#    lines = []
+#    for i in xrange(0, len(string), every):
+#        lines.append(string[i:i+every])
+#    return '\n'.join(lines)
+#print('>' + args.consensus_seq_name)
+#print(insert_newlines(consensus))
+#print('>' + args.ref_seq_name)
+#print(insert_newlines(RefSeq))

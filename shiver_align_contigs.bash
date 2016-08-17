@@ -93,7 +93,7 @@ HIVcontigNames=$(awk -F, '{print $1}' "$BlastFile" | sort | uniq)
 # ... and align them. 
 OldMafft=false
 SwapContigsToTop=true
-AlignContigsToRefs 'mafft' '--quiet' "$RawContigFile1" "$RefAlignment" \
+AlignContigsToRefs "$mafft" '--quiet' "$RawContigFile1" "$RefAlignment" \
 "$RawContigAlignment" "$SwapContigsToTop" "$OldMafft"
 
 # Run the contig cutting & flipping code
@@ -102,7 +102,7 @@ AlignContigsToRefs 'mafft' '--quiet' "$RawContigFile1" "$RefAlignment" \
 
 # If the contigs needed cutting and/or flipping: align the modified contigs.
 if [[ -f "$CutContigFile" ]]; then
-  AlignContigsToRefs 'mafft' '--quiet' "$CutContigFile" "$RefAlignment" \
+  AlignContigsToRefs "$mafft" '--quiet' "$CutContigFile" "$RefAlignment" \
   "$CutContigAlignment" "$SwapContigsToTop" "$OldMafft"
 fi
 

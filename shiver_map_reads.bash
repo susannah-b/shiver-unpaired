@@ -89,22 +89,26 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
   RefName=$(awk '/^>/ {print substr($1,2)}' "$FastaFile")
   "$Code_FindSeqsInFasta" "$ExistingRefAlignment" -g "$RefName" > \
   "$RefFromAlignment" || \
-  { echo 'Could not find seq' "$RefName" 'in' "$ExistingRefAlignment"'. After' \
-  'mapping we will not be able to produce a version of the consensus seq' \
-  'suitable for a global alignment. Continuing.' ; RefIsInAlignment=false ; }
+  { echo "Could not find seq $RefName in $ExistingRefAlignment; that's OK," \
+  'but after mapping we will not be able to produce a version of the' \
+  'consensus seq with gaps suitable for a global alignment. Continuing.' ; \
+  RefIsInAlignment=false ; }
 
   # Compare the sequence in FastaFile to the one in ExistingRefAlignment.
-  "$Code_CheckFastaFileEquality" "$RefFromAlignment" "$FastaFile"
-  ComparisonExitStatus=$?
-  if [ $ComparisonExitStatus -eq 111 ]; then
-    echo 'Seq' "$RefName" 'differs between' "$FastaFile" 'and' \
-    "$ExistingRefAlignment"'. After mapping we will not be able to produce a' \
-    'version of the consensus seq suitable for a global alignment. Continuing.'
-    RefIsInAlignment=false
-  elif [ $ComparisonExitStatus -ne 0 ]; then
-    echo 'Problem running' "$Code_CheckFastaFileEquality"'. Quitting.' >&2
-    exit 1
-  fi 
+  if $RefIsInAlignment; then
+    "$Code_CheckFastaFileEquality" "$RefFromAlignment" "$FastaFile"
+    ComparisonExitStatus=$?
+    if [ $ComparisonExitStatus -eq 111 ]; then
+      echo 'Seq' "$RefName" 'differs between' "$FastaFile" 'and' \
+      "$ExistingRefAlignment; that's OK," \
+      'but after mapping we will not be able to produce a version of the' \
+      'consensus seq with gaps suitable for a global alignment. Continuing.' ;
+      RefIsInAlignment=false
+    elif [ $ComparisonExitStatus -ne 0 ]; then
+      echo 'Problem running' "$Code_CheckFastaFileEquality"'. Quitting.' >&2
+      exit 1
+    fi 
+  fi
 
   # Set the flag appropriate for use of a real ref, when it comes to
   # coordinate translation for a global alignment.

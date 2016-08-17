@@ -112,7 +112,8 @@ for ref in "$InitDir"/'IndividualRefs'/*'.fasta'; do
   # Make one alignment with regular mafft...
   cat "$ref" "$RawContigFile1" > "$ContigsWith1ref"
   AlnFile1="$ContigAlignmentsToRefsDir"/'temp_1_'$(basename "$ref")
-  mafft --quiet "$ContigsWith1ref" > "$AlnFile1"
+  "$mafft" --quiet "$ContigsWith1ref" > "$AlnFile1" || \
+  { echo 'Problem aligning' "$ContigsWith1ref"'. Quitting.' >&2 ; exit 1 ; }
   NumWordsInAlnFileName=$(echo $AlnFile1 | wc -w)
   if [[ $NumWordsInAlnFileName -gt 1 ]]; then
     echo "Error: unexpected whitespace in file $AlnFile1. Quitting."
@@ -127,7 +128,7 @@ for ref in "$InitDir"/'IndividualRefs'/*'.fasta'; do
     continue
   fi
   AlnFile2="$ContigAlignmentsToRefsDir"/'temp_2_'$(basename "$ref")
-  mafft --quiet --addfragments "$RawContigFile1" "$ref" > "$AlnFile2" || \
+  "$mafft" --quiet --addfragments "$RawContigFile1" "$ref" > "$AlnFile2" || \
   { echo "Warning: it looks like you're running an old version of mafft: the" \
   "--addfragments option doesn't work. That option can be very helpful for" \
   "correctly aligning contigs, and we advise you to update your mafft." \

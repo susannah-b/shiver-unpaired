@@ -15,6 +15,7 @@ BlastDBcommand='makeblastdb'
 smalt='smalt'
 samtools='samtools'
 trimmomatic="$HOME/Trimmomatic-0.33/trimmomatic-0.33.jar"
+mafft='mafft'
 # Newer versions of fastaq have a space instead of an underscore between 
 # 'fastaq' and the desired fastaq command, e.g. 'sequence_trim'. This means we
 # will interpret space in this command as meaningful (i.e. we will execute

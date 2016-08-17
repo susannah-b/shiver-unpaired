@@ -111,7 +111,14 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
 
 # Check we found some sequences for printing!
 if SeqsWeWant == []:
-  print('Found no sequences to print. Quitting.', file=sys.stderr)
+  ErrorMsg = 'Searched in ' + args.FastaFile + ' for ' + \
+  ' '.join(args.SequenceName)
+  if args.invert_search:
+    ErrorMsg += ' with the --invert-search option'
+  if args.match_start:
+    ErrorMsg += ' with the --match-start option'
+  ErrorMsg += '; found nothing.'
+  print(ErrorMsg, file=sys.stderr)
   exit(1)
 
 # Check all specified seqs were encountered (unless only the beginnings of names

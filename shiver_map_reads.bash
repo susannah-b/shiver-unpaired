@@ -70,7 +70,10 @@ BaseFreqs="$SID$BaseFreqsSuffix"
 InsertSizeCounts="$SID$InsertSizeCountsSuffix"
 ################################################################################
 
-
+# Check all 1 read seq ids end in /1, and 2 reads in /2. Check there are
+# no tabs in the seq id lines.
+CheckReadNames "$reads1" 1
+CheckReadNames "$reads2" 2
 
 ################################################################################
 # CONSTRUCT A REFERENCE, OR USE THE ONE SUPPLIED
@@ -374,12 +377,7 @@ else
     else
 
       # Sort the raw reads by name. Check every read has a mate.
-      # TODO: this breaks if there's a tab in the fastq header line: grep or awk
-      # for that.
-      # TODO: this assumes that trimming two characters off the end fastq id field
-      # gives something that matches between forward & backward reads.
-      # Verify this: check that printing only the last two characters, we get only
-      # one thing from each file. Move the 'unpaired' check right to the beginning.
+      # TODO: move the 'unpaired' check right to the beginning?
       cat "$reads1" | paste - - - - | sort -k1,1 -t$'\t' | tr "\t" "\n" > \
       "$reads1sorted"
       cat "$reads2" | paste - - - - | sort -k1,1 -t$'\t' | tr "\t" "\n" > \
@@ -438,9 +436,9 @@ echo 'Now mapping - typically a slow step.'
 # Convert that sam file into a bam file. Thanks Nick Croucher!
 "$samtools" view -bS $samtoolsReadFlags -t "$TheRef".fai -o \
 "$MapOutConversion1".bam "$MapOutAsSam" &&
-"$samtools" sort -n "$MapOutConversion1".bam "$MapOutConversion2" &&
+"$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam &&
 "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
-"$samtools" sort "$MapOutConversion3".bam "$SID" &&
+"$samtools" sort "$MapOutConversion3".bam -o "$SID".bam &&
 "$samtools" index "$SID.bam" || \
 { echo 'Failed to convert from sam to bam format. Quitting.' >&2 ; exit 1 ; }
 

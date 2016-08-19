@@ -87,3 +87,31 @@ function AlignContigsToRefs {
   fi
 
 }
+
+function CheckReadNames {
+
+  ReadFile=$1
+  # Forward reads (1) or reverse reads (2)
+  OneOrTwo=$2
+
+  # Check all read seq ids end in /1 or /2 as needed.
+  suffix=$(awk '{if ((NR-1)%4==0) print substr($1,length($1)-1,
+  length($1))}' "$ReadFile" | sort | uniq)
+  if [[ "$suffix" != '/'"$OneOrTwo" ]]; then
+    echo "Found at least one read in $ReadFile whose sequence ID does not end"\
+    'in "\'"$OneOrTwo"'". Quitting.'
+    exit 1
+  fi
+
+  # Check none of the lines with read IDs contain tabs
+  NumNameLinesWithTabs=$(awk '{if ((NR-1)%4==0 && gsub("\t","\t",$0) > 0)
+  print}' "$ReadFile" | wc -l)
+  if [[ $NumNameLinesWithTabs -ne 0 ]]; then
+    echo "The following lines in $ReadFile contain tabs:"
+    awk '{if ((NR-1)%4==0 && gsub("\t","\t",$0) > 0) print}' "$ReadFile"
+    echo 'To remove contaminant reads, we require there to be no tabs in the' \
+    'sequence ID lines of fastq files. Quitting.'
+    exit 1
+  fi
+
+}

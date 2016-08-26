@@ -85,7 +85,7 @@ done
 ```
 For samples for which contig correction is necessary, `SID_cut_wRefs.fasta` will be produced as well as `SID_raw_wRefs.fasta` (the former containing the modified contigs).
 In such cases, spliced contigs (those concatenating separated parts of the genome, detected by multiple separated blast hits) have been cut into pieces, and reverse-complement contigs (detected by inverted blast hits) are reverse complemented.
-This doesn't work perfectly every time - a large indel in a contig can cause two separate blast hits, and cutting the contig at slightly the wrong spot can cause alignment difficulty - and so where `SID_cut_wRefs.fasta` exists you're advised to inspect both it and `SID_raw_wRefs.fasta`, choose the better looking and discard the other, and delete ragged ends if they appear (as previously).
+Our detection of contigs needing correction does not have 100% specificity - e.g. a large indel in a contig can cause two separate blast hits - and so where `SID_cut_wRefs.fasta` exists you're advised to inspect both it and `SID_raw_wRefs.fasta` (instead of blindly trusting that the cut one is better), choose the better looking one and discard the other, and then delete ragged ends if they appear (as previously).
 ```bash
 # For samples that had an SID_cut_wRefs.fasta file, we kept either that file or
 # SID_raw_wRefs.fasta. Let's rename all these files so they have the same format,

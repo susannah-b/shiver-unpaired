@@ -12,16 +12,16 @@ import os, sys, collections
 
 # A dictionary of what the IUPAC ambiguous letters mean
 IUPACdict = {}
+IUPACdict['M'] = ['A','C']
 IUPACdict['R'] = ['A','G']
-IUPACdict['Y'] = ['C','T']
-IUPACdict['M'] = ['C','A']
-IUPACdict['K'] = ['T','G']
-IUPACdict['W'] = ['T','A']
+IUPACdict['W'] = ['A','T']
 IUPACdict['S'] = ['C','G']
-IUPACdict['B'] = ['C','T','G']
-IUPACdict['D'] = ['A','T','G']
-IUPACdict['H'] = ['A','T','C']
+IUPACdict['Y'] = ['C','T']
+IUPACdict['K'] = ['G','T']
 IUPACdict['V'] = ['A','C','G']
+IUPACdict['H'] = ['A','C','T']
+IUPACdict['D'] = ['A','G','T']
+IUPACdict['B'] = ['C','G','T']
 IUPACdict['N'] = ['A','C','G','T']
 #for AmbigLetter in IUPACdict:
 #  IUPACdict[AmbigLetter] = sorted(IUPACdict[AmbigLetter])

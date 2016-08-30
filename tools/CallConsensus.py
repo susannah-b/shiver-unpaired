@@ -133,7 +133,7 @@ def CallEnoughBases(BaseCounts, MinCoverage, coverage):
   # bases.
   CountSoFar = 0  
   for i, count in enumerate(SortedBaseCounts):
-    if i == NumExpectedBases:
+    if i == NumExpectedBases - 1:
       NumBasesNeeded = i+1
       break
     CountSoFar += count

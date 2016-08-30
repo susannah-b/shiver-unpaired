@@ -134,8 +134,8 @@ else
 
   # ContigToRefAlignment should contain the same set of sequences in the input
   # existing reference alignment, plus the contigs.
-  awk '/^>/ {print substr($1,2)}' "$ContigToRefAlignment" | sort > \
-  "$AllSeqsInAln"
+  awk '/^>/ {print substr($1,2)}' "$ContigToRefAlignment" | sort \
+  | sed $'s/\r//g' > "$AllSeqsInAln"
   MissingRefs=$(comm -1 -3 "$AllSeqsInAln" "$RefList")
   NumMissingRefs=$(echo $MissingRefs | wc -w)
   if [ $NumMissingRefs -gt 0 ]; then

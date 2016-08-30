@@ -85,6 +85,14 @@ MinCov2=20
 # ambiguity code for those bases.
 MinBaseFrac=-1
 
+# Shall we remap to the consensus? (For remapping, gaps in coverage in the 
+# consensus will filled in by the corresponding part of the orginal reference,
+# and ambiguity codes will simplified to just one of the bases they represent.
+# Because of this, if remapping to the consensus, you are strongly advised to 
+# set the MinBaseFrac parameter above to any negative value.)
+remap=true
+
+
 # Suffixes we'll append to the sample ID for output files.
 # If you change the extension, you may well break something.
 OutputRefSuffix='_ref.fasta'

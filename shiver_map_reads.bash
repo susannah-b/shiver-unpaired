@@ -70,11 +70,6 @@ BaseFreqs="$SID$BaseFreqsSuffix"
 InsertSizeCounts="$SID$InsertSizeCountsSuffix"
 ################################################################################
 
-# Check all 1 read seq ids end in /1, and 2 reads in /2. Check there are
-# no tabs in the seq id lines.
-CheckReadNames "$reads1" 1
-CheckReadNames "$reads2" 2
-
 ################################################################################
 # CONSTRUCT A REFERENCE, OR USE THE ONE SUPPLIED
 
@@ -231,6 +226,11 @@ if [[ "$reads2" == *.gz ]]; then
   gunzip -f "$reads2"
   reads2="${reads2%.gz}"
 fi
+
+# Check all 1 read seq ids end in /1, and 2 reads in /2. Check there are
+# no tabs in the seq id lines.
+CheckReadNames "$reads1" 1
+CheckReadNames "$reads2" 2
 
 HaveModifiedReads=false
 
@@ -477,6 +477,60 @@ fi
 
 # TODO: merge CoordsDict with BaseFreqs, like this?
 #  ~/Dropbox\ \(Infectious\ Disease\)/chris/SeqAnal/MergeBaseFreqsAndCoords.py "$BaseFreqs" "$CoordsDict" > "$CoordsDict"_wGlobal.csv; 
+
+if [[ "$remap" == "true" ]]; then
+
+  echo 'Beginning remapping to the consensus.'
+
+  # New file names
+  NewSID="$SID"'_remap'
+  NewRef="$NewSID$OutputRefSuffix"
+  NewRefName="$SID"'_ConsensusRound1_GapsFilled'
+  NewConsensus="$NewSID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
+  NewBaseFreqs="$NewSID$BaseFreqsSuffix"
+
+  # Fill in any gaps in the consensus with the corresponding part of the orginal
+  # reference for mapping.
+  "$Code_FillConsensusGaps" "$consensus" '--output-seq-name' \
+  "$NewRefName" > "$NewRef" || { echo 'Problem'\
+  'filling in gaps in the consensus with the corresponding part of the orginal'\
+  'reference for mapping. Quitting.' >&2 ; exit 1 ; }
+
+  # Index the ref
+  "$smalt" index $smaltIndexOptions "$smaltIndex" "$NewRef" || \
+  { echo 'Problem indexing the refererence with smalt. Quitting.' >&2 ; exit 1 ; }
+  "$samtools" faidx "$NewRef" || \
+  { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+  exit 1 ; }
+
+  # Do the mapping!
+  echo 'Now mapping - typically a slow step.'
+  "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
+  "$cleaned1reads" "$cleaned2reads" || \
+  { echo 'Smalt mapping failed. Quitting.' >&2 ; exit 1 ; }
+
+  # Convert that sam file into a bam file.
+  "$samtools" view -bS $samtoolsReadFlags -t "$NewRef".fai -o \
+  "$MapOutConversion1".bam "$MapOutAsSam" &&
+  "$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam &&
+  "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
+  "$samtools" sort "$MapOutConversion3".bam -o "$NewSID".bam &&
+  "$samtools" index "$NewSID.bam" || \
+  { echo 'Failed to convert from sam to bam format. Quitting.' >&2 ; exit 1 ; }
+
+  # Generate pileup
+  echo 'Now calculating pileup - typically a slow step.'
+  "$samtools" mpileup $mpileupOptions -f "$NewRef" "$NewSID.bam" > \
+  "$PileupFile" || { echo 'Failed to generate pileup. Quitting.' >&2 ; exit 1 ; }
+
+  # Generate base frequencies and the consensuses
+  "$Code_AnalysePileup" "$PileupFile" "$NewRef" > "$NewBaseFreqs" || \
+  { echo 'Problem analysing the pileup. Quitting' >&2 ; exit 1 ; }
+  "$Code_CallConsensus" "$NewBaseFreqs" "$MinCov1" "$MinCov2" "$MinBaseFrac" \
+  --consensus-seq-name "$NewSID"'_consensus' --ref-seq-name "$NewRefName" > \
+  "$NewConsensus" || \
+  { echo 'Problem calling the consensus. Quitting.' >&2 ; exit 1 ; }
+fi
 
 # If we did something to the reads, zip them
 if $HaveModifiedReads; then

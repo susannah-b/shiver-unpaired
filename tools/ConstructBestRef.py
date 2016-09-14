@@ -28,7 +28,7 @@ the elongated best reference. This defines the constructed best reference.
 ## USER INPUT
 # The character that indicates a gap (missing base). If there are multiple such
 # characters, put the one to be used in the output first.
-GapChars = '-?'
+GapChar = '-'
 # Excise unique insertions present in the contigs but not any of the references?
 ExciseUniqueInsertions = False
 ################################################################################
@@ -40,7 +40,7 @@ import sys
 import collections
 import argparse
 from string import maketrans
-from AuxiliaryFunctions import ReadSequencesFromFile
+from AuxiliaryFunctions import ReadSequencesFromFile, PropagateNoCoverageChar
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -48,10 +48,22 @@ def File(MyFile):
     raise argparse.ArgumentTypeError(MyFile+' does not exist or is not a file.')
   return MyFile
 
+# For using new lines in the argument help
+class SmartFormatter(argparse.HelpFormatter):
+    def _split_lines(self, text, width):
+        if text.startswith('R|'):
+            return text[2:].splitlines()  
+        return argparse.HelpFormatter._split_lines(self, text, width)
+
 # Set up the arguments for this script
-parser = argparse.ArgumentParser(description=ExplanatoryMessage)
+parser = argparse.ArgumentParser(description=ExplanatoryMessage, \
+formatter_class=SmartFormatter)
 parser.add_argument('FastaFile', type=File)
 parser.add_argument('ContigName', nargs='+')
+parser.add_argument('-L', '--contigs-length', action='store_true', \
+help='Simply print the length of the flattened contigs (i.e. the number of '+\
+'positions in the alignment that are inside at least one contig, excluding '+\
+'positions where all contigs have a gap), and exit.')
 parser.add_argument('-P', '--print-best-score', action='store_true', \
 help='Simply print the fractional identity and the name of the reference ' +\
 'with the highest fractional identity, then exit.')
@@ -61,9 +73,41 @@ parser.add_argument('-S2', '--summarise-contigs-2', action='store_true', \
 help='Simply print the length and gap fraction of each contig in an alignment'+\
 ' in which only the best reference is kept with the contigs (i.e. all other ' +\
 'references are discarded, then pure-gap columns are removed), then exit.')
+parser.add_argument('-C', '--compare-contigs-to-consensus', \
+help='''R|Use this option to specify the name of the consensus
+sequence; use it when the FastaFile argument is the
+alignment of contigs, consensus and mapping reference.
+We put each position in the alignment in one of the
+following four categories, then print the counts of 
+each. (1) At least one of the flattened contigs agrees
+with the consensus. (2) All contigs disagree with the
+consensus. (3) At least one contig has a base and the
+reference has "?". (4) There is no contig coverage but
+the consensus has a base. We do not count positions
+where the consensus has "?" and all contigs have gaps or
+no coverage, nor positions where the consensus has a gap
+and [at least one contig has a gap or no contig has
+coverage], since such positions constitute trivial
+agreement. We also do not count any position where the
+consensus has an 'N'.The table below may help clarify
+the categorisation of positions:
+
+                          Consensus:
+                       |  base  | gap |  ?  |  N
+          -------------|--------|-----|-----|-----
+         just bases    | 1 or 2 |  2  |  3  | n/a
+Contigs: bases + gaps  | 1 or 2 | n/a |  3  | n/a
+         just gaps     |   2    | n/a | n/a | n/a
+         no coverage   |   4    | n/a | n/a | n/a
+''')
+
 args = parser.parse_args()
+
+# Shorthand
 AlignmentFile = args.FastaFile
 ContigNames = args.ContigName
+CompareContigsToConsensus = args.compare_contigs_to_consensus != None
+ConsensusName = args.compare_contigs_to_consensus
 
 
 # Check all contig names are unique
@@ -76,8 +120,22 @@ if len(DuplicatedContigNames) != 0:
   print('All contig names should be unique. Exiting.', file=sys.stderr)
   exit(1)
 
+# Check the consensus name does not match one fo the contig names.
+if CompareContigsToConsensus and ConsensusName in ContigNames:
+  print('The consensus name should not be the same as one of the contig', \
+  'names. Quitting.', file=sys.stderr)
+  exit(1)
+
 # Read in the sequences from the alignment file (into a dictionary)
 AllSeqsDict, AlignmentLength = ReadSequencesFromFile(AlignmentFile)
+
+# Check the consensus is found
+if CompareContigsToConsensus:
+  if not ConsensusName in AllSeqsDict:
+    print(ConsensusName, 'not found in', AlignmentFile + '. Quitting.', \
+    file=sys.stderr)
+    exit(1)
+  ConsensusSeq = AllSeqsDict[ConsensusName]
 
 # Separate sequences into references and contigs
 RefDict = {}
@@ -97,16 +155,6 @@ if len(MissingContigs) != 0:
   print('Exiting.', file=sys.stderr)
   exit(1)
 
-# Ensure a unique character for gaps
-GapChar = GapChars[0]
-if len(GapChars) > 1:
-  OtherGapChars = GapChars[1:]
-  GapCharRepeat = GapChar*len(OtherGapChars)
-  for SeqName,seq in ContigDict.items():
-    ContigDict[SeqName] = seq.translate(maketrans(OtherGapChars,GapCharRepeat))
-  for SeqName,seq in RefDict.items():
-    RefDict[SeqName] = seq.translate(maketrans(OtherGapChars,GapCharRepeat))
-
 # A function we'll need more than once:
 def FindSeqStartAndEnd(SeqName, seq, AlignmentLength):
   '''Find the 0-based positions of the start and end of the sequence.'''
@@ -115,7 +163,7 @@ def FindSeqStartAndEnd(SeqName, seq, AlignmentLength):
     while seq[StartOfSeq] == GapChar:
       StartOfSeq += 1
   except IndexError:
-    print(SeqName, "has no bases - it's just one big gap.\nQuitting.", \
+    print(SeqName, "has no bases - it's just one big gap. Quitting.", \
     file=sys.stderr)
     exit(1)
   EndOfSeq = AlignmentLength-1
@@ -188,6 +236,10 @@ for position in range(StartOfFirstContig,EndOfLastContig+1):
   FlattenedContigsSeq += BaseHere
 FlattenedContigsSeq += GapChar * (AlignmentLength - EndOfLastContig -1)
 
+if args.contigs_length:
+  print(len(FlattenedContigsSeq) - FlattenedContigsSeq.count(GapChar))
+  exit(0)
+
 # Make a list, of the same length of the alignment, of integers: each one
 # counting the number of contigs with coverage there. Gaps inside contigs get
 # counted as coverage; gaps between contigs get a count of 0.
@@ -195,6 +247,63 @@ ContigCoverageByPosition = [0 for n in range(0,AlignmentLength)]
 for [start,end] in ContigStartsAndEnds.values():
   for position in range(start,end+1):
     ContigCoverageByPosition[position] += 1
+
+# Compare contigs to consensus to count positions in the four categories
+# ('cats') described in the help above. Convert all bases to upper case, and
+# replace any gap char that neighbours a '?' char in the consensus by a '?'.
+if CompareContigsToConsensus:
+  categories = []
+  ConsensusSeq = ConsensusSeq.upper()
+  ConsensusSeq = PropagateNoCoverageChar(ConsensusSeq)
+  for ContigName in ContigDict:
+    ContigDict[ContigName] = ContigDict[ContigName].upper()
+  for pos in range(0,AlignmentLength):
+    ConsensusBase = ConsensusSeq[pos]
+    if ConsensusBase == 'N': 
+      cat = None
+    elif ContigCoverageByPosition[pos] == 0:
+      if ConsensusBase == '?' or ConsensusBase == GapChar:
+        cat = None
+      else:
+        cat  = 4
+    else:
+
+      # Find all bases (or gaps) inside a contig here.
+      ContigBases = []
+      for ContigName, ContigSeq in ContigDict.items():
+        StartOfContig, EndOfContig = ContigStartsAndEnds[ContigName]
+        if StartOfContig <= pos <= EndOfContig:
+          ContigBases.append(ContigSeq[pos])
+      if ContigBases == []:
+        print('Malfunction of', sys.argv[0] + ": we've lost track of what", \
+        "contigs are present at position", pos+1, 'in', AlignmentFile + \
+        '. Please report to Chris Wymant. Quitting.', file=sys.stderr)
+        exit(1)
+
+      if ConsensusBase == '?':
+        if all(ContigBase == GapChar for ContigBase in ContigBases):
+          cat = None
+        else:
+          cat = 3
+      elif ConsensusBase == GapChar:
+        if all(ContigBase != GapChar for ContigBase in ContigBases):  
+          cat = 2
+        else:
+          cat = None
+      else:
+        if any(ContigBase == ConsensusBase for ContigBase in ContigBases):  
+          cat = 1
+        else:
+          cat = 2
+        
+    categories.append(cat)
+  CatCounts = [0,0,0,0]
+  for cat in categories:
+    if cat != None:
+      CatCounts[cat-1] += 1
+  print(' '.join(map(str, CatCounts)))
+  exit(0)
+    
 
 #TotalContigCoverage = sum([1 for base in FlattenedContigsSeq if base != GapChar])
 #sys.stdout.write(str(len(ContigDict)) +' '+ str(TotalContigCoverage) +' ')

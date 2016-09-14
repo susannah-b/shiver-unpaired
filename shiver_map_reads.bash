@@ -436,9 +436,9 @@ echo 'Now mapping - typically a slow step.'
 # Convert that sam file into a bam file. Thanks Nick Croucher!
 "$samtools" view -bS $samtoolsReadFlags -t "$TheRef".fai -o \
 "$MapOutConversion1".bam "$MapOutAsSam" &&
-"$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam &&
+"$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam -T "$SamtoolsSortFile" &&
 "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
-"$samtools" sort "$MapOutConversion3".bam -o "$SID".bam &&
+"$samtools" sort "$MapOutConversion3".bam -o "$SID".bam -T "$SamtoolsSortFile" &&
 "$samtools" index "$SID.bam" || \
 { echo 'Failed to convert from sam to bam format. Quitting.' >&2 ; exit 1 ; }
 
@@ -466,7 +466,8 @@ echo 'Now calculating pileup - typically a slow step.'
 OldMafft=false
 SwapContigsToTop=false
 AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
-"$consensus" "$consensusWcontigs" "$SwapContigsToTop" "$OldMafft"
+"$consensus" "$consensusWcontigs" "$SwapContigsToTop" "$OldMafft" || { echo \
+'Problem aligning the contigs to the consensus. Quitting.' >&2 ; exit 1 ; }
 
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.
@@ -488,6 +489,7 @@ if [[ "$remap" == "true" ]]; then
   NewRefName="$SID"'_ConsensusRound1_GapsFilled'
   NewConsensus="$NewSID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
   NewBaseFreqs="$NewSID$BaseFreqsSuffix"
+  NewConsensusWcontigs="$NewSID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fasta'
 
   # Fill in any gaps in the consensus with the corresponding part of the orginal
   # reference for mapping.
@@ -512,9 +514,9 @@ if [[ "$remap" == "true" ]]; then
   # Convert that sam file into a bam file.
   "$samtools" view -bS $samtoolsReadFlags -t "$NewRef".fai -o \
   "$MapOutConversion1".bam "$MapOutAsSam" &&
-  "$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam &&
+  "$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam -T "$SamtoolsSortFile" &&
   "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
-  "$samtools" sort "$MapOutConversion3".bam -o "$NewSID".bam &&
+  "$samtools" sort "$MapOutConversion3".bam -o "$NewSID".bam -T "$SamtoolsSortFile" &&
   "$samtools" index "$NewSID.bam" || \
   { echo 'Failed to convert from sam to bam format. Quitting.' >&2 ; exit 1 ; }
 
@@ -530,10 +532,17 @@ if [[ "$remap" == "true" ]]; then
   --consensus-seq-name "$NewSID"'_consensus' --ref-seq-name "$NewRefName" > \
   "$NewConsensus" || \
   { echo 'Problem calling the consensus. Quitting.' >&2 ; exit 1 ; }
+
+  # Add the contigs to the alignment of the consensus and its reference.
+  AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
+  "$NewConsensus" "$NewConsensusWcontigs" "$SwapContigsToTop" "$OldMafft" || \
+  { echo 'Problem aligning the contigs to the consensus. Quitting.' >&2 ; \
+  exit 1 ; }
+
 fi
 
 # If we did something to the reads, zip them
-if $HaveModifiedReads; then
-  gzip -f "$cleaned1reads" "$cleaned2reads"
-fi
+#if $HaveModifiedReads; then
+#  gzip -f "$cleaned1reads" "$cleaned2reads"
+#fi
 

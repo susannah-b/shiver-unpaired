@@ -14,7 +14,7 @@ MinContigHitFrac=0.9
 BlastDBcommand='makeblastdb'
 smalt='smalt'
 samtools='samtools'
-trimmomatic="$HOME/Trimmomatic-0.33/trimmomatic-0.33.jar"
+trimmomatic="$HOME/Trimmomatic-0.36/trimmomatic-0.36.jar"
 mafft='mafft'
 # Newer versions of fastaq have a space instead of an underscore between 
 # 'fastaq' and the desired fastaq command, e.g. 'sequence_trim'. This means we
@@ -151,3 +151,4 @@ AlignmentForTesting='temp_test.fasta'
 ContigsWith1ref='temp_ContigsWith1ref.fasta'
 RefMatchLog='temp_RefMatchLog.txt'
 ContigAlignmentsToRefsDir='temp_ContigAlignmentsToRefsDir' # no whitespace!
+SamtoolsSortFile='temp_SamtoolsSortFile'

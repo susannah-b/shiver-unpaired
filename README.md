@@ -6,7 +6,7 @@ Sequences from HIV Easily Reconstructed.
 Dependencies: [smalt](http://www.sanger.ac.uk/science/tools/smalt-0), [blast](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download), [Fastaq](https://github.com/sanger-pathogens/Fastaq), [trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic), [samtools](http://www.htslib.org/), [biopython](http://biopython.org/wiki/Download), [mafft](http://mafft.cbrc.jp/alignment/software/).  
 Before you begin processing a collection of samples there's an initialisation step: it should be run once only (i.e. not once for each sample).
 It requires  
-1. your choice of pipeline parameters, specified in `config.bash`;  
+1. your choice of pipeline parameters, specified in `config.bash` (see section *The config file* later);  
 2. an alignment of existing reference genomes (lots of which are available to download from the [Los Alamos National Lab](http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html)) called `RefAlignment.fasta`, say;  
 3. fasta files containing the adapters and primers used for sequencing (ask your sequencing team for these), called `adapters.fasta` and `primers.fasta`, say.
 (Adapters are removed with trimmomatic, and "The naming of the various sequences within this file determines how they are used" - trimmomatic docs.
@@ -40,8 +40,6 @@ Most of the cases in which it fails, all you have to do is to delete a short str
 Performing this step manually ensures an alignment you can trust, allowing the second `shiver` command to reliably construct a) a tailored reference that minimises mapping bias, and b) a global alignment of all samples, instantly, without further need for an alignment algorithm: see the end of section *Processing example 2*.  
 [This](https://github.com/olli0601/PANGEAhaircut) R package by Oliver Ratmann uses machine learning to correct these cases of failed alignment; however for each sample you must manually check the corrections to ensure they are correct, instead of checking the alignment itself.
 
-
-
 #### What output do I get?
 
 `SID.bam`, `SID_ref.fasta`: the bam file of mapped reads, and the (tailored) reference to which they're mapped.  
@@ -51,6 +49,9 @@ In place of `foo` and `bar` here you'll see the two coverage thresholds specifie
 `SID_MinCov_foo_bar_ForGlobalAln.fasta`, `SID_coords.csv`: these files are useful for when multiple samples are processed, so we postpone their explanation.  
 `SID_clean_1.fastq.gz`, `SID_clean_2.fastq.gz`: the reads after removal of adapters, primers, low-quality bases, and those read pairs suspected of being contamination.  
 `SID_InsertSizeCounts.csv`: the inferred insert-size distribution.
+
+#### The config file
+In `config.bash` you can change pipeline parameters from their default values. During development of shiver, `config.bash` has sometimes been updated (e.g. new features might require new parameters). In case this happens again in the future, to make sure you keep your changes it would be wise to make a copy of this file, change the copy, and use that instead of `config.bash` for your shiver commands. Then if `config.bash` changes in a future version of shiver, you can compare differences between the new version and your tweaked old version (e.g. with the `diff` command), and apply your changes to the new version.
 
 #### Processing example 2: scripting over samples, all with HIV contigs, some of which need correcting
 Before we start, note that scripted use of shiver (like any other command-line program) to process multiple files is easier if you know the basics of playing with filenames from the command line. Consider this toy example:

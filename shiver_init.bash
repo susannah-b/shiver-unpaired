@@ -90,7 +90,7 @@ if [[ $NumUniqueIDs -ne $NumRefs ]]; then
 fi
 RefNames=$(cat "$RefList")
 if [[ "$RefNames" == *","* ]]; then
-  echo "Reference names must not contain commas. Quitting."
+  echo "Reference names must not contain commas. Quitting." >&2
   exit 1
 fi
 

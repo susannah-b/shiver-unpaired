@@ -275,6 +275,7 @@ for ContigName, hits in HitDict.items():
       ThisCutSeq = copy.deepcopy(seq)
       ThisCutSeq.id += '.' + str(i+1)
       ThisCutSeq.seq = ThisCutSeq.seq[CutStart-1 : CutEnd]
+      ThisCutSeq.description = ''
       
       # Do we need to reverse complement?
       sstart, send = hit[7:9]

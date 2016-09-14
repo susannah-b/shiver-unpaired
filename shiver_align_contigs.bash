@@ -62,7 +62,7 @@ if [[ $NumUniqueIDs -ne $NumContigs ]]; then
   exit 1;
 fi
 if [[ "$ContigNames" == *","* ]]; then
-  echo "Contig names must not contain commas. Quitting."
+  echo "Contig names must not contain commas. Quitting." >&2
   exit 1
 fi
 
@@ -98,7 +98,8 @@ AlignContigsToRefs "$mafft" '--quiet' "$RawContigFile1" "$RefAlignment" \
 
 # Run the contig cutting & flipping code
 "$Code_CorrectContigs" "$BlastFile" -C "$ContigFile" -O "$CutContigFile" || \
-{ echo "Problem encountered running $Code_CorrectContigs. Quitting." ; exit 1; }
+{ echo "Problem encountered running $Code_CorrectContigs. Quitting." >&2 ; \
+exit 1; }
 
 # If the contigs needed cutting and/or flipping: align the modified contigs.
 if [[ -f "$CutContigFile" ]]; then

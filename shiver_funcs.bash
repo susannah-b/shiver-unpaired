@@ -100,7 +100,7 @@ function CheckReadNames {
   length($1))}' "$ReadFile" | sort | uniq)
   if [[ "$suffix" != '/'"$OneOrTwo" ]]; then
     echo "Found at least one read in $ReadFile whose sequence ID does not end"\
-    'in "\'"$OneOrTwo"'". Quitting.'
+    'in "\'"$OneOrTwo"'". Quitting.' >&2
     exit 1
   fi
 
@@ -111,7 +111,7 @@ function CheckReadNames {
     echo "The following lines in $ReadFile contain tabs:"
     awk '{if ((NR-1)%4==0 && gsub("\t","\t",$0) > 0) print}' "$ReadFile"
     echo 'To remove contaminant reads, we require there to be no tabs in the' \
-    'sequence ID lines of fastq files. Quitting.'
+    'sequence ID lines of fastq files. Quitting.' >&2
     exit 1
   fi
 

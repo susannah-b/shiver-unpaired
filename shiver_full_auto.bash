@@ -59,7 +59,7 @@ if [[ $NumUniqueIDs -ne $NumContigs ]]; then
   exit 1;
 fi
 if [[ "$ContigNames" == *","* ]]; then
-  echo "Contig names must not contain commas. Quitting."
+  echo "Contig names must not contain commas. Quitting." >&2
   exit 1
 fi
 
@@ -92,7 +92,7 @@ HIVcontigNames=$(awk -F, '{print $1}' "$BlastFile" | sort | uniq)
 "$Code_CorrectContigs" "$BlastFile" --min-hit-frac "$MinContigHitFrac" || \
 { echo "The contigs in $ContigFile appear to need correcting. (Or a problem" \
 "was encountered running $Code_CorrectContigs.) Fully automatic processing" \
-"not possible. Quitting." ; exit 1 ; }
+"not possible. Quitting." >&2 ; exit 1 ; }
 
 # Prepare to iterate through all existing references
 mkdir "$ContigAlignmentsToRefsDir" || \
@@ -116,7 +116,7 @@ for ref in "$InitDir"/'IndividualRefs'/*'.fasta'; do
   { echo 'Problem aligning' "$ContigsWith1ref"'. Quitting.' >&2 ; exit 1 ; }
   NumWordsInAlnFileName=$(echo $AlnFile1 | wc -w)
   if [[ $NumWordsInAlnFileName -gt 1 ]]; then
-    echo "Error: unexpected whitespace in file $AlnFile1. Quitting."
+    echo "Error: unexpected whitespace in file $AlnFile1. Quitting." >&2
     exit 1
   fi
   RefSimilarityScore1=$("$Code_ConstructRef" -P "$AlnFile1" $HIVcontigNames | \
@@ -155,7 +155,7 @@ if (( $(echo "$LargestGapFrac > $MaxContigGappiness" | bc -l) )); then
   echo "The gappiest contig in the best contig-to-reference alignment," \
   "$BestContigToRefAlignment, has gap fraction $LargestGapFrac which is larger"\
   "than your stated maximum of $MaxContigGappiness. Try running the 'nearly" \
-  "automatic' version of shiver on this sample. Quitting."
+  "automatic' version of shiver on this sample. Quitting." >&2
   exit 1
 fi
 

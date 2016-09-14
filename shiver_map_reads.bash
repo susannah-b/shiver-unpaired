@@ -466,7 +466,7 @@ echo 'Now calculating pileup - typically a slow step.'
 OldMafft=false
 SwapContigsToTop=false
 AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
-"$consensus" "$consensusWcontigs" "$SwapContigsToTop" "$OldMafft" 
+"$consensus" "$consensusWcontigs" "$SwapContigsToTop" "$OldMafft"
 
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.

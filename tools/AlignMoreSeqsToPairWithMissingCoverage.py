@@ -202,31 +202,47 @@ for ProgThroughPreAln, PreAlnConsensusBit in enumerate(PreAlnConsensusBits):
     ProgThroughPostAln += 1
     continue
 
-  # A PreAln BitType 2 can either stay the same, or be chopped into three bits
-  # of type 2 1 2 (i.e. one run of gaps inserted), or be chopped into five bits 
-  # of type 2 1 2 1 2 (two runs of gaps inserted) etc. We want to check this is 
+  # A PreAln BitType 2 can either stay the same, or be chopped into alternating
+  # 1s and 2s i.e. bits of sequence separated by gaps. We want to check this is
   # the case, then just use the new form (chopped into gap-separated-bits
-  # appropriately).
-  if PostAlnConsensusBitType != 2:
-    print('Error running', sys.argv[0] + ': sequence became', \
-    'something other than sequence after alignment. Please report to Chris', \
-    'Wymant (google for current email address).', file=sys.stderr)
-    exit(1)
-  PreAlnConsensusBitLength = len(PreAlnConsensusBit)
-  if len(PostAlnConsensusBit) == PreAlnConsensusBitLength:
-    NewConsensus += PreAlnConsensusBit
-    ProgThroughPostAln += 1
-    continue
+  # appropriately). The new form should start with a 2, not a 1, unless we're
+  # currently dealing with the very first bit, i.e. pre-aln the consensus began
+  # with sequence but post-aln it begins with some gaps. We want that number og
+  # gaps, but replaced by '?' characters.
   NewForm = ''
-  while len(NewForm.replace('-', '')) < PreAlnConsensusBitLength:
+  if PostAlnConsensusBitType == 1:
+    if ProgThroughPreAln != 0:
+      print('Error running', sys.argv[0] + ': a consensus sequence fragment', \
+      "before alignment turns into something starting with a gap, but its not",\
+      'the first sequence fragment. Please report to Chris', \
+      'Wymant (google for current email address).', file=sys.stderr)
+      exit(1)
+    NewForm += '?' * len(PostAlnConsensusBit)
+    ProgThroughPostAln += 1
+  PreAlnConsensusBitLength = len(PreAlnConsensusBit)
+  while len(NewForm.replace('-', '').replace('?', '')) < \
+  PreAlnConsensusBitLength:
     NewForm += PostAlnConsensusBits[ProgThroughPostAln]
     ProgThroughPostAln += 1
-  if NewForm.replace('-', '') != PreAlnConsensusBit:
+  if NewForm.replace('-', '').replace('?', '') != PreAlnConsensusBit:
     print('Error running', sys.argv[0] + ': unable to match a split fragment', \
     'of consensus to the same fragment pre-alignment. Please report to Chris', \
     'Wymant (google for current email address).', file=sys.stderr)
     exit(1)
   NewConsensus += NewForm
+
+# If the PreAlnConsensus ended with sequence but the PostAlnConsensus ends with
+# gaps, we won't have met those gaps in the iteration above. Append as many '?'
+# as there are such gaps to the consensus.
+NumPostAlnConsensusBits = len(PostAlnConsensusBits)
+if ProgThroughPostAln == NumPostAlnConsensusBits - 1 and \
+PostAlnConsensusBitTypes[-1] == 1:
+  NewConsensus += '?' * len(PostAlnConsensusBits[-1])
+elif ProgThroughPostAln != NumPostAlnConsensusBits:
+  print('Error running', sys.argv[0] + ': something went wrong matching up', \
+  'the consensus before and after alignment. Please report to Chris', \
+  'Wymant (google for current email address).', file=sys.stderr)
+  exit(1)
 
 # Output sanity checks
 if NewConsensus.replace('?', '-') != PostAlignmentConsensusAsStr:

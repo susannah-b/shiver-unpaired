@@ -6,14 +6,14 @@ Sequences from HIV Easily Reconstructed.
 Dependencies: [smalt](http://www.sanger.ac.uk/science/tools/smalt-0), [blast](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download), [Fastaq](https://github.com/sanger-pathogens/Fastaq), [trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic), [samtools](http://www.htslib.org/), [biopython](http://biopython.org/wiki/Download), [mafft](http://mafft.cbrc.jp/alignment/software/).  
 Before you begin processing a collection of samples there's an initialisation step: it should be run once only (i.e. not once for each sample).
 It requires  
-1. your choice of pipeline parameters, specified in `config.bash` (see section *The config file* later);  
+1. your choice of pipeline parameters, specified in `config.sh` (see section *The config file* later);  
 2. an alignment of existing reference genomes (lots of which are available to download from the [Los Alamos National Lab](http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html)) called `RefAlignment.fasta`, say;  
 3. fasta files containing the adapters and primers used for sequencing (ask your sequencing team for these), called `adapters.fasta` and `primers.fasta`, say.
 (Adapters are removed with trimmomatic, and "The naming of the various sequences within this file determines how they are used" - trimmomatic docs.
 A default Illumina adapters file can be found in the [source code for IVA](https://github.com/sanger-pathogens/iva/).)  
 Initialisation files will be put into a directory called `MyInitDir` if you run
 ```bash
-$ ./shiver_init.bash MyInitDir config.bash RefAlignment.fasta adapters.fasta primers.fasta
+$ ./shiver_init.sh MyInitDir config.sh RefAlignment.fasta adapters.fasta primers.fasta
 ```
 (ignoring that first $ character, which just indicates that what follows should be run from command line). You shouldn't touch `MyInitDir` or the files therein after running this command, or unknown bad things might happen.
 
@@ -22,14 +22,14 @@ After running that initialisation command (once only!) you can process any numbe
 #### Processing example 1: one sample, for which the contigs don't need correcting
 Say you have forward reads in `reads_1.fastq.gz`, reverse reads in `reads_2.fastq.gz`, and contigs in `contigs.fasta`. Processing is achieved with the following two commands, replacing `SID` (sample ID) by a name used for labelling all output files for this sample:
 ```bash
-$ ./shiver_align_contigs.bash MyInitDir config.bash contigs.fasta SID
+$ ./shiver_align_contigs.sh MyInitDir config.sh contigs.fasta SID
 ```
 Amongst the files this step produces is `SID_raw_wRefs.fasta` - an alignment of your HIV contigs to your input existing reference genomes - which you should should visually check, and manually delete ragged contig ends which arise occasionally.
 (NB you may modify the contigs but not the existing reference sequences in the alignment.)
 Also produced is `SID.blast` - the result of blasting your contigs to those existing references.
 Now run
 ```bash
-$ ./shiver_map_reads.bash MyInitDir config.bash contigs.fasta SID SID.blast SID_raw_wRefs.fasta reads_1.fastq.gz reads_2.fastq.gz
+$ ./shiver_map_reads.sh MyInitDir config.sh contigs.fasta SID SID.blast SID_raw_wRefs.fasta reads_1.fastq.gz reads_2.fastq.gz
 ```
 and you're done. You'll probably want to delete the intermediate files produced during processing (beginning with 'temp' by default), i.e. `rm temp*`.
 
@@ -45,13 +45,13 @@ Performing this step manually ensures an alignment you can trust, allowing the s
 `SID.bam`, `SID_ref.fasta`: the bam file of mapped reads, and the (tailored) reference to which they're mapped.  
 `SID_BaseFreqs.csv`: the frequencies of the four bases (plus the `-` character for deletions) at each position in the bam file.  
 `SID_MinCov_foo_bar.fasta`: the consensus genome.
-In place of `foo` and `bar` here you'll see the two coverage thresholds specified in `config.bash`: `foo` is the minimum number of reads to call a base (if there are fewer than `foo` reads we call `?` instead of a base), `bar` the minimum number to use upper case for the base (to signal increased confidence).  
+In place of `foo` and `bar` here you'll see the two coverage thresholds specified in `config.sh`: `foo` is the minimum number of reads to call a base (if there are fewer than `foo` reads we call `?` instead of a base), `bar` the minimum number to use upper case for the base (to signal increased confidence).  
 `SID_MinCov_foo_bar_ForGlobalAln.fasta`, `SID_coords.csv`: these files are useful for when multiple samples are processed, so we postpone their explanation.  
 `SID_clean_1.fastq.gz`, `SID_clean_2.fastq.gz`: the reads after removal of adapters, primers, low-quality bases, and those read pairs suspected of being contamination.  
 `SID_InsertSizeCounts.csv`: the inferred insert-size distribution.
 
 #### The config file
-In `config.bash` you can change pipeline parameters from their default values. During development of shiver, `config.bash` has sometimes been updated (e.g. new features might require new parameters). In case this happens again in the future, to make sure you keep your changes it would be wise to make a copy of this file, change the copy, and use that instead of `config.bash` for your shiver commands. Then if `config.bash` changes in a future version of shiver, you can compare differences between the new version and your tweaked old version (e.g. with the `diff` command), and apply your changes to the new version.
+In `config.sh` you can change pipeline parameters from their default values. During development of shiver, `config.sh` has sometimes been updated (e.g. new features might require new parameters). In case this happens again in the future, to make sure you keep your changes it would be wise to make a copy of this file, change the copy, and use that instead of `config.sh` for your shiver commands. Then if `config.sh` changes in a future version of shiver, you can compare differences between the new version and your tweaked old version (e.g. with the `diff` command), and apply your changes to the new version.
 
 #### Processing example 2: scripting over samples, all with HIV contigs, some of which need correcting
 Before we start, note that scripted use of shiver (like any other command-line program) to process multiple files is easier if you know the basics of playing with filenames from the command line. Consider this toy example:
@@ -86,7 +86,7 @@ contigs
 MyInitDir
 reads
 ShiverCode
-config.bash
+config.sh
 ```
 with the first four being subdirectories containing what the name suggests.
 Here are your contigs:
@@ -109,7 +109,7 @@ $ for ContigFile in contigs/*.fasta; do
   # Make, and change into, an empty directory for processing this contig file
   mkdir AlignmentOutput_"$SID"  
   cd AlignmentOutput_"$SID"  
-  ../ShiverCode/shiver_align_contigs.bash ../MyInitDir ../config.bash "$ContigFile" "$SID"
+  ../ShiverCode/shiver_align_contigs.sh ../MyInitDir ../config.sh "$ContigFile" "$SID"
   cd ..
 done
 ```
@@ -139,7 +139,7 @@ $ for ContigFile in contigs/*.fasta; do
   alignment=../CheckedContigAlignments/"$SID"_wRefs.fasta
   reads1=../reads/"$SID"_1.fastq.gz
   reads2=../reads/"$SID"_2.fastq.gz
-  ../ShiverCode/shiver_map_reads.bash ../MyInitDir ../config.bash "$ContigFile" "$SID" "$BlastFile" "$alignment" "$reads1" "$reads2"
+  ../ShiverCode/shiver_map_reads.sh ../MyInitDir ../config.sh "$ContigFile" "$SID" "$BlastFile" "$alignment" "$reads1" "$reads2"
   cd
 done
 ```
@@ -159,7 +159,7 @@ You might have some samples for which none of the contigs blast to the existing 
 In this case the contig alignment step will produce an empty blast file and no `SID_raw_wRefs.fasta` file.
 You could choose to ignore such cases - that's reasonable.
 You could also choose to try to recover some HIV reads in your contamination-dominated sample.
-To this end, in place of the alignment of contigs to existing references amongst the arguments to `shiver_map_reads.bash`, you can supply a fasta file containing a single sequence: that sequence will be used as the reference for mapping, instead of a tailored one constructed from contigs.
+To this end, in place of the alignment of contigs to existing references amongst the arguments to `shiver_map_reads.sh`, you can supply a fasta file containing a single sequence: that sequence will be used as the reference for mapping, instead of a tailored one constructed from contigs.
 If that sequence is one of the existing references you provided at the initialisation step, `shiver` knows how to do the coordinate translation necessary to produce a `SID_MinCov_foo_bar_ForGlobalAln.fasta` file; if not, this file will not be produced (you'll still get your consensus sequence though).
 
 To script this kind of thing, you can just check whether the alignment of contigs to existing references exists for this sample: if not, choose a sequence to use as your reference to mapping.

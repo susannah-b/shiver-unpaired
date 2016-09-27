@@ -38,6 +38,7 @@ function AlignContigsToRefs {
   OldMafftArg=$7
   ContigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigFile")
 
+  # TODO: remove awk pipe - Imperial College HPC hack for dodgy mafft!
   "$Aligner" $AlignerOptions --add "$ContigFile" "$ThisRefAlignment" > \
   "$TempContigAlignment1" || \
   { echo 'Problem aligning' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
@@ -50,6 +51,7 @@ function AlignContigsToRefs {
   # ready for the next call of this function; if it does work, use the least
   # gappy alignment.
   if ! $OldMafftArg; then
+    # TODO: remove awk pipe - Imperial College HPC hack for dodgy mafft!
     "$Aligner" $AlignerOptions --addfragments "$ContigFile" \
     "$ThisRefAlignment" > "$TempContigAlignment2" || \
     { echo "Warning: it looks like you're running an old version of mafft: the"\

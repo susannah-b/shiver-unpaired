@@ -48,7 +48,7 @@ NumThreadsTrimmomatic=1
 # insert size and -i the maximum insert size: outside of this range, the read
 # pair is still mapped, but flagged as improperly paired.
 smaltIndexOptions="-k 15 -s 3"
-smaltMapOptions="-x -y 0.75 -j 0 -i 2000"
+smaltMapOptions="-x -y 0.7 -j 0 -i 2000"
 
 # After mapping, the choice of what kinds of reads should be kept is specified
 # with SAM format flags, whose documentation is here:
@@ -71,10 +71,10 @@ mpileupOptions='--min-BQ 5 --max-depth 1000000'
 
 # Parameters for calling the consensus base at each position:
 # The minimum coverage (number of reads) to call a base instead of a '?'
-MinCov1=10
+MinCov1=15
 # The minimum coverage to use upper case for the base (to signal increased
 # confidence)
-MinCov2=20
+MinCov2=30
 # The minimum fraction of reads at a position before we call that base (or those
 # bases, when one base alone does not reach that threshold fraction; e.g. say
 # you have 60% A, 30% C and 10% G: if you set this fraction to 0.6 or lower we
@@ -92,6 +92,9 @@ MinBaseFrac=-1
 # set the MinBaseFrac parameter above to any negative value.)
 remap=true
 
+# Shall we map contaminant reads to the reference (separately), to see which 
+# reads would have contaminanted our final bam file had they not been removed?
+MapContaminantReads=false
 
 # Suffixes we'll append to the sample ID for output files.
 # If you change the extension, you may well break something.

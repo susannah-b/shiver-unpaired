@@ -23,11 +23,16 @@ def File(MyFile):
 ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('FastaFile', type=File)
+parser.add_argument('-?', '--q-mark', action='store_true', help="Remove the "\
+" '?' character (assumed throughout Chris Wymant's code to mean missing"\
+"coverage) too.")
 args = parser.parse_args()
 
 UngappedSeqs = []
 for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
   seq.seq = seq.seq.ungap("-")
+  if args.q_mark:
+    seq.seq = seq.seq.ungap("?")
   UngappedSeqs.append(seq)
 
 if UngappedSeqs == []:

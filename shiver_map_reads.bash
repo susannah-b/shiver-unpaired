@@ -117,9 +117,12 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
 
   # Extract those contigs that have a blast hit.
   HIVcontigNames=$(awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq)
-  "$Code_FindSeqsInFasta" "$RawContigsFile" $HIVcontigNames > \
-  "$RawContigFile2" || \
-  { echo 'Problem extracting the HIV contigs. Quitting.' >&2 ; exit 1 ; }
+  NumHIVContigs=$(echo $HIVcontigNames | wc -w)
+  if [[ $NumHIVContigs -gt 0 ]]; then
+    "$Code_FindSeqsInFasta" "$RawContigsFile" $HIVcontigNames > \
+    "$RawContigFile2" || \
+    { echo 'Problem extracting the HIV contigs. Quitting.' >&2 ; exit 1 ; }
+  fi
 
 else
 
@@ -144,7 +147,7 @@ else
     exit 1
   fi
   HIVcontigNames=$(comm -2 -3 "$AllSeqsInAln" "$RefList")
-  NumHIVContigs=$(echo "$HIVcontigNames" | wc -w)
+  NumHIVContigs=$(echo $HIVcontigNames | wc -w)
   if [ $NumHIVContigs -eq 0 ]; then
     echo "Error: no contigs found in $ContigToRefAlignment. Quitting" >&2
     exit 1
@@ -408,19 +411,21 @@ else
 
       # Map the contaminant reads to the reference, to measure how useful the
       # cleaning procedure was.
-      "$Code_FindReadsInFastq" "$reads1sorted" "$BadReadsBaseName"_1.txt > \
-      "$BadReadsBaseName"_1.fastq &&
-      "$Code_FindReadsInFastq" "$reads2sorted" "$BadReadsBaseName"_2.txt > \
-      "$BadReadsBaseName"_2.fastq || \
-      { echo 'Problem extracting the contaminant reads using' \
-      "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
-      #"$samtools" faidx "$TheRef" &&
-      "$smalt" map $smaltMapOptions -o "$AllMappedContaminantReads" \
-      "$smaltIndex" "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq &&
-      "$samtools" view -bS -F 4 -t "$TheRef".fai -o "$MappedContaminantReads" \
-      "$AllMappedContaminantReads" || \
-      { echo "Problem mapping the contaminant reads to $RefName using smalt." \
-      'Quitting.' >&2 ; exit 1 ; }
+      if [[ "$MapContaminantReads" == "true" ]]; then
+        "$Code_FindReadsInFastq" "$reads1sorted" "$BadReadsBaseName"_1.txt > \
+        "$BadReadsBaseName"_1.fastq &&
+        "$Code_FindReadsInFastq" "$reads2sorted" "$BadReadsBaseName"_2.txt > \
+        "$BadReadsBaseName"_2.fastq || \
+        { echo 'Problem extracting the contaminant reads using' \
+        "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
+        #"$samtools" faidx "$TheRef" &&
+        "$smalt" map $smaltMapOptions -o "$AllMappedContaminantReads" \
+        "$smaltIndex" "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq &&
+        "$samtools" view -bS -F 4 -t "$TheRef".fai -o \
+        "$MappedContaminantReads" "$AllMappedContaminantReads" || \
+        { echo "Problem mapping the contaminant reads to $RefName using smalt."\
+        'Quitting.' >&2 ; exit 1 ; }
+      fi
 
       HaveModifiedReads=true
 
@@ -468,10 +473,12 @@ echo 'Now calculating pileup - typically a slow step.'
 
 # Add the contigs to the alignment of the consensus and its reference.
 OldMafft=false
-SwapContigsToTop=false
-AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
-"$consensus" "$consensusWcontigs" "$SwapContigsToTop" "$OldMafft" || { echo \
-'Problem aligning the contigs to the consensus. Quitting.' >&2 ; exit 1 ; }
+if [[ $NumHIVContigs -gt 0 ]]; then
+  SwapContigsToTop=false
+  AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
+  "$consensus" "$consensusWcontigs" "$SwapContigsToTop" "$OldMafft" || { echo \
+  'Problem aligning the contigs to the consensus. Quitting.' >&2 ; exit 1 ; }
+fi
 
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.
@@ -537,11 +544,13 @@ if [[ "$remap" == "true" ]]; then
   "$NewConsensus" || \
   { echo 'Problem calling the consensus. Quitting.' >&2 ; exit 1 ; }
 
-  # Add the contigs to the alignment of the consensus and its reference.
-  AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
-  "$NewConsensus" "$NewConsensusWcontigs" "$SwapContigsToTop" "$OldMafft" || \
-  { echo 'Problem aligning the contigs to the consensus. Quitting.' >&2 ; \
-  exit 1 ; }
+  if [[ $NumHIVContigs -gt 0 ]]; then
+    # Add the contigs to the alignment of the consensus and its reference.
+    AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
+    "$NewConsensus" "$NewConsensusWcontigs" "$SwapContigsToTop" "$OldMafft" || \
+    { echo 'Problem aligning the contigs to the consensus. Quitting.' >&2 ; \
+    exit 1 ; }
+  fi
 
 fi
 

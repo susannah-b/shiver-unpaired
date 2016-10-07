@@ -38,13 +38,18 @@ def CommaSeparatedFloatPair(FloatPairAsString):
 ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('BamFile', type=File)
-# TODO help
-parser.add_argument('-R', '--ref-file', help='foo', \
-type=File)
-# TODO help: requires --ref-file
 parser.add_argument('-I', '--identity-binning', type=CommaSeparatedFloatPair, \
-help=''\
-+' of mapped bases from all mapped reads.')
+help='''Split the total count of mapped bases into bins of read 'identity'
+(fractional agreement between a read and the reference sequence). Use this
+option to specify two floats separated by a comma: the first value being the
+minimum for binning, the second being the bin width. e.g. specifying '0.5,0.05'
+means we'll report the total number of mapped nucleotides from those reads whose
+identity is 0.5-0.55, then from those whose identity is 0.55-0.6, etc. This
+option requires the reference sequence to supplied using the --ref-file
+flag.''')
+parser.add_argument('-R', '--ref-file', help='The file containing the '+\
+'sequence of the reference (to which reads were mapped in the bam file).', \
+type=File)
 args = parser.parse_args()
 
 BamFile = pysam.AlignmentFile(args.BamFile, "rb")

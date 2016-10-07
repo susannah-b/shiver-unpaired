@@ -5,8 +5,10 @@ from __future__ import print_function
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
-ExplanatoryMessage = '''TODO:
-'''
+ExplanatoryMessage = '''This script finds, at each position in a bam file, the
+number and fraction of reads that are clipped from that position to their left
+or right end. Having many such reads is a warning sign that the reference and
+reads are so different that reads were not aligned correctly.'''
 
 import os
 import collections
@@ -24,6 +26,16 @@ def File(MyFile):
 ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('BamFile', type=File)
+parser.add_argument('MinClipLength', type=int, help='''Don't count clipped ends
+whose length is less than this. e.g. if you specify 3, we don't count cases
+where 1 or 2 bases have been clipped. If you specify 1 or less, we count all
+cases of clipping. A value a little larger than 1 is likely to be optimal,
+depending on the mapper used, since a single SNP close to the end of the read
+may result in the end being clipped, which is not a problem provided other reads
+span this position.''')
+parser.add_argument('-N', '--min-read-count', type=int, default=1, help='''Don't
+report positions where the number of reads clipped is less than this value. (The
+default value of 1 means any position with clipping is reported.)''')
 args = parser.parse_args()
 
 BamFile = pysam.AlignmentFile(args.BamFile, "rb")
@@ -62,14 +74,14 @@ for read in BamFile.fetch(RefName):
   LeftMostMappedBase = 0
   while positions[LeftMostMappedBase] == None:
     LeftMostMappedBase += 1
-  if LeftMostMappedBase > 0:
+  if LeftMostMappedBase > args.MinClipLength - 1:
     ClipPositions.append(positions[LeftMostMappedBase])
 
   # If the right edge is clipped, find where.
   RightMostMappedBase = len(positions)-1
   while positions[RightMostMappedBase] == None:
     RightMostMappedBase -= 1
-  if RightMostMappedBase < len(positions)-1:
+  if RightMostMappedBase < len(positions) - args.MinClipLength:
     ClipPositions.append(positions[RightMostMappedBase]+1)
 
   # Update the counts of reads spanning each position
@@ -84,6 +96,10 @@ if NumReads == 0:
 
 # Count how many times each position was recorded
 ClipPositionCounts = collections.Counter(ClipPositions)
+
+if args.min_read_count > 1:
+  ClipPositionCounts = {key:value for key, value in ClipPositionCounts.items() \
+  if value >= args.min_read_count}
 
 # Print the output
 output = 'Reference position, Number of reads clipped, Percentage of spanning'+\

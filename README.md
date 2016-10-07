@@ -37,7 +37,7 @@ If a single contig has two or more blast hits (ignoring hits wholly inside other
 shiver cuts such contigs between the hits, generating two or more contigs that can be aligned separately, and so for such samples there is an additional file `SID_cut_wRefs.fasta` containing the cut contigs (and any that did not need to be cut) aligned to the existing references.
 `SID_cut_wRefs.fasta` *should not be assumed to be superior to* `SID_raw_wRefs.fasta`.
 For example unusual indels can result in multiple blast hits, as can close matches to shorter references combined with less close matches to longer references.
-You should therefore look at both alignments, choose which set of contigs you think are a closer approximation to the sample consensus, edit if needed, and discard the other. 
+You should therefore look at both alignments, choose which set of contigs you think are more likely to approximate the true consensus, edit if needed, and discard the other alignment. 
 
 With an alignment of contigs you're happy with, say `SID_raw_wRefs.fasta`, run
 ```bash

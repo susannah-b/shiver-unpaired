@@ -21,7 +21,7 @@ You shouldn't touch `MyInitDir` or the files therein after running this command,
 After running that initialisation command (once only!) you can process any number of samples.
 Since sample processing generates (many) files in the working directory, to avoid overwriting files you should work in an empty directory for each sample, as illustrated in the *Scripted usage to process batches of samples* section below.
 
-#### How to process a single sample
+### How to process a single sample
 Say you have forward reads in `reads_1.fastq.gz`, reverse reads in `reads_2.fastq.gz`, and contigs in `contigs.fasta`.
 Processing requires two commands.
 The first is  
@@ -46,7 +46,7 @@ $ ./shiver_map_reads.sh MyInitDir config.sh contigs.fasta SID SID.blast SID_raw_
 and you're done.
 You'll probably want to delete the intermediate files produced during processing (beginning with 'temp' by default), i.e. `rm temp*`.
 
-#### A manual step between the two automatic steps? Blasphemy!
+### A manual step between the two automatic steps? Blasphemy!
 Correct alignment has already been attempted automatically in the first step, but unfortunately aligning HIV whole genomes automatically, perfectly, 100% of the time is a dream: HIV has one of the highest mutation rates known to biology, including frequent insertions and deletions.
 Compounding this problem is the fact that de novo assembly output is sometimes an imperfect representation of the sample, and aligning problematic sequences may give problematic alignments. 
 For most samples the contigs and their alignment are fine, and seeing this from the alignment takes one or two seconds of human time.
@@ -54,8 +54,7 @@ When editing is required, it amounts to one of two things: deleting a whole cont
 Visually checking and editing when needed ensures an alignment of contigs you can trust, allowing the second `shiver` command to reliably construct a) a tailored reference that minimises mapping bias, and b) a global alignment of all samples, instantly, without further need for an alignment algorithm: see the end of section *Scripted usage to process batches of samples*.  
 [This](https://github.com/olli0601/PANGEAhaircut) R package by Oliver Ratmann uses machine learning to correct such alignments; however for each sample you must manually check the corrections to ensure they are correct, instead of checking the alignment itself.
 
-#### What output do I get?
-
+### What output do I get?
 * `SID.bam`, `SID_ref.fasta`: the bam file of mapped reads, and the reference to which they're mapped (it's a shame the bam file format does not include the reference but that's how it is).
 * `SID_BaseFreqs.csv`: the frequencies of A, C, G, T, '-' for a deletion, and N for unknown, at each position in the genome.
 * `SID_MinCov_foo_bar.fasta`: the pairwise alignment of the consensus genome and the reference used for mapping.
@@ -67,13 +66,13 @@ The mapping reference is included with the consensus here to give context to any
 * `SID_InsertSizeCounts.csv`: the insert-size distribution.
 * `SID_ContaminantReads.bam`: a bam file of only the contaminant reads mapped to the HIV reference (to illustrate the importance of removing these reads from the HIV reads prior to mapping).
 
-#### The config file
+### The config file
 In `config.sh` you can change pipeline parameters from their default values.
 During development of shiver, `config.sh` has sometimes been updated (e.g. new features might require new parameters).
 In case this happens again in the future, to make sure you keep your changes it would be wise to make a copy of this file, change the copy, and use that instead of `config.sh` for your shiver commands.
 Then if `config.sh` changes in a future version of shiver, you can compare differences between the new version and your tweaked old version (e.g. with the `diff` command), and apply your changes to the new version.
 
-#### Scripted usage to process batches of samples
+### Scripted usage to process batches of samples
 Before we start, note that scripted use of shiver (like any other command-line program) to process multiple files is easier if you know the basics of playing with filenames from the command line.
 Consider this toy example:
 ```bash
@@ -176,7 +175,7 @@ $ cat MyInitDir/ExistingRefAlignment.fasta >> GlobalAln.fasta
 ```
 Now it's over to you for phylogenetics, GWAS etc.
 
-#### Including samples without contigs
+### Including samples without contigs
 You might have some samples for which none of the contigs blast to the existing references you supplied, i.e. it looks like all contigs are contaminants.
 In this case the contig alignment step will produce an empty blast file and no `SID_raw_wRefs.fasta` file.
 You could choose to ignore such cases - that's reasonable.
@@ -189,14 +188,15 @@ This would probably be most easily achieved by making a big look-up table before
 (e.g. running the program [kraken](https://ccb.jhu.edu/software/kraken/) on the reads for each sample, one can see which of the existing references has the largest number of reads attributed to it; one might obtain a non-null result even when no HIV contigs were assembled.)
 For example in the scripted usage above, after `alignment=../CheckedContigAlignments/"$SID"_wRefs.fasta`, you could have
 ```bash
-  if [ ! -f "$alignment" ]; then
-    # Reassign alignment to be the reference previously chosen for this sample
+  if [[ ! -f "$alignment" ]]; then
+    # Reassign the $alignment variable to be a file containing
+    # the reference previously chosen for this sample.
   fi
 ```
 
-#### Analysis and partial reprocessing
+### Analysis and partial reprocessing
 
-##### Using different coverage thresholds
+#### Using different coverage thresholds
 
 Recall `foo` and `bar` above.
 You can generate another consensus sequence using different values of `foo` and `bar` without rerunning the whole pipeline thus:
@@ -211,19 +211,19 @@ Decreasing these thresholds increases sensitivity to HIV reads at the cost of sp
 For example with dated sequences, you could try to get the strongest correlation between real time and the evolutionary distance inferred from a phylogeny - the R^2 of the molecular clock - since too little real sequence and too much contaminant sequence will both screw up your phylogeny.
 To regenerate a coordinate-translated version of this consensus for the global alignnent (of all consensuses produced by shiver), `tools/TranslateSeqForGlobalAln.py` can be run, taking as its two arguments the consensus, and `SID_coords.csv` generated by the full run of shiver.
 
-##### Discarding dissimilar reads
+#### Discarding dissimilar reads
 
 One parameter in config.sh is the minimum read identity – the fraction of bases in the read which
 are mapped and agree with the reference – required for a read to be considered mapped, and so retained in the bam file.
 If you wish to increase this after completion of shiver, reads with an identity below your new higher threshold can be discarded by running `tools/RemoveDivergentReads.py` on a bam file.
 Running `shiver_reprocess_bam.sh` on the resulting bam file (or indeed any bam file) implements just the last steps in shiver, namely generating pileup, calculating the base frequencies, and calling the consensus.
 
-##### Number and accuracy of mapped reads
+#### Number and accuracy of mapped reads
 
 `tools/FindNumMappedBases.py` calculates the total number of mapped nucleotides in a bam file (i.e. the number of mapped reads multiplied by read length, minus the total length of sequence clipped from reads) optionally binned by read identity.
 In the absence of mapped contaminant reads, and all else being equal, mapping to a reference which is closer to the true consensus should map more nucleotides and mapped reads should have higher identities.
 
-##### Finding mapping problems
+#### Finding mapping problems
 
 `tools/FindClippingHotSpots.py` counts, at each position in the genome, the number and percentage of reads that are clipped from that position to their left or right end.
 (Optionally with a minimum length of clipped sequence for it to be counted.)

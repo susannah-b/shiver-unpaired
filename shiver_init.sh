@@ -26,7 +26,7 @@ primers="$5"
 
 # Source required code & check files exist
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$ThisDir"/'shiver_funcs.bash'
+source "$ThisDir"/'shiver_funcs.sh'
 CheckFilesExist "$ConfigFile" "$RefAlignment"
 source "$ConfigFile"
 

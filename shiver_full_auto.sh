@@ -2,7 +2,7 @@
 
 UsageInstructions=$(echo '
 Arguments for this script:
-(1) the initialisation directory you created using the shiver_init.bash command;
+(1) the initialisation directory you created using the shiver_init.sh command;
 (2) the configuration file, containing all your parameter choices etc.;
 (3) the forward reads;
 (4) the reverse reads;
@@ -40,7 +40,7 @@ RefAlignment="$InitDir/ExistingRefAlignment.fasta"
 
 # Source required code & check files exist
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$ThisDir"/'shiver_funcs.bash'
+source "$ThisDir"/'shiver_funcs.sh'
 CheckFilesExist "$ContigFile" "$RefAlignment" "$reads1" "$reads2"
 source "$ConfigFile"
 
@@ -183,9 +183,9 @@ awk '/^>/{if(N)exit;++N;} {print;}' "$GappyRefWithExtraSeq" > "$RefWithGaps"
 { echo 'Gap stripping code failed. Quitting.' >&2 ; exit 1 ; }
 
 # Map!
-"$ThisDir"/'shiver_map_reads.bash' "$InitDir" "$ConfigFile" "$ContigFile" \
+"$ThisDir"/'shiver_map_reads.sh' "$InitDir" "$ConfigFile" "$ContigFile" \
 "$SID" "$BlastFile" "$TheRef" "$reads1" "$reads2" || \
-{ echo "Problem calling shiver_map_reads.bash. Quitting." >&2; exit 1 ; }
+{ echo "Problem calling shiver_map_reads.sh. Quitting." >&2; exit 1 ; }
 
 
 

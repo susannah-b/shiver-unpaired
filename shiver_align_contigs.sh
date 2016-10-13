@@ -2,7 +2,7 @@
 
 UsageInstructions=$(echo '
 Arguments for this script:
-(1) the initialisation directory you created using the shiver_init.bash command;
+(1) the initialisation directory you created using the shiver_init.sh command;
 (2) the configuration file, containing all your parameter choices etc.;
 (3) a fasta file of contigs (output from processing the short reads with an
 assembly program);
@@ -43,7 +43,7 @@ RefAlignment="$InitDir/ExistingRefAlignment.fasta"
 
 # Source required code & check files exist
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$ThisDir"/'shiver_funcs.bash'
+source "$ThisDir"/'shiver_funcs.sh'
 CheckFilesExist "$ContigFile" "$RefAlignment"
 source "$ConfigFile"
 

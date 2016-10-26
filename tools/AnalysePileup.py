@@ -294,7 +294,7 @@ if len(InfoFromAllPositions) == 0:
   exit(1)
 
 print('position in ', RefNameInPileup, ',base in ', RefNameInPileup, \
-',A count,C count,G count,T count,gap count, N count', sep='')
+',A count,C count,G count,T count,gap count,N count', sep='')
 
 RightMostReferencePositionSoFar = 0
 for PositionWithPileup in InfoFromAllPositions:

@@ -57,6 +57,9 @@ CheckFilesExist "$ConfigFile" "$reads1" "$reads2" "$RawContigsFile" \
 "$primers"
 source "$ConfigFile"
 
+echo $(basename "$0") 'was called thus:'
+echo "$0" $@
+
 # Some files we'll create
 TheRef="$SID$OutputRefSuffix"
 consensus="$SID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"

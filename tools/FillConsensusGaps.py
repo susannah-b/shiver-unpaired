@@ -10,7 +10,7 @@ ExplanatoryMessage = '''Takes in a pairwise alignment of seqs, the first one
 and ambiguity codes, and one more seq (nominally a reference used for mapping to
 derive the consensus). This script uses the reference to fill in gaps in the
 consensus: where the consensus has '?' or 'N' we use the reference base; where
-the consensus has an ambiguity code we take the first (in alphabeticsl order) of
+the consensus has an ambiguity code we take the first (in alphabetical order) of
 the bases A, C, G or T that that code represents; otherwise, we use the base (or
 gap) of the consensus. Output is printed to stdout suitable for redirection to a
 fasta file.''' 

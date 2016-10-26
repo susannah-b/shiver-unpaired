@@ -28,6 +28,10 @@ parser.add_argument('-g', '--include-gaps', action='store_true', \
 help='include gap characters, "-" and "?", ignored by default')
 parser.add_argument('-C', '--ignore-lower-case', action='store_true', \
 help="Doesn't count lower case letters.")
+parser.add_argument('-1', '--first-seq-only', action='store_true', \
+help='''Print the length of the first sequence only. Faster for alignments
+containing many sequences (in which case you'll likely want the -g option
+too!).''')
 args = parser.parse_args()
 
 
@@ -38,6 +42,8 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
   if args.ignore_lower_case:
     seq.seq = ''.join(x for x in seq.seq if not x.islower())
   SeqLengths.append([seq.id, len(seq.seq)])
+  if args.first_seq_only:
+    break
 
 for [SeqName,SeqLength] in SeqLengths:
   print(SeqName, SeqLength)

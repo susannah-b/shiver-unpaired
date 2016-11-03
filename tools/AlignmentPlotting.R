@@ -4,6 +4,21 @@ library(grid)
 library(gridExtra)
 library(gtable)
 library(scales)
+library(argparse)
+
+arg_parser = ArgumentParser()
+
+arg_parser$add_argument("covFile", metavar="coverageFileName")  
+arg_parser$add_argument("colFile", metavar="coloursFileName")  
+arg_parser$add_argument("genFile", metavar="genesFileName")  
+arg_parser$add_argument("outFile", metavar="outputileName")  
+
+args <- arg_parser$parse_args()
+
+cov.file.name <- args$covFile
+col.file.name <- args$colFile
+gen.file.name <- args$genFile
+out.file.name <- args$outFile
 
 AlignPlots <- function(...) {
   LegendWidth <- function(x) x$grobs[[8]]$grobs[[1]]$widths[[4]]
@@ -88,15 +103,13 @@ process.string <- function(string){
 }
 
 
-
-setwd("/Users/twoseventwo/Dropbox (Infectious Disease)/SequenceAlignmentPlotting/RealInputExamples/")
-
-cov.data <- read.table("ERR732065_coverages_zoom.txt", sep=",", header=T, stringsAsFactors = F)
+cov.data <- read.table(cov.file.name, sep=",", header=T, stringsAsFactors = F)
 cov.data <- cov.data[,c(1,4,5)]
+comp.factors <- c(colnames(cov.data)[c(3,2)])
 cov.data <- melt(cov.data, id = 1)
-cov.data$variable <- factor(cov.data$variable, c("Coverage.for.B.FR.83.HXB2_LAI_IIIB_BRU.K03455", "Coverage.for.ERR732065_ConsensusRound1_GapsFilled"))
+cov.data$variable <- factor(cov.data$variable, comp.factors)
 
-pos.data <- read.table("ERR732065_AllSeqs_zoom_ColourCodes.csv", sep=",", header=F, stringsAsFactors = F)
+pos.data <- read.table(col.file.name, sep=",", header=F, stringsAsFactors = F)
 colnames(pos.data) <- c("Name", "Sequence")
 pos.data$Name <- factor(pos.data$Name, rev(pos.data$Name))
 
@@ -117,15 +130,18 @@ for(sequence.no in seq(1, nrow(pos.data))){
   
 }
 
-ann.data <- read.table("ERR732065_AllSeqs_zoom_GeneCoords.csv", sep=",", header=T, stringsAsFactors = F)
+ann.data <- read.table(gen.file.name, sep=",", header=T, stringsAsFactors = F)
 ann.data$display.start <- ann.data$start-0.5
 ann.data$display.end <- ann.data$end+0.5
 ann.data <- ann.data[order(ann.data$gene),]
 
+ann.data.main <- ann.data[which(ann.data[,5]=="no"),]
+ann.data.extra <- ann.data[which(ann.data[,5]=="yes"),]
+
 graph.cov <- ggplot(data=cov.data)
 
 graph.cov <- graph.cov + 
-  geom_line(aes(x=Alignment.position, y=value, colour = variable), alpha=1) +
+  geom_line(aes(x=Alignment.position, y=value, colour=variable)) +
   ylab("Coverage") +
   xlab("Alignment position") +
   scale_x_continuous(limits=c(min(cov.data$Alignment.position)-1, max(cov.data$Alignment.position)+1), expand=c(0,100)) +
@@ -181,6 +197,6 @@ plots1 <- AlignPlots(graph.ann, graph.pos, graph.cov)
 plots1$ncol <- 1
 plots1$heights <- unit(c(2,3,6), "null")
 
-pdf(file="example2.pdf", width=20, height=5)
+pdf(file=out.file.name, width=25, height=10)
 do.call(grid.arrange, plots1)
 dev.off()

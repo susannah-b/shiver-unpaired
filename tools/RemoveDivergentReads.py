@@ -5,7 +5,9 @@ from __future__ import print_function
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
-ExplanatoryMessage = '''
+ExplanatoryMessage = '''This script removes reads with an 'identity' (the
+fraction of bases which are mapped and agree with the reference) below a
+specified value from a bam file.
 '''
 
 import os
@@ -13,6 +15,7 @@ import sys
 import argparse
 import pysam
 from Bio import SeqIO
+from ShiverFuncs import CalculateReadIdentity
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -36,6 +39,7 @@ if not 0 < args.ReadIdentityThreshold <= 1:
   'than or equal to 1. Quitting.', file=sys.stderr)
   exit(1)
 
+# Get the reference.
 SeqList = list(SeqIO.parse(open(args.RefFile), 'fasta'))
 if len(SeqList) != 1:
   print('There are', len(SeqList), 'sequences in', args.ref_file +\
@@ -60,21 +64,7 @@ UnpairedReads = {}
 for read in InBam.fetch(RefName):
 
   # Calculate the read's identity
-  positions = read.get_reference_positions(full_length=True)
-  seq = read.query_sequence
-  NumAgreeingBases = 0
-  NumDeletions = 0
-  LastRefPos = None
-  for i, pos in enumerate(positions):
-    if pos != None:
-      if RefSeq[pos] == seq[i]:
-        NumAgreeingBases += 1
-      if LastRefPos != None and pos != LastRefPos + 1:
-        DeletionSize = pos - LastRefPos - 1
-        assert DeletionSize > 0
-        NumDeletions += DeletionSize
-      LastRefPos = pos
-  identity = float(NumAgreeingBases) / (len(positions) + NumDeletions)
+  identity = CalculateReadIdentity(read, RefSeq)
 
   if identity >= args.ReadIdentityThreshold:
 
@@ -90,7 +80,4 @@ for read in InBam.fetch(RefName):
 
     else:
       OutBam.write(read)
-
-#  else:
-#    print('Discarding read', read.query_name, 'with identity', identity)
 

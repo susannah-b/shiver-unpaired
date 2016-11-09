@@ -15,6 +15,7 @@ import argparse
 import numpy
 import pysam
 from Bio import SeqIO
+from ShiverFuncs import CalculateReadIdentity
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -39,14 +40,14 @@ ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('BamFile', type=File)
 parser.add_argument('-I', '--identity-binning', type=CommaSeparatedFloatPair, \
-help='''Split the total count of mapped bases into bins of read 'identity'
-(fractional agreement between a read and the reference sequence). Use this
-option to specify two floats separated by a comma: the first value being the
-minimum for binning, the second being the bin width. e.g. specifying '0.5,0.05'
-means we'll report the total number of mapped nucleotides from those reads whose
-identity is 0.5-0.55, then from those whose identity is 0.55-0.6, etc. This
-option requires the reference sequence to supplied using the --ref-file
-flag.''')
+help='''Breakdown the total count of mapped bases into contributions from reads
+of different 'identity' (fractional agreement between a read and the reference
+sequence). Use this option to specify two floats separated by a comma: the first
+value being the minimum identity considered, the second being the identity step
+width. e.g. specifying '0.5,0.05' means we'll report the total number of mapped
+nucleotides from those reads with identity at least 0.5, then from those whose
+identity is at least 0.55, etc. This option requires the reference sequence to
+supplied using the --ref-file flag.''')
 parser.add_argument('-R', '--ref-file', help='The file containing the '+\
 'sequence of the reference (to which reads were mapped in the bam file).', \
 type=File)
@@ -111,22 +112,7 @@ for read in BamFile.fetch(RefName):
     NumMappedBases += read.query_alignment_length
     continue
 
-  # Calculate the read's identity
-  positions = read.get_reference_positions(full_length=True)
-  seq = read.query_sequence
-  NumAgreeingBases = 0
-  NumDeletions = 0
-  LastRefPos = None
-  for i, pos in enumerate(positions):
-    if pos != None:
-      if RefSeq[pos] == seq[i]:
-        NumAgreeingBases += 1
-      if LastRefPos != None and pos != LastRefPos + 1:
-        DeletionSize = pos - LastRefPos - 1
-        assert DeletionSize > 0
-        NumDeletions += DeletionSize
-      LastRefPos = pos
-  identity = float(NumAgreeingBases) / (len(positions) + NumDeletions)
+  identity = CalculateReadIdentity(read, RefSeq)
 
   # Add the number of mapped bases to the bin for reads with this identity
   NumMappedBasesByReadIdentity[Bin(identity)] += \
@@ -141,7 +127,4 @@ print('Minimum read identity, Number of mapped bases')
 for i in range(NumBins):
   print(Min + i*BinWidth, sum(NumMappedBasesByReadIdentity[i:]), sep=',')
 
-# other thing to do: make a list for each position in the reference genome.
-# for each read, append its identity to the list of each position it's mapped
-# to. At the end, find the average for each position and plot over the genome,
-# plotting on the same plot (with a different axis) the coverage.
+

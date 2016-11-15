@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -o pipefail
+
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ToolsDir="$ThisDir"/tools
 Code_AlignToConsensus="$ToolsDir/AlignMoreSeqsToPairWithMissingCoverage.py"
@@ -43,7 +45,9 @@ function AlignContigsToRefs {
   "$TempContigAlignment1" || \
   { echo 'Problem aligning' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
   MaxContigGappiness1=$("$Code_ConstructRef" -S1 "$TempContigAlignment1" \
-  $ContigNames | sort -nrk2,2 | head -1 | awk '{print $2}')
+  $ContigNames | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo 'Problem'\
+  "analysing $TempContigAlignment1 (i.e. the output from aligning $ContigFile"\
+  "and $ThisRefAlignment) with $Code_ConstructRef. Quitting." >&2 ; exit 1 ; }
   BestContigAlignment="$TempContigAlignment1"
 
   # If the function was called with OldMafftArg=true, don't bother trying the
@@ -62,7 +66,10 @@ function AlignContigsToRefs {
     NumLinesInAln=$(wc -l "$TempContigAlignment2" | awk '{print $1}')
     if [[ $NumLinesInAln -gt 0 ]]; then 
       MaxContigGappiness2=$("$Code_ConstructRef" -S1 "$TempContigAlignment2" \
-      $ContigNames | sort -nrk2,2 | head -1 | awk '{print $2}')
+      $ContigNames | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo \
+      "Problem analysing $TempContigAlignment1 (i.e. the output from aligning "\
+      "$ContigFile and $ThisRefAlignment) with $Code_ConstructRef. Quitting." \
+      >&2 ; exit 1 ; }
       if (( $(echo "$MaxContigGappiness2 < $MaxContigGappiness1" | bc -l) )); 
       then
         BestContigAlignment="$TempContigAlignment2"
@@ -94,7 +101,7 @@ function AlignContigsToRefs {
 function CheckReadNames {
 
   ReadFile=$1
-  # Forward reads (1) or reverse reads (2)
+  # The second argument is 1 for forward reads or 2 for reverse reads.
   OneOrTwo=$2
 
   # Check all read seq ids end in /1 or /2 as needed.

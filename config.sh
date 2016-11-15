@@ -20,7 +20,7 @@ mafft='mafft'
 # will interpret space in this command as meaningful (i.e. we will execute
 # $FastaqSequenceTrim not "$FastaqSequenceTrim"), so if you are including a path
 # to the fastaq binary, it may not contain whitespace.
-FastaqSequenceTrim='fastaq_sequence_trim'
+FastaqSequenceTrim='fastaq sequence_trim'
 # If you've downloaded the trimmomatic executable file (ending in .jar), to run
 # it you probably need to type something like this:
 # java -jar path/to/where/it/lives/trimmomatic-0.36.jar

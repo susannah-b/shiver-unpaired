@@ -245,11 +245,11 @@ if [[ "$TrimReads" == "true" ]]; then
 
   # Trim adapters and low-quality bases
   echo 'Now trimming reads - typically a slow step.'
-  java -jar "$trimmomatic" PE -quiet -threads $NumThreadsTrimmomatic \
+  $trimmomatic PE -quiet -threads $NumThreadsTrimmomatic \
   "$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
   "$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
   $BaseQualityParams || \
-  java -jar "$trimmomatic" PE -threads $NumThreadsTrimmomatic \
+  $trimmomatic PE -threads $NumThreadsTrimmomatic \
   "$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
   "$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
   $BaseQualityParams || { echo 'Problem running trimmomatic. Quitting.' >&2 ; \

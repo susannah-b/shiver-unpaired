@@ -14,7 +14,6 @@ MinContigHitFrac=0.9
 BlastDBcommand='makeblastdb'
 smalt='smalt'
 samtools='samtools'
-trimmomatic="$HOME/Trimmomatic-0.36/trimmomatic-0.36.jar"
 mafft='mafft'
 # Newer versions of fastaq have a space instead of an underscore between 
 # 'fastaq' and the desired fastaq command, e.g. 'sequence_trim'. This means we
@@ -22,6 +21,12 @@ mafft='mafft'
 # $FastaqSequenceTrim not "$FastaqSequenceTrim"), so if you are including a path
 # to the fastaq binary, it may not contain whitespace.
 FastaqSequenceTrim='fastaq_sequence_trim'
+# If you've downloaded the trimmomatic executable file (ending in .jar), to run
+# it you probably need to type something like this:
+# java -jar path/to/where/it/lives/trimmomatic-0.36.jar
+# If someone else installed it for you (e.g. on MRC CLIMB) there may be an alias
+# which means you just type 'trimmomatic' to run it:
+trimmomatic="trimmomatic"
 
 # Shall we trim (remove adapters, primers and low quality bases)?
 # Shall we clean (remove read pairs that look like contaminants)?

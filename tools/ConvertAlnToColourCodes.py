@@ -41,6 +41,8 @@ parser.add_argument('-R', '--reorder', action='store_true', help='''Does some
 hard-coded reordering and renaming of sequences, specific to the sequence names
 found in the shiver publication. (Unlikely to be useful to anyone but the code's
 author.)''')
+parser.add_argument('-RH', '--reorder-Hiseq', action='store_true', help='''As
+--reorder but specific to the Hiseq data.''')
 args = parser.parse_args()
 
 # Read in the alignment
@@ -94,6 +96,8 @@ for seq in alignment:
   except IndexError:
     # This 'sequence' is nothing but gaps.
     ColourCodes = 'n' * AlignmentLength
+    print('Warning: seq', seq.id, 'in', args.alignment, 'contains no bases.',
+    file=sys.stderr)
   else:
     LastBasePos = AlignmentLength - 1
     while ColourCodes[LastBasePos] == 'd':
@@ -103,7 +107,7 @@ for seq in alignment:
 
   OutList.append((seq.id, ColourCodes))
 
-if args.reorder:
+if args.reorder or args.reorder_Hiseq:
 
   # Regular expressions (regexs) to find consensuses and references, and what
   # we want to rename them to:
@@ -112,11 +116,11 @@ if args.reorder:
   regexs.append('^B.FR.83.HXB2_LAI_IIIB_BRU.K03455$')
   NewNames.append('HXB2')
   regexs.append('_ConsensusRound1_GapsFilled$')
-  NewNames.append('shiver reference')
+  NewNames.append('shiver mapping reference')
   regexs.append('_remap_consensus$')
-  NewNames.append('shiver consensus')
+  NewNames.append('shiver output')
   regexs.append('_HXB2_consensus$')
-  NewNames.append('HXB2 consensus')
+  NewNames.append('consensus mapping to HXB2')
 
   # Find, rename and reorder consensuses and references; collect other sequences
   # (contigs) separately.
@@ -125,6 +129,7 @@ if args.reorder:
   RegexsFound = [False for regex in regexs]
   ColourCodesRefsAndConsensuses = ['' for i in range(NumRegexs)]
   ColourCodesContigs = []
+  ColourCodesContigsHiseqLane2 = []
   for SeqID, ColourCodes in OutList:
     for i, CompiledRegex in enumerate(CompiledRegexs):
       IsContig = True
@@ -134,7 +139,10 @@ if args.reorder:
         IsContig = False
         break
     if IsContig:
-      ColourCodesContigs.append(ColourCodes)
+      if args.reorder_Hiseq and '_r' in SeqID:
+        ColourCodesContigsHiseqLane2.append(ColourCodes)
+      else:
+        ColourCodesContigs.append(ColourCodes)
 
   # Check we found all regexs
   MissingRegexs = [regexs[i] for i in range(NumRegexs) if not RegexsFound[i]]
@@ -147,7 +155,19 @@ if args.reorder:
   OutListReordered = [(NewNames[i], ColourCodesRefsAndConsensuses[i]) \
   for i in range(NumRegexs)]
   for i, ContigColourCode in enumerate(ColourCodesContigs):
-    OutListReordered.append(('contig ' +str(i+1), ContigColourCode))
+    # Skip empty contigs
+    if ContigColourCode == 'n' * AlignmentLength:
+      continue
+    if args.reorder_Hiseq:
+      OutListReordered.append(('lane 1 contig ' +str(i+1), ContigColourCode))
+    else:
+      OutListReordered.append(('contig ' +str(i+1), ContigColourCode))
+  if args.reorder_Hiseq:
+    for i, ContigColourCode in enumerate(ColourCodesContigsHiseqLane2):
+      # Skip empty contigs
+      if ContigColourCode == 'n' * AlignmentLength:
+        continue
+      OutListReordered.append(('lane 2 contig ' +str(i+1), ContigColourCode))
   OutList = OutListReordered
 
 # Print output

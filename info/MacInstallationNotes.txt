@@ -1,0 +1,33 @@
+# Trimmomatic binary downloaded from http://www.usadellab.org/cms/?page=trimmomatic
+
+# mafft installed from http://mafft.cbrc.jp/alignment/software/macstandard.html
+
+# Subsequently, command-line based installation:
+
+# xcode
+xcode-select --install
+
+# home brew: 
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
+# python3 (for pip3)
+brew install python3
+
+# fastaq
+pip3 install pyfastaq
+
+# python (for pip)
+brew install python
+
+# biopython
+pip install biopython
+
+# smalt
+brew install homebrew/science/smalt
+
+# blast
+brew install blast
+
+# smalt
+brew install samtools
+

@@ -6,12 +6,35 @@ library(gtable)
 library(scales)
 library(argparse)
 
+# Miseq
+gene.height <- 3.2
+other.seq.height = 3.5
+gene.font.size <- 2.7
+v.loop.font.size <- 2.5
+plot.relative.heights <- c(2,4,6.5)
+plot.width <- 13
+plot.total.height <- 3.8
+coverage.labels <- c("HXB2", "shiver reference")
+legend.position <- "none"
+
+# Hiseq
+#gene.height <- 3.2
+#other.seq.height <- 3.6
+#gene.font.size <- 2.7
+#v.loop.font.size <- 2.5
+#plot.relative.heights <- c(2,5,6.5)
+#plot.width <- 13
+#plot.total.height <- 5
+#coverage.labels <- c("HXB2", "shiver reference")
+#legend.position <- "none"
+
+
 arg_parser = ArgumentParser()
 
 arg_parser$add_argument("covFile", metavar="coverageFileName")  
 arg_parser$add_argument("colFile", metavar="coloursFileName")  
 arg_parser$add_argument("genFile", metavar="genesFileName")  
-arg_parser$add_argument("outFile", metavar="outputileName")  
+arg_parser$add_argument("outFile", metavar="outputFileName")  
 
 args <- arg_parser$parse_args()
 
@@ -141,23 +164,25 @@ ann.data.extra <- ann.data[which(ann.data[,5]=="yes"),]
 graph.cov <- ggplot(data=cov.data)
 
 graph.cov <- graph.cov + 
-  geom_line(aes(x=Alignment.position, y=value, colour=variable)) +
+  geom_line(aes(x=Alignment.position, y=value, colour=variable, alpha=0.5)) +
   ylab("Coverage") +
   xlab("Alignment position") +
   scale_x_continuous(limits=c(min(cov.data$Alignment.position)-1, max(cov.data$Alignment.position)+1), expand=c(0,100)) +
   scale_y_log10(limits = c(1,NA), labels = comma) +
-  scale_colour_manual(labels=c("HXB2", "shiver reference"), values=c("red", "blue")) +
+  scale_colour_manual(values=c("red", "blue")) +
   theme_bw() +
-  theme(legend.title = element_blank()) +
-  theme(plot.margin = unit(c(0,0.5,0.5,0.5), "cm")) 
+  #theme(legend.title = element_blank()) +
+  theme(plot.margin = unit(c(0,0.5,0.5,0.5), "cm"),
+  legend.position=legend.position)
+  #legend.text = element_text(size=10))
 
 graph.ann <- ggplot()
 
 graph.ann <- graph.ann + 
-  geom_segment(data = ann.data.main, aes(y=Reading.frame, yend = Reading.frame, x = display.start, xend=display.end, colour=gene), size=5) +
-  geom_text(data = ann.data.main, aes(label=gene, y=Reading.frame, x=display.start), hjust="left", nudge_x=10) +
-  geom_segment(data = ann.data.extra, aes(y=Reading.frame, yend = Reading.frame, x = display.start, xend=display.end), size=5, alpha=0.5, colour="grey10") +
-  geom_text(data = ann.data.extra, aes(label=gene, y=Reading.frame, x=display.start), hjust="left", nudge_x=10, colour="white") +
+  geom_segment(data = ann.data.main, aes(y=Reading.frame, yend = Reading.frame, x = display.start, xend=display.end, colour=gene), size=gene.height) +
+  geom_text(data = ann.data.main, aes(label=gene, y=Reading.frame, x=display.start), hjust="left", nudge_x=10, size=gene.font.size) +
+  geom_segment(data = ann.data.extra, aes(y=Reading.frame, yend = Reading.frame, x = display.start, xend=display.end), size=gene.height, alpha=0.5, colour="grey10") +
+  geom_text(data = ann.data.extra, aes(label=gene, y=Reading.frame, x=display.start), hjust="left", nudge_x=10, size=v.loop.font.size, colour="white") +
   theme_bw() +
   scale_x_continuous(limits=c(min(cov.data$Alignment.position)-1, max(cov.data$Alignment.position)+1), expand=c(0,100)) +
   scale_y_continuous(limits=c(0, max(ann.data$Reading.frame)+1)) +
@@ -178,7 +203,7 @@ graph.pos <- ggplot(data = line.df)
 graph.pos <- graph.pos +
   geom_segment(aes(y=sequence.name, yend = sequence.name, x=display.start, xend = display.end, colour=char, size=char)) +
   theme_bw() +
-  scale_size_manual(values=c(5,0.5,5)) +
+  scale_size_manual(values=c(other.seq.height,0.5,other.seq.height)) +
   scale_color_manual(values=c("grey85", "black", "black")) +
   scale_x_continuous(limits=c(min(cov.data$Alignment.position)-1, max(cov.data$Alignment.position)+1), expand=c(0,100)) +
   theme(legend.position="none", 
@@ -192,11 +217,10 @@ graph.pos <- graph.pos +
         plot.margin=unit(c(0,0.5,0,0.5), "cm"),
         panel.margin=unit(c(0,0.5,0,0.5), "cm"))
 
-
 plots1 <- AlignPlots(graph.ann, graph.pos, graph.cov)
 plots1$ncol <- 1
-plots1$heights <- unit(c(2,3,6), "null")
+plots1$heights <- unit(plot.relative.heights, "null")
 
-pdf(file=out.file.name, width=25, height=10)
+pdf(file=out.file.name, width=plot.width, height=plot.total.height)
 do.call(grid.arrange, plots1)
 dev.off()

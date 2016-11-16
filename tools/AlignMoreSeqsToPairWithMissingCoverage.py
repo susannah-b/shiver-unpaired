@@ -70,6 +70,12 @@ if not RefFound:
   '; expected two. Quitting.', file=sys.stderr)
   exit(1)
 
+# Check consensus.id != ref.id
+if consensus.id == ref.id:
+  print("The consensus and the ref should have different names in",
+  args.SeqPairWithMissingCov + ". Quitting.", file=sys.stderr)
+  exit(1)
+
 # Check the consensus and its ref are aligned with no pure-gap columns.
 ConsensusAsString = str(consensus.seq)
 RefAsString = str(ref.seq)
@@ -95,13 +101,12 @@ for ConsensusBase, RefBase in itertools.izip(ConsensusAsString, RefAsString):
 ConsensusAsString = PropagateNoCoverageChar(ConsensusAsString)
 
 # Check all seq IDs are unique.
-AllIDs = [consensus.id, ref.id]
-for seq in SeqIO.parse(open(args.OtherSeqsToBeAdded),'fasta'):
-  AllIDs.append(seq.id)
-if len(set(AllIDs)) < len(AllIDs):
-  print('At least one sequence ID is duplicated in', \
-  args.SeqPairWithMissingCov, 'and', args.OtherSeqsToBeAdded + \
-  '. Sequence IDs should be unique. Quitting.', file=sys.stderr)
+IDsOfSeqsToBeAdded = [seq.id for seq in \
+SeqIO.parse(open(args.OtherSeqsToBeAdded),'fasta')]
+if consensus.id in IDsOfSeqsToBeAdded:
+  print('A sequence in', args.OtherSeqsToBeAdded, 'is called', consensus.id +
+  ', like the consensus in', args.SeqPairWithMissingCov + 
+  '. Rename to avoid such a clash. Quitting.', file=sys.stderr)
   exit(1)
 
 # Align
@@ -133,7 +138,8 @@ for i, seq in enumerate(SeqIO.parse(open(args.temp_file_2),'fasta')):
   AlignedSeqs.append(seq)
   if seq.id == consensus.id:
     ConsensusPosition = i
-if sorted([seq.id for seq in AlignedSeqs]) != sorted(AllIDs):
+if sorted([seq.id for seq in AlignedSeqs]) != \
+sorted([consensus.id, ref.id] + IDsOfSeqsToBeAdded):
   print('Error: different sequences found in', args.temp_file_2, \
   'compared to', args.SeqPairWithMissingCov, 'and', args.OtherSeqsToBeAdded + \
   '. Quitting.', file=sys.stderr)

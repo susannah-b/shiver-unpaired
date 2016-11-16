@@ -81,7 +81,7 @@ if HaveStart:
 if HaveEnd:
   end -= 1
   if not HaveStart:
-  start = 0
+    start = 0
 
 # At each reference position record (1) the number of reads mapped here and (2)
 # the sum of the identity values of reads mapped here. Each read contributes to
@@ -89,11 +89,19 @@ if HaveEnd:
 CoveragesByPos = [0 for pos in range(RefLength)]
 IdentityTotalsByPos = [0 for pos in range(RefLength)]
 for read in BamFile.fetch(RefName):
+
   identity = CalculateReadIdentity(read, RefSeq)
   MappedPositions = read.get_reference_positions(full_length=False)
+
+  CheckPositionsInWindow = False
   if HaveWindow:
+    # Skip reads wholly outside the window of interest
     if MappedPositions[0] > end or MappedPositions[-1] < start:
       continue
+    # Reads partially in, partially out the window need to be checked
+    if MappedPositions[0] < start or MappedPositions[-1] > end:
+      CheckPositionsInWindow = True
+  if CheckPositionsInWindow:
     for pos in MappedPositions:
       if pos >= start:
         if pos > end:

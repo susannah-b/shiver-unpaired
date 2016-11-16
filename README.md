@@ -4,7 +4,8 @@ Sequences from HIV Easily Reconstructed.
 <p align="center"><img src="info/AssemblyPipelineDiagram_ForPaper.png" width=800, height="370"/></p>
 
 Dependencies: [smalt](http://www.sanger.ac.uk/science/tools/smalt-0), [blast](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download), [Fastaq](https://github.com/sanger-pathogens/Fastaq), [trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic), [samtools](http://www.htslib.org/), [biopython](http://biopython.org/wiki/Download), [mafft](http://mafft.cbrc.jp/alignment/software/).
-Installation instructions for all of these on a Mac can be found [here](info/MacInstallationNotes.txt).  
+Installation instructions for all of these on a Mac can be found [here](info/MacInstallationNotes.txt).
+
 Before you begin processing a collection of samples there's an initialisation step: it should be run once only (i.e. not once for each sample).
 It requires  
 1. your choice of pipeline parameters, specified in `config.sh` (see section *The config file* later);  
@@ -13,6 +14,7 @@ It requires
 (Adapters will be removed using trimmomatic, and "The naming of the various sequences within this file determines how they are used" - trimmomatic docs.
 In the *ExampleInput* directory of this repository is a default Illumina adapters file, and a file containing the primers relevant to our sequence data - those of [Gall et al.](https://dx.doi.org/10.1128%2FJCM.01516-12).
 Do **not** assume these are what's needed for your sequence data - instead ask your sequencing team to provide the adapter and primer sequences they used!)  
+
 Initialisation files will be put into a directory called `MyInitDir` if you run
 ```bash
 $ ./shiver_init.sh MyInitDir config.sh RefAlignment.fasta adapters.fasta primers.fasta
@@ -30,7 +32,7 @@ The first is
 ```bash
 $ ./shiver_align_contigs.sh MyInitDir config.sh contigs.fasta SID
 ```
-replacing `SID` (sample ID) by a name used for labelling all output files for this sample.
+replacing `SID` ('sample ID') by a name used for labelling all output files for this sample.
 This command will produce a file named `SID.blast` (detailing blast hits of your contigs to those existing references supplied for the initialisation).
 Assuming at least one contig looks like HIV, `SID.blast` will not be empty (see section *Including samples without contigs* otherwise), and there will be another file called `SID_raw_wRefs.fasta` - an alignment of the HIV contigs (i.e. those that blasted) to your input existing reference genomes.
 As discussed in the shiver article, this alignment should be inspected, and in the minority of cases where this is required, edited; see the following section.

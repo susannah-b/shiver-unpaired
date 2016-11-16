@@ -156,15 +156,15 @@ if len(MissingContigs) != 0:
   exit(1)
 
 # A function we'll need more than once:
-def FindSeqStartAndEnd(SeqName, seq, AlignmentLength):
+def FindSeqStartAndEnd(SeqName, seq, AlignmentLength, FileName):
   '''Find the 0-based positions of the start and end of the sequence.'''
   StartOfSeq = 0
   try:
     while seq[StartOfSeq] == GapChar:
       StartOfSeq += 1
   except IndexError:
-    print(SeqName, "has no bases - it's just one big gap. Quitting.", \
-    file=sys.stderr)
+    print(SeqName, "in", FileName, \
+    "has no bases - it's just one big gap. Quitting.", file=sys.stderr)
     exit(1)
   EndOfSeq = AlignmentLength-1
   while seq[EndOfSeq] == GapChar:
@@ -180,7 +180,7 @@ ContigGapFractions = {}
 TotalGapsInContigs = 0
 for ContigName,ContigSeq in ContigDict.items():
   StartOfContig, EndOfContig = FindSeqStartAndEnd(ContigName, ContigSeq, \
-  AlignmentLength)
+  AlignmentLength, AlignmentFile)
   ContigStartsAndEnds[ContigName] = [StartOfContig,EndOfContig]
   NumGapsInAlignedContig = ContigSeq.count(GapChar)
   NumInternalGaps = ContigSeq[StartOfContig:EndOfContig+1].count(GapChar)
@@ -345,7 +345,8 @@ ListOfRefsAndScores = []
 for RefName,RefSeq in RefDict.items():
   NumBasesAgreeing = 0
   OverlapLength = 0
-  StartOfRef, EndOfRef = FindSeqStartAndEnd(RefName, RefSeq, AlignmentLength)
+  StartOfRef, EndOfRef = FindSeqStartAndEnd(RefName, RefSeq, AlignmentLength,
+  AlignmentFile)
   for position in range(StartOfRef, EndOfRef+1):
     if ContigCoverageByPosition[position] > 0:
       OverlapLength += 1
@@ -390,7 +391,8 @@ if args.summarise_contigs_2:
   #  print(ContigsWithBestRef[i])
   GapFracsAndLengths = []
   for contig in ContigsWithBestRef[1:]:
-    start, end = FindSeqStartAndEnd('contig', contig, ThisAlignmentLength)
+    start, end = FindSeqStartAndEnd('contig', contig, ThisAlignmentLength,
+    AlignmentFile)
     NumGaps = contig[start:end+1].count('-')
     GapFrac = float(NumGaps)/(end - start + 1)
     Length = end - start + 1 - NumGaps

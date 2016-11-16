@@ -256,7 +256,7 @@ if [[ "$TrimReads" == "true" ]]; then
   exit 1 ; }
 
   # Trim primers
-  $FastaqSequenceTrim --revcomp "$reads1trim1" "$reads2trim1" "$reads1trim2" \
+  "$fastaq" 'sequence_trim' --revcomp "$reads1trim1" "$reads2trim1" "$reads1trim2" \
   "$reads2trim2" "$primers" || \
   { echo 'Problem running fastaq. Quitting.' >&2 ; exit 1 ; }
 
@@ -337,8 +337,8 @@ else
     { echo 'Problem creating a blast database. Quitting.' >&2 ; exit 1 ; }
 
     # Convert fastq to fasta.
-    sed -n '1~4s/^@/>/p;2~4p' "$reads1" > "$reads1asFasta" &&
-    sed -n '1~4s/^@/>/p;2~4p' "$reads2" > "$reads2asFasta" || \
+    "$fastaq" to_fasta "$reads1" "$reads1asFasta" &&
+    "$fastaq" to_fasta "$reads2" "$reads2asFasta" || \
     { echo 'Problem converting the reads from fastq to fasta. Quitting.' >&2 ; \
     exit 1 ; }
 

@@ -12,6 +12,7 @@ MinContigHitFrac=0.9
 # (If the binary file lives in a directory that is not included in your $PATH
 # variable, you will need to include the path here.)
 BlastDBcommand='makeblastdb'
+BlastNcommand='blastn'
 smalt='smalt'
 samtools='samtools'
 mafft='mafft'

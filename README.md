@@ -1,5 +1,6 @@
 # shiver
 Sequences from HIV Easily Reconstructed.  
+The shiver method and its performance are discussed [here](http://biorxiv.org/content/early/2016/12/09/092916); please cite if you find shiver helpful.
 
 <p align="center"><img src="info/AssemblyPipelineDiagram_ForPaper.png" width=800, height="370"/></p>
 

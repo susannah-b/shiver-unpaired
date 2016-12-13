@@ -1,10 +1,10 @@
 # shiver
 Sequences from HIV Easily Reconstructed.  
-The shiver method and its performance are discussed [here](http://biorxiv.org/content/early/2016/12/09/092916); please cite if you find shiver helpful.  
-shiver is freely available under the GNU General Public License version 3, described [here](LICENSE).
 
 <p align="center"><img src="info/AssemblyPipelineDiagram_ForPaper.png" width=800, height="370"/></p>
 
+The shiver method and its performance are discussed [here](http://biorxiv.org/content/early/2016/12/09/092916); please cite this if you find shiver helpful.  If you use shiver, please also cite the other tools which shiver uses, listed in bibtex format [here](info/DepenciesCitationDetails.tex).
+shiver is freely available under the GNU General Public License version 3, described [here](LICENSE).  
 Dependencies: [smalt](http://www.sanger.ac.uk/science/tools/smalt-0), [Fastaq](https://github.com/sanger-pathogens/Fastaq), [trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic), [samtools](http://www.htslib.org/), [biopython](http://biopython.org/wiki/Download), [mafft](http://mafft.cbrc.jp/alignment/software/), and [blast](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) version 2.2.28 or higher (warning: earlier versions of blast have a bug that prevents shiver from correcting contigs).
 Installation instructions for all of these on a Mac can be found [here](info/MacInstallationNotes.txt).
 

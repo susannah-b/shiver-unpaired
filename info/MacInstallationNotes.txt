@@ -28,6 +28,6 @@ brew install homebrew/science/smalt
 # blast
 brew install blast
 
-# smalt
+# samtools
 brew install samtools
 

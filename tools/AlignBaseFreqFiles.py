@@ -51,6 +51,24 @@ reads, or if one reference has an insertion with respect to the other.''')
 parser.add_argument('-CS', '--compare-simple', action='store_true', help='''Like
 --compare, except that the following simple similarity metric is used: 0 for
 disagreement on which of the five bases is most common, 1 for agreement.''')
+parser.add_argument('--compare-snips-with-coverage', action='store_true',
+help='''Amongst positions where the two sets of base frequenices disagree on
+what base is most common (ignoring positions where either set thinks a gap is
+most common), we count at how many positions BaseFreqsFile1 has higher coverage
+and at how many positions BaseFreqsFile2 has equal or higher coverage. These two
+values are printed to stdout in that order.''')
+parser.add_argument('--start-pos-in-aln', type=int, default=1,
+help='''For use with --compare-snips-with-coverage: specify a start
+position in the alignment before which snips are not compared. (Default is
+1.)''')
+parser.add_argument('--end-pos-in-aln', type=int,
+help='''For use with --compare-snips-with-coverage: specify an end
+position in the alignment after which snips are not compared. (Default is
+the end of the alignment.)''')
+parser.add_argument('--min-coverage', type=int, default=1,
+help='''For use with --compare-snips-with-coverage: specify a minimum coverage
+below which SNPs are not compared.''')
+
 args = parser.parse_args()
 
 # Check for unique ref names
@@ -88,6 +106,10 @@ for seq in alignment:
       file=sys.stderr)
       quit(1)
     ref2seq = str(seq.seq)
+
+# If no end position was given, set it to be the end of the alignment.
+if args.end_pos_in_aln == None:
+  args.end_pos_in_aln = alignment.get_alignment_length() + 1
 
 # Check the refs were found
 if ref1seq == None:
@@ -179,6 +201,9 @@ elif not args.coverage_only:
   ',T count for ' + args.ref2name + ',gap count for ' + args.ref2name + \
   ',N count for ' + args.ref2name
 
+NumPosWithHigherCovIn1 = 0
+NumPosWithHigherCovIn2 = 0
+
 # Record each row of the csv file
 for PosMin1, (ref1freqs, ref2freqs) in enumerate(itertools.izip(ref1freqs,
 ref2freqs)):
@@ -192,7 +217,7 @@ ref2freqs)):
     ref2cov = sum(ref2freqs)
     outstring += ',' + str(ref1cov) + ',' + str(ref2cov)
 
-  if args.compare or args.compare_simple:
+  if args.compare or args.compare_simple or args.compare_snips_with_coverage:
     ref1freqs = ref1freqs[:5]
     ref2freqs = ref2freqs[:5]  
     ref1cov = sum(ref1freqs)
@@ -200,7 +225,7 @@ ref2freqs)):
     if ref1cov == 0 or ref2cov == 0 or PosInRef1 == '-' or PosInRef2 == '-':
       SimScore = 'NA'
     else:
-      if args.compare_simple:
+      if args.compare_simple or args.compare_snips_with_coverage:
         MaxFreq1 = max(ref1freqs)
         BasesWithMaxCount1 = [i for i,count in enumerate(ref1freqs) \
         if count == MaxFreq1]
@@ -211,6 +236,20 @@ ref2freqs)):
           SimScore = 1
         else:
           SimScore = 0
+        # Compare snps with coverage, if desired, in the specified window of the
+        # alignment, when both references have enough coverage, and when neither
+        # of them calls a gap as the most common base.
+        if SimScore == 0 and args.compare_snips_with_coverage and \
+        PosMin1+1 >= args.start_pos_in_aln and \
+        PosMin1+1 <= args.end_pos_in_aln and \
+        ref1cov >= args.min_coverage and \
+        ref2cov >= args.min_coverage and \
+        BasesWithMaxCount1 != [4] and \
+        BasesWithMaxCount2 != [4]:
+          if ref1cov > ref2cov:
+            NumPosWithHigherCovIn1 += 1
+          else:
+            NumPosWithHigherCovIn2 += 1
       else:
         SimScore = 0
         for i in range(5):
@@ -228,4 +267,8 @@ ref2freqs)):
     outstring += ',' + ','.join(map(str,ref1freqs)) + ',' + \
     ','.join(map(str,ref2freqs))
 
-print(outstring)
+# Print output
+if args.compare_snips_with_coverage:  
+  print(NumPosWithHigherCovIn1, NumPosWithHigherCovIn2)
+else:
+  print(outstring)

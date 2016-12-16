@@ -11,9 +11,9 @@ Installation instructions for all of these on a Mac can be found [here](info/Mac
 ### Initialisation
 Before you begin processing a collection of samples there's an initialisation step: it should be run once only (i.e. not once for each sample).
 It requires  
-1. your choice of pipeline parameters, specified in `config.sh` (see section *The config file* later);  
-2. an alignment of existing reference genomes (lots of which are available to download from the [Los Alamos National Lab](http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html)) called `RefAlignment.fasta`, say;  
-3. fasta files containing the adapters and primers used for sequencing, called `adapters.fasta` and `primers.fasta`, say.
+1. The shiver configuration file, named by default `config.sh`. (Here it is needed only to tell shiver how to run the program blast; you can change your mind about all the pipeline parameters contained in this file later on. See also the section *The config file*.);  
+2. An alignment of existing reference genomes (lots of which are available to download from the [Los Alamos National Lab](http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html)) called `RefAlignment.fasta`, say.  
+3. Fasta files containing the adapters and primers used for sequencing, called `adapters.fasta` and `primers.fasta`, say.
 (Adapters will be removed using trimmomatic, and "The naming of the various sequences within this file determines how they are used" - trimmomatic docs.
 In the *ExampleInput* directory of this repository is a default Illumina adapters file, and a file containing the primers relevant to our sequence data - those of [Gall et al.](https://dx.doi.org/10.1128%2FJCM.01516-12).
 Do **not** assume these are what's needed for your sequence data - instead ask your sequencing team to provide the adapter and primer sequences they used!)  

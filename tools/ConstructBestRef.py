@@ -100,6 +100,13 @@ Contigs: bases + gaps  | 1 or 2 | n/a |  3  | n/a
          just gaps     |   2    | n/a | n/a | n/a
          no coverage   |   4    | n/a | n/a | n/a
 ''')
+parser.add_argument('-C2', '--check-contig-snps', help='''Use this option to
+specify the name of the consensus sequence; use it when the FastaFile argument
+is an alignment containing the contigs and the consensus. Amongst all positions
+at which more than one base (not including gaps) is represented, we count the
+number where the longest contig's base agrees with the consensus (the first
+value we'll print to stdout), and the number where it does not (the second value
+we'll print to stdout).''')
 
 args = parser.parse_args()
 
@@ -107,8 +114,19 @@ args = parser.parse_args()
 AlignmentFile = args.FastaFile
 ContigNames = args.ContigName
 CompareContigsToConsensus = args.compare_contigs_to_consensus != None
-ConsensusName = args.compare_contigs_to_consensus
+CheckContigSNPs = args.check_contig_snps != None
+if CompareContigsToConsensus:
+  ConsensusName = args.compare_contigs_to_consensus
+elif CheckContigSNPs:
+  ConsensusName = args.check_contig_snps
+else:
+  ConsensusName = None
 
+# Can't use these two options together
+if CompareContigsToConsensus and CheckContigSNPs:
+  print('You cannot use both --compare-contigs-to-consensus and',
+  '--check-contig-snps options at once. Quitting.', file=sys.stderr)
+  exit(1)
 
 # Check all contig names are unique
 CounterObject = collections.Counter(ContigNames)
@@ -121,7 +139,7 @@ if len(DuplicatedContigNames) != 0:
   exit(1)
 
 # Check the consensus name does not match one fo the contig names.
-if CompareContigsToConsensus and ConsensusName in ContigNames:
+if ConsensusName != None and ConsensusName in ContigNames:
   print('The consensus name should not be the same as one of the contig', \
   'names. Quitting.', file=sys.stderr)
   exit(1)
@@ -130,7 +148,7 @@ if CompareContigsToConsensus and ConsensusName in ContigNames:
 AllSeqsDict, AlignmentLength = ReadSequencesFromFile(AlignmentFile)
 
 # Check the consensus is found
-if CompareContigsToConsensus:
+if ConsensusName != None:
   if not ConsensusName in AllSeqsDict:
     print(ConsensusName, 'not found in', AlignmentFile + '. Quitting.', \
     file=sys.stderr)
@@ -251,58 +269,86 @@ for [start,end] in ContigStartsAndEnds.values():
 # Compare contigs to consensus to count positions in the four categories
 # ('cats') described in the help above. Convert all bases to upper case, and
 # replace any gap char that neighbours a '?' char in the consensus by a '?'.
-if CompareContigsToConsensus:
+if ConsensusName != None:
   categories = []
   ConsensusSeq = ConsensusSeq.upper()
   ConsensusSeq = PropagateNoCoverageChar(ConsensusSeq)
+  FlattenedContigsSeq = FlattenedContigsSeq.upper()
   for ContigName in ContigDict:
     ContigDict[ContigName] = ContigDict[ContigName].upper()
-  for pos in range(0,AlignmentLength):
-    ConsensusBase = ConsensusSeq[pos]
-    if ConsensusBase == 'N': 
-      cat = None
-    elif ContigCoverageByPosition[pos] == 0:
-      if ConsensusBase == '?' or ConsensusBase == GapChar:
-        cat = None
-      else:
-        cat  = 4
-    else:
 
-      # Find all bases (or gaps) inside a contig here.
+  if CheckContigSNPs:
+    NumPosLongestContigCorrect = 0
+    NumPosLongestContigIncorrect = 0
+    for pos in range(0,AlignmentLength):
+      if ContigCoverageByPosition[pos] < 2:
+        continue
       ContigBases = []
       for ContigName, ContigSeq in ContigDict.items():
         StartOfContig, EndOfContig = ContigStartsAndEnds[ContigName]
         if StartOfContig <= pos <= EndOfContig:
-          ContigBases.append(ContigSeq[pos])
-      if ContigBases == []:
-        print('Malfunction of', sys.argv[0] + ": we've lost track of what", \
-        "contigs are present at position", pos+1, 'in', AlignmentFile + \
-        '. Please report to Chris Wymant. Quitting.', file=sys.stderr)
-        exit(1)
+          ContigBase = ContigSeq[pos]
+          if ContigBase != '-':
+            ContigBases.append(ContigSeq[pos])
+      if len(set(ContigBases)) >= 2:
+        # There are at least two different bases in the contigs here.
+        #print('pos', pos+1, 'consensus:', ConsensusSeq[pos], 'longest contig:', 
+        #FlattenedContigsSeq[pos], 'contig bases here:', ContigBases) 
+        if FlattenedContigsSeq[pos] == ConsensusSeq[pos]:
+          NumPosLongestContigCorrect += 1
+        else:
+          NumPosLongestContigIncorrect += 1
+    print(NumPosLongestContigCorrect, NumPosLongestContigIncorrect)
+    exit(0)
 
-      if ConsensusBase == '?':
-        if all(ContigBase == GapChar for ContigBase in ContigBases):
+
+  if CompareContigsToConsensus:
+    for pos in range(0,AlignmentLength):
+      ConsensusBase = ConsensusSeq[pos]
+      if ConsensusBase == 'N': 
+        cat = None
+      elif ContigCoverageByPosition[pos] == 0:
+        if ConsensusBase == '?' or ConsensusBase == GapChar:
           cat = None
         else:
-          cat = 3
-      elif ConsensusBase == GapChar:
-        if all(ContigBase != GapChar for ContigBase in ContigBases):  
-          cat = 2
-        else:
-          cat = None
+          cat  = 4
       else:
-        if any(ContigBase == ConsensusBase for ContigBase in ContigBases):  
-          cat = 1
+
+        # Find all bases (or gaps) inside a contig here.
+        ContigBases = []
+        for ContigName, ContigSeq in ContigDict.items():
+          StartOfContig, EndOfContig = ContigStartsAndEnds[ContigName]
+          if StartOfContig <= pos <= EndOfContig:
+            ContigBases.append(ContigSeq[pos])
+        if ContigBases == []:
+          print('Malfunction of', sys.argv[0] + ": we've lost track of what", \
+          "contigs are present at position", pos+1, 'in', AlignmentFile + \
+          '. Please report to Chris Wymant. Quitting.', file=sys.stderr)
+          exit(1)
+
+        if ConsensusBase == '?':
+          if all(ContigBase == GapChar for ContigBase in ContigBases):
+            cat = None
+          else:
+            cat = 3
+        elif ConsensusBase == GapChar:
+          if all(ContigBase != GapChar for ContigBase in ContigBases):  
+            cat = 2
+          else:
+            cat = None
         else:
-          cat = 2
-        
-    categories.append(cat)
-  CatCounts = [0,0,0,0]
-  for cat in categories:
-    if cat != None:
-      CatCounts[cat-1] += 1
-  print(' '.join(map(str, CatCounts)))
-  exit(0)
+          if any(ContigBase == ConsensusBase for ContigBase in ContigBases):  
+            cat = 1
+          else:
+            cat = 2
+          
+      categories.append(cat)
+    CatCounts = [0,0,0,0]
+    for cat in categories:
+      if cat != None:
+        CatCounts[cat-1] += 1
+    print(' '.join(map(str, CatCounts)))
+    exit(0)
     
 
 #TotalContigCoverage = sum([1 for base in FlattenedContigsSeq if base != GapChar])

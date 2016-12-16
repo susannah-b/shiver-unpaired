@@ -230,18 +230,30 @@ To regenerate a coordinate-translated version of this consensus for the global a
 
 #### Discarding dissimilar reads
 
-One parameter in config.sh is the minimum read identity – the fraction of bases in the read which
-are mapped and agree with the reference – required for a read to be considered mapped, and so retained in the bam file.
-If you wish to increase this after completion of shiver, reads with an identity below your new higher threshold can be discarded by running `tools/RemoveDivergentReads.py` on a bam file.
-Running `shiver_reprocess_bam.sh` on the resulting bam file (or indeed any bam file) implements just the last steps in shiver, namely generating pileup, calculating the base frequencies, and calling the consensus.
+Another parameter in the configuration file is the minimum read identity – the fraction of bases in the read which are mapped and agree with the reference – required for a read to be considered mapped, and so retained in the BAM file. If you wish to increase this after completion of shiver, reads with an identity below your new higher threshold can be discarded by running `tools/RemoveDivergentReads.py` on a BAM file. Running shiver reprocess bam.sh on the resulting BAM file (or indeed any BAM file) implements just the last steps in shiver, namely generating pileup,
+calculating the base frequencies, and calling the consensus.
 
 #### Number and accuracy of mapped reads
 
-`tools/FindNumMappedBases.py` calculates the total number of mapped nucleotides in a bam file (i.e. the number of mapped reads multiplied by read length, minus the total length of sequence clipped from reads) optionally binned by read identity.
-In the absence of mapped contaminant reads, and all else being equal, mapping to a reference which is closer to the true consensus should map more nucleotides and mapped reads should have higher identities.
+`tools/FindNumMappedBases.py` calculates the total number of mapped bases in a BAM file (where read length is constant this equals the number of mapped reads multiplied by read length, minus the total length of sequence clipped from reads), optionally binned by read identity. In the absence of mapped contaminant reads, and all else being equal, mapping to a reference which is closer to the true consensus should map more bases and mapped reads should have higher identities. 
 
 #### Finding mapping problems
 
-`tools/FindClippingHotSpots.py` counts, at each position in the genome, the number and percentage of reads that are clipped from that position to their left or right end.
-(Optionally with a minimum length of clipped sequence for it to be counted.)
-Having many such reads is a warning sign of a structural difference (an indel) between the reference and the reads which is hindering the latter from being mapped accurately to the former.
+`tools/FindClippingHotSpots.py` counts, at each position in the genome, the number and percentage of reads that are clipped from that position to their left or right end. (Optionally with a minimum length of clipped sequence for it to be counted.) Having many such reads is a warning sign of a structural difference (an indel) between the reference and the reads which is hindering the latter from being mapped accurately to the former. 
+
+#### Correlating coverage and agreement with the referece
+
+`tools/LinkIdentityToCoverage.py` finds, for each different coverage encountered when considering all positions in a BAM file, the mean read identity at such positions. The mean read identity tends to be lower at positions of low coverage due to a background of contaminant reads, which differ from the reference by virtue of being contamination, but which are nevertheless similar enough to be mapped. Quantifying the decline in identity at low coverage helps inform what coverage threshold is appropriate for a given data set.
+
+#### Aligning with missing coverage
+
+`tools/AlignMoreSeqsToPairWithMissingCoverage.py` allows more sequences to be added to a pairwise align-
+ment in which one sequence contains missing coverage (such as a consensus and its reference), correctly maintaining the distinction between gaps (indicating a deletion) and missing coverage.
+
+#### Aligning base frequencies
+
+`tools/AlignBaseFreqFiles.py` aligns not two sequences, but two of the csv-format base frequency files output by shiver. Optionally a similarity metric is calculated at each position in the alignment, between 0 (no agreement on which bases/gaps are present) and 1 (perfect agreement on which bases/gaps are present and on their proportions). This allows comparison not just of consensus sequences between two samples but also of minority variants.
+
+#### Visualising sequences
+
+`tools/ConvertAlnToColourCodes.py` converts each base in a sequence alignment into a colour code indicating agreement with the consensus and indels; AlignmentPlotting.R takes such colour codes and visualises the alignment. These two scripts were used to produce the plots of Appendices F and G in the paper.

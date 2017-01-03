@@ -46,7 +46,7 @@ $ ./shiver_align_contigs.sh MyInitDir config.sh contigs.fasta SID
 ```
 replacing `SID` ('sample ID') by a name used for labelling all output files for this sample.
 This command will produce a file named `SID.blast` (detailing blast hits of your contigs to those existing references supplied for the initialisation).
-Assuming at least one contig looks like HIV, `SID.blast` will not be empty (see section *Including samples without contigs* otherwise), and there will be another file called `SID_raw_wRefs.fasta` - an alignment of the HIV contigs (i.e. those that blasted) to your input existing reference genomes.
+Assuming at least one contig looks like HIV, `SID.blast` will not be empty (see section *Including samples without contigs* otherwise), and there will be another file called `SID_raw_wRefs.fasta` - an alignment of the HIV contigs (i.e. those that have blast hits) to your input existing reference genomes.
 As discussed in the shiver article, this alignment should be inspected, and in the minority of cases where this is required, edited; see the following section.
 
 If a single contig has two or more blast hits (ignoring hits wholly inside other hits), it is taken to be chimeric / spliced: erroneously connecting disconnected parts of the genome.
@@ -193,12 +193,12 @@ $ cat MyInitDir/ExistingRefAlignment.fasta >> GlobalAln.fasta
 Now it's over to you for phylogenetics, GWAS etc.
 
 ### Including samples without contigs
-You might have some samples for which none of the contigs blast to the existing references you supplied, i.e. it looks like all contigs are contaminants.
+You might have some samples for which none of the contigs have blast hits to the existing references you supplied, i.e. it looks like all contigs are contaminants.
 In this case the contig alignment step will produce an empty blast file and no `SID_raw_wRefs.fasta` file.
 You could choose to ignore such cases - that's reasonable.
 You could also choose to try to recover some HIV reads in your contamination-dominated sample.
 To this end, in place of the alignment of contigs to existing references amongst the arguments to `shiver_map_reads.sh`, you can supply a fasta file containing a single sequence: that sequence will be used as the reference for mapping, instead of a tailored one constructed from contigs.
-If that sequence is one of the existing references you provided at the initialisation step, `shiver` knows how to do the coordinate translation necessary to produce a `SID_MinCov_foo_bar_ForGlobalAln.fasta` file; if not, this file will not be produced (you'll still get your consensus sequence though).
+If that sequence is one of the existing references you provided at the initialisation step, shiver knows how to do the coordinate translation necessary to produce a `SID_MinCov_foo_bar_ForGlobalAln.fasta` file; if not, this file will not be produced (you'll still get your consensus sequence though).
 
 To script this kind of thing, you can just check whether the alignment of contigs to existing references exists for this sample: if not, choose a sequence to use as your reference to mapping.
 This would probably be most easily achieved by making a big look-up table before you start.

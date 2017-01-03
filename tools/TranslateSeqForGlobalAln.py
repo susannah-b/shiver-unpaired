@@ -5,7 +5,16 @@ from __future__ import print_function
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
-ExplanatoryMessage = '''TODO'''
+ExplanatoryMessage = '''Called with a fasta file containing a consensus and its
+reference for mapping, and a coordinate file produced by fully processing a
+sample with shiver, this script does the following: (1) excises insertions of
+the consensus with respect to its reference, (2) excises insertions of the
+reference (constructed out of the sample's contigs) with respect to the set of
+existing references given as input to shiver, (3) adds gaps into the consensus
+so that it is in the same coordinates system as the alignment of existing
+references given as input to shiver, (4) prints the result to stdout, suitable
+for redirection into a fasta file. Combining this output from multiple samples
+into a single file gives an alignment.'''
 # NB, for brevity, 'pos' = position, 'aln' = alignment, 'seq' = sequence
 GapChar = '-'
 
@@ -27,14 +36,14 @@ def File(MyFile):
 # Set up the arguments for this script
 ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
-parser.add_argument('SeqFile', type=File)
+parser.add_argument('ConsensusFile', type=File)
 parser.add_argument('CoordsFile', type=File)
 args = parser.parse_args()
 
 # Read in the seq
 seq = None
 RefAsString = None
-for InSeq in SeqIO.parse(open(args.SeqFile),'fasta'):
+for InSeq in SeqIO.parse(open(args.ConsensusFile),'fasta'):
   if seq == None:
     seq = InSeq
     SeqAsString = str(InSeq.seq)
@@ -42,12 +51,12 @@ for InSeq in SeqIO.parse(open(args.SeqFile),'fasta'):
   RefAsString = str(InSeq.seq)
   break
 if RefAsString == None:
-  print('Did not find two sequences in', args.SeqFile + 'Quitting.', \
+  print('Did not find two sequences in', args.ConsensusFile + 'Quitting.', \
   file=sys.stderr)
   exit(1)
 SeqLength = len(SeqAsString)
 if len(RefAsString) != SeqLength:
-  print(args.SeqFile, 'is not an alignment. Quitting.', file=sys.stderr)
+  print(args.ConsensusFile, 'is not an alignment. Quitting.', file=sys.stderr)
   exit(1)
 
 # Excise insertions of the seq relative to its ref
@@ -81,7 +90,7 @@ def CheckAndUpdatePos(pos, PrevPos, PosType):
     exit(1)
   if PosType == SeqLength and pos > SeqLength:
     print('Encountered sequence position', pos, 'in', args.CoordsFile + \
-    ', which is after the end of the sequence in', args.SeqFile, '('+ \
+    ', which is after the end of the sequence in', args.ConsensusFile, '('+ \
     str(SeqLength) +'bp long). Quitting.', file=sys.stderr)
     exit(1)
   return pos

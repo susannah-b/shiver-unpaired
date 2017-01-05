@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+set -u
+set -o pipefail
+
 UsageInstructions=$(echo '
 Arguments for this script:
 (1) the initialisation directory you created using the shiver_init.sh command;
@@ -15,8 +18,6 @@ to be used for mapping;
 (7) the forward reads;
 (8) the reverse reads.
 ')
-
-set -u
 
 ################################################################################
 # PRELIMINARIES

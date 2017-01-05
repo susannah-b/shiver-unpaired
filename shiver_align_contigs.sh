@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+set -u
+set -o pipefail
+
 UsageInstructions=$(echo '
 Arguments for this script:
 (1) the initialisation directory you created using the shiver_init.sh command;
@@ -16,8 +19,6 @@ is necessary, two more fasta files are produced - the cut/reversed contigs on
 their own and also aligned to references (i.e. there will be two files of the
 contigs on their own and two files of the contigs aligned to references).
 ')
-
-set -u
 
 # Check for the right number of arguments. Assign them to variables.
 NumArgsExpected=4

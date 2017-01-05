@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+set -u
+set -o pipefail
+
 UsageInstructions=$(echo '
 Arguments for this script:
 (1) the initialisation directory you created using the shiver_init.sh command;
@@ -11,8 +14,6 @@ assembly program),
 (6) A sample ID ("SID") used for naming the output from this script (a sensible
 choice might be the contig or reads file name minus the path and extension).
 ')
-
-set -u
 
 # Check for the right number of arguments. Assign them to variables.
 NumArgsExpected=6

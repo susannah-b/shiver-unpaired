@@ -126,3 +126,64 @@ function CheckReadNames {
   fi
 
 }
+
+function map {
+
+  LocalRef=$1
+  LocalRefName=$2
+  OutFileStem=$3
+
+  InsertSizeCounts="$OutFileStem$InsertSizeCountsSuffix"
+  Consensus="$OutFileStem"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
+  BaseFreqs="$OutFileStem$BaseFreqsSuffix"
+  ConsensusWcontigs="$OutFileStem"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fasta'
+
+  # Do the mapping!
+  echo 'Now mapping - typically a slow step.'
+  "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
+  "$cleaned1reads" "$cleaned2reads" || \
+  { echo 'Smalt mapping failed. Quitting.' >&2 ; exit 1 ; }
+
+  # Convert that sam file into a bam file. Thanks Nick Croucher!
+  "$samtools" view -bS $samtoolsReadFlags -t "$LocalRef".fai -o \
+  "$MapOutConversion1".bam "$MapOutAsSam" &&
+  "$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam -T "$SamtoolsSortFile" &&
+  "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
+  "$samtools" sort "$MapOutConversion3".bam -o "$OutFileStem".bam -T "$SamtoolsSortFile" &&
+  "$samtools" index "$OutFileStem.bam" || \
+  { echo 'Failed to convert from sam to bam format. Quitting.' >&2 ; exit 1 ; }
+
+  # TODO: check num lines in $(samtools view "$OutFileStem.bam") is > 0
+
+  # Calculate the normalised insert size distribution.
+  "$samtools" view "$OutFileStem.bam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
+  # TODO: check num lines in InsertSizes1 is > 0
+  sort -n "$InsertSizes1" | uniq -c > "$InsertSizes2"
+  # TODO: should be InsertSizes2 below
+  InsertCount=$(awk '{sum+=$1} END {print sum}' "$InsertSizes1")
+  awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" > \
+  "$InsertSizeCounts"
+
+  # Generate pileup
+  echo 'Now calculating pileup - typically a slow step.'
+  "$samtools" mpileup $mpileupOptions -f "$LocalRef" "$OutFileStem.bam" > \
+  "$PileupFile" || { echo 'Failed to generate pileup. Quitting.' >&2 ; exit 1 ; }
+
+  # Generate base frequencies and the consensuses
+  "$Code_AnalysePileup" "$PileupFile" "$LocalRef" > "$BaseFreqs" || \
+  { echo 'Problem analysing the pileup. Quitting' >&2 ; exit 1 ; }
+  "$Code_CallConsensus" "$BaseFreqs" "$MinCov1" "$MinCov2" "$MinBaseFrac" \
+  --consensus-seq-name "$OutFileStem"'_consensus' --ref-seq-name "$LocalRefName" > \
+  "$Consensus" || \
+  { echo 'Problem calling the consensus. Quitting.' >&2 ; exit 1 ; }
+
+  if [[ $NumHIVContigs -gt 0 ]]; then
+    # Add the contigs to the alignment of the consensus and its reference.
+    SwapContigsToTop=false
+    AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
+    "$Consensus" "$ConsensusWcontigs" "$SwapContigsToTop" "$OldMafft" || \
+    { echo 'Problem aligning the contigs to the consensus. Quitting.' >&2 ; \
+    exit 1 ; }
+  fi
+
+}

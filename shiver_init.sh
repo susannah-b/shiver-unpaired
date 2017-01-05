@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+set -u
+set -o pipefail
+
 UsageInstructions=$(echo '
 Arguments for this script:
 (1) an output directory for the initialisation files.
@@ -8,8 +11,6 @@ Arguments for this script:
 (4) a fasta file of the adapters used in sequencing;
 (5) a fasta file of the primers used in sequencing.
 ')
-
-set -u
 
 # Check for the right number of arguments. Assign them to variables.
 NumArgsExpected=5

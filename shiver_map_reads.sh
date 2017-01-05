@@ -439,8 +439,8 @@ fi
 OldMafft=false
 
 # Do the mapping
-map "$TheRef" "$RefName" "$SID" || { echo 'Problem remapping to the'\
-'consensus from the first round of mapping. Quitting.' >&2 ; exit 1 ; }
+map "$TheRef" "$RefName" "$SID" || { echo 'Problem mapping to the reference in'\
+" $TheRef. Quitting." >&2 ; exit 1 ; }
 
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.

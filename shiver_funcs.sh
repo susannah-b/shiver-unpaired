@@ -153,13 +153,16 @@ function map {
   "$samtools" index "$OutFileStem.bam" || \
   { echo 'Failed to convert from sam to bam format. Quitting.' >&2 ; exit 1 ; }
 
-  # TODO: check num lines in $(samtools view "$OutFileStem.bam") is > 0
+  # Check at least one read was mapped
+  NumMappedReads=$(samtools view "$OutFileStem.bam" | wc -l)
+  if [[ $NumMappedReads -eq 0 ]]; then
+    echo "$OutFileStem.bam is empty - no reads were mapped! Quitting."
+    return 1
+  fi
 
   # Calculate the normalised insert size distribution.
   "$samtools" view "$OutFileStem.bam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
   InsertCount=$(wc -l "$InsertSizes1" | awk '{print $1}')
-  #TODO: remove
-  InsertCount=0
   if [[ $InsertCount -gt 0 ]]; then
     sort -n "$InsertSizes1" | uniq -c > "$InsertSizes2"
     awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" > \

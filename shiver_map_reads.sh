@@ -209,7 +209,6 @@ fi
 # Index the ref
 "$smalt" index $smaltIndexOptions "$smaltIndex" "$TheRef" || \
 { echo 'Problem indexing the refererence with smalt. Quitting.' >&2 ; exit 1 ; }
-# TODO: check that the following line should be here.
 "$samtools" faidx "$TheRef" || \
 { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
 exit 1 ; }
@@ -283,7 +282,6 @@ if [[ "$CleanReads" != "true" ]]; then
 else
 
   # List all the contigs and the HIV ones.
-  # TODO: later on we assume the blast file first field has no whitespace in it.
   awk '/^>/ {print substr($1,2)}' "$RawContigsFile" | sort > "$AllContigsList"
   awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq > "$HIVContigsList"
 
@@ -421,7 +419,6 @@ else
         "$BadReadsBaseName"_2.fastq || \
         { echo 'Problem extracting the contaminant reads using' \
         "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
-        #"$samtools" faidx "$TheRef" &&
         "$smalt" map $smaltMapOptions -o "$AllMappedContaminantReads" \
         "$smaltIndex" "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq &&
         "$samtools" view -bS -F 4 -t "$TheRef".fai -o \

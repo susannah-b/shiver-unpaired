@@ -71,7 +71,6 @@ cleaned1reads="$SID$CleanedReads1Suffix"
 cleaned2reads="$SID$CleanedReads2Suffix"
 CoordsDict="$SID$CoordsDictSuffix"
 BaseFreqs="$SID$BaseFreqsSuffix"
-InsertSizeCounts="$SID$InsertSizeCountsSuffix"
 ################################################################################
 
 ################################################################################
@@ -437,49 +436,11 @@ fi
 ################################################################################
 # MAP
 
-# Do the mapping!
-echo 'Now mapping - typically a slow step.'
-"$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" "$cleaned1reads" \
-"$cleaned2reads" || \
-{ echo 'Smalt mapping failed. Quitting.' >&2 ; exit 1 ; }
-
-# Convert that sam file into a bam file. Thanks Nick Croucher!
-"$samtools" view -bS $samtoolsReadFlags -t "$TheRef".fai -o \
-"$MapOutConversion1".bam "$MapOutAsSam" &&
-"$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam -T "$SamtoolsSortFile" &&
-"$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
-"$samtools" sort "$MapOutConversion3".bam -o "$SID".bam -T "$SamtoolsSortFile" &&
-"$samtools" index "$SID.bam" || \
-{ echo 'Failed to convert from sam to bam format. Quitting.' >&2 ; exit 1 ; }
-
-# Calculate the normalised insert size distribution.
-"$samtools" view "$SID.bam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
-sort -n "$InsertSizes1" | uniq -c > "$InsertSizes2"
-InsertCount=$(awk '{sum+=$1} END {print sum}' "$InsertSizes1")
-awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" > \
-"$InsertSizeCounts"
-
-# Generate pileup
-echo 'Now calculating pileup - typically a slow step.'
-"$samtools" mpileup $mpileupOptions -f "$TheRef" "$SID.bam" > "$PileupFile" || \
-{ echo 'Failed to generate pileup. Quitting.' >&2 ; exit 1 ; }
-
-# Generate base frequencies and the consensuses
-"$Code_AnalysePileup" "$PileupFile" "$TheRef" > "$BaseFreqs" || \
-{ echo 'Problem analysing the pileup. Quitting' >&2 ; exit 1 ; }
-"$Code_CallConsensus" "$BaseFreqs" "$MinCov1" "$MinCov2" "$MinBaseFrac" \
---consensus-seq-name "$SID"'_consensus' --ref-seq-name "$RefName" > \
-"$consensus" || \
-{ echo 'Problem calling the consensus. Quitting.' >&2 ; exit 1 ; }
-
-# Add the contigs to the alignment of the consensus and its reference.
 OldMafft=false
-if [[ $NumHIVContigs -gt 0 ]]; then
-  SwapContigsToTop=false
-  AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
-  "$consensus" "$consensusWcontigs" "$SwapContigsToTop" "$OldMafft" || { echo \
-  'Problem aligning the contigs to the consensus. Quitting.' >&2 ; exit 1 ; }
-fi
+
+# Do the mapping
+map "$TheRef" "$RefName" "$SID" || { echo 'Problem remapping to the'\
+'consensus from the first round of mapping. Quitting.' >&2 ; exit 1 ; }
 
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.
@@ -499,9 +460,6 @@ if [[ "$remap" == "true" ]]; then
   NewSID="$SID"'_remap'
   NewRef="$NewSID$OutputRefSuffix"
   NewRefName="$SID"'_ConsensusRound1_GapsFilled'
-  NewConsensus="$NewSID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
-  NewBaseFreqs="$NewSID$BaseFreqsSuffix"
-  NewConsensusWcontigs="$NewSID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fasta'
 
   # Fill in any gaps in the consensus with the corresponding part of the orginal
   # reference for mapping.
@@ -517,41 +475,9 @@ if [[ "$remap" == "true" ]]; then
   { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
   exit 1 ; }
 
-  # Do the mapping!
-  echo 'Now mapping - typically a slow step.'
-  "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
-  "$cleaned1reads" "$cleaned2reads" || \
-  { echo 'Smalt mapping failed. Quitting.' >&2 ; exit 1 ; }
-
-  # Convert that sam file into a bam file.
-  "$samtools" view -bS $samtoolsReadFlags -t "$NewRef".fai -o \
-  "$MapOutConversion1".bam "$MapOutAsSam" &&
-  "$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam -T "$SamtoolsSortFile" &&
-  "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
-  "$samtools" sort "$MapOutConversion3".bam -o "$NewSID".bam -T "$SamtoolsSortFile" &&
-  "$samtools" index "$NewSID.bam" || \
-  { echo 'Failed to convert from sam to bam format. Quitting.' >&2 ; exit 1 ; }
-
-  # Generate pileup
-  echo 'Now calculating pileup - typically a slow step.'
-  "$samtools" mpileup $mpileupOptions -f "$NewRef" "$NewSID.bam" > \
-  "$PileupFile" || { echo 'Failed to generate pileup. Quitting.' >&2 ; exit 1 ; }
-
-  # Generate base frequencies and the consensuses
-  "$Code_AnalysePileup" "$PileupFile" "$NewRef" > "$NewBaseFreqs" || \
-  { echo 'Problem analysing the pileup. Quitting' >&2 ; exit 1 ; }
-  "$Code_CallConsensus" "$NewBaseFreqs" "$MinCov1" "$MinCov2" "$MinBaseFrac" \
-  --consensus-seq-name "$NewSID"'_consensus' --ref-seq-name "$NewRefName" > \
-  "$NewConsensus" || \
-  { echo 'Problem calling the consensus. Quitting.' >&2 ; exit 1 ; }
-
-  if [[ $NumHIVContigs -gt 0 ]]; then
-    # Add the contigs to the alignment of the consensus and its reference.
-    AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
-    "$NewConsensus" "$NewConsensusWcontigs" "$SwapContigsToTop" "$OldMafft" || \
-    { echo 'Problem aligning the contigs to the consensus. Quitting.' >&2 ; \
-    exit 1 ; }
-  fi
+  # Do the mapping
+  map "$NewRef" "$NewRefName" "$NewSID" || { echo 'Problem remapping to the'\
+  'consensus from the first round of mapping. Quitting.' >&2 ; exit 1 ; }
 
 fi
 

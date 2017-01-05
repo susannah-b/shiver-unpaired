@@ -157,12 +157,18 @@ function map {
 
   # Calculate the normalised insert size distribution.
   "$samtools" view "$OutFileStem.bam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
-  # TODO: check num lines in InsertSizes1 is > 0
-  sort -n "$InsertSizes1" | uniq -c > "$InsertSizes2"
-  # TODO: should be InsertSizes2 below
-  InsertCount=$(awk '{sum+=$1} END {print sum}' "$InsertSizes1")
-  awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" > \
-  "$InsertSizeCounts"
+  InsertCount=$(wc -l "$InsertSizes1" | awk '{print $1}')
+  #TODO: remove
+  InsertCount=0
+  if [[ $InsertCount -gt 0 ]]; then
+    sort -n "$InsertSizes1" | uniq -c > "$InsertSizes2"
+    awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" > \
+    "$InsertSizeCounts"
+  else
+    echo "Warning: no read in $OutFileStem.bam was identified as having"\
+    "positive insert size. Unexpected. We'll skip making an insert size"\
+    "distribution and continue."
+  fi
 
   # Generate pileup
   echo 'Now calculating pileup - typically a slow step.'

@@ -234,8 +234,8 @@ fi
 
 # Check all 1 read seq ids end in /1, and 2 reads in /2. Check there are
 # no tabs in the seq id lines.
-CheckReadNames "$reads1" 1
-CheckReadNames "$reads2" 2
+CheckReadNames "$reads1" 1 && CheckReadNames "$reads2" 2 || \
+{ echo 'Problem with read names. Quitting.' ; exit 1 ; }
 
 HaveModifiedReads=false
 
@@ -476,7 +476,7 @@ if [[ "$remap" == "true" ]]; then
   exit 1 ; }
 
   # Do the mapping
-  map "$NewRef" "$NewRefName" "$NewSID" || { echo 'Problem remapping to the'\
+  map "$NewRef" "$NewRefName" "$NewSID" || { echo 'Problem remapping to the' \
   'consensus from the first round of mapping. Quitting.' >&2 ; exit 1 ; }
 
 fi

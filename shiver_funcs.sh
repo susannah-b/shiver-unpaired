@@ -124,6 +124,16 @@ function CheckReadNames {
     return 1
   fi
 
+  # Check all read names are unique
+  NumDuplicatedReadNames=$(awk '{if ((NR-1)%4==0) print substr($1,1)}'\
+  "$ReadFile" | sort | uniq -d | wc -l)
+  if [[ $NumDuplicatedReadNames -ne 0 ]]; then
+    echo "The following read names are duplicated in $ReadFile:" >&2
+    awk '{if ((NR-1)%4==0) print substr($1,1)}' "$ReadFile" | sort | uniq -d >&2
+    echo "Reads should be uniquely named." >&2
+    return 1
+  fi
+
 }
 
 function map {

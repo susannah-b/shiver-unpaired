@@ -25,15 +25,12 @@ RefAlignment="$3"
 adapters="$4"
 primers="$5"
 
-# Source required code & check files exist
+# Source the shiver funcs, check files exist, source the config file, check it.
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.sh'
 CheckFilesExist "$ConfigFile" "$RefAlignment"
-source "$ConfigFile"
-
-# TODO: sanity checks on ConfigFile, e.g. MinCov2 >= MinCov1, as a function that
-# gets called with this step and subsequent steps (since the config file could
-# change).
+CheckConfig "$ConfigFile" || \
+{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 # If OutDir does not exist, try to create it.
 if [ ! -d "$OutDir" ]; then

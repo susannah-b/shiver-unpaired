@@ -39,11 +39,12 @@ InitDir=$(cd "$InitDir"; pwd)
 BlastDatabase="$InitDir/ExistingRefsBlastDatabase"
 RefAlignment="$InitDir/ExistingRefAlignment.fasta"
 
-# Source required code & check files exist
+# Source the shiver funcs, check files exist, source the config file, check it.
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.sh'
 CheckFilesExist "$ContigFile" "$RefAlignment" "$reads1" "$reads2"
-source "$ConfigFile"
+CheckConfig "$ConfigFile" || \
+{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 # Check that there are some contigs, that their IDs are unique, and that their
 # IDs don't contain commas.

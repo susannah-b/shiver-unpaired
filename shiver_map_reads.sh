@@ -50,13 +50,14 @@ ExistingRefAlignment="$InitDir"/'ExistingRefAlignment.fasta'
 adapters="$InitDir"/'adapters.fasta'
 primers="$InitDir"/'primers.fasta'
 
-# Source required code & check files exist
+# Source the shiver funcs, check files exist, source the config file, check it.
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.sh'
 CheckFilesExist "$ConfigFile" "$reads1" "$reads2" "$RawContigsFile" \
 "$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
 "$primers"
-source "$ConfigFile"
+CheckConfig "$ConfigFile" || \
+{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 echo $(basename "$0") 'was called thus:'
 echo "$0" $@

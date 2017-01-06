@@ -31,6 +31,8 @@ TrimReadsForAdaptersAndQual=true
 # variables and other options not used here:
 IlluminaClipParams='2:10:7:1:true'
 BaseQualityParams='MINLEN:50 LEADING:20 TRAILING:20 SLIDINGWINDOW:4:20'
+# How many threads Trimmomatic should use (it sometimes multithreads unless told
+# not to, which can be problematic on clusters).
 NumThreadsTrimmomatic=1
 
 # Shall we trim primers from reads, using fastaq?

@@ -220,6 +220,8 @@ exit 1 ; }
 # TRIM & CLEAN READS
 
 # Copy the reads to the working directory. Unzip them if they end in .gz.
+# TODO: quit if can't copy, or can't unzip, or don't recognise name after
+# unzipping.
 cp "$reads1" "$reads2" .
 reads1=$(basename "$reads1")
 reads2=$(basename "$reads2")
@@ -240,11 +242,11 @@ CheckReadNames "$reads1" 1 && CheckReadNames "$reads2" 2 || \
 HaveModifiedReads=false
 
 # Read trimming:
-if [[ "$TrimReads" == "true" ]]; then 
+if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then 
 
   # Trim adapters and low-quality bases
   echo 'Now trimming reads - typically a slow step.'
-  $trimmomatic PE -quiet -threads $NumThreadsTrimmomatic \
+  $trimmomatic PE -threads $NumThreadsTrimmomatic \
   "$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
   "$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
   $BaseQualityParams || \
@@ -254,24 +256,34 @@ if [[ "$TrimReads" == "true" ]]; then
   $BaseQualityParams || { echo 'Problem running trimmomatic. Quitting.' >&2 ; \
   exit 1 ; }
 
+  HaveModifiedReads=true
+  reads1="$reads1trim1"
+  reads2="$reads2trim1"
+
+fi
+if [[ "$TrimReadsForPrimers" == "true" ]]; then 
+
   # Trim primers
-  "$fastaq" 'sequence_trim' --revcomp "$reads1trim1" "$reads2trim1" "$reads1trim2" \
+  "$fastaq" 'sequence_trim' --revcomp "$reads1" "$reads2" "$reads1trim2" \
   "$reads2trim2" "$primers" || \
   { echo 'Problem running fastaq. Quitting.' >&2 ; exit 1 ; }
+  echo "fastaq completed successfully."
 
   HaveModifiedReads=true
   reads1="$reads1trim2"
   reads2="$reads2trim2"
 fi
 
-# Read trimming:
+# If we're not cleaning reads:
 if [[ "$CleanReads" != "true" ]]; then
 
-  # If we have trimmed the reads, change the trimmed file name into the cleaned
-  # one: we'll be saving them at the end, so the filess shouldn't begin 'temp'.
+  # If we have trimmed the reads, change their name to the final output name for
+  # the reads, to indicate that something has been done to them (we don't want
+  # their name to continue beginning 'temp'). 
   # If we haven't trimmed, then just make the cleaned reads variables point to
   # the unprocessed reads: we're not doing anything to the read files provided
-  # as input so the copy in the local dir can remain called 'temp'.
+  # as input so there's no need to rename to indicate that they're shiver
+  # output worth saving separately.
   if $HaveModifiedReads; then
     mv "$reads1" "$cleaned1reads"
     mv "$reads2" "$cleaned2reads"

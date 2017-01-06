@@ -24,17 +24,19 @@ fastaq='fastaq'
 # which means you just type 'trimmomatic' to run it:
 trimmomatic="trimmomatic"
 
-# Shall we trim (remove adapters, primers and low quality bases)?
-# Shall we clean (remove read pairs that look like contaminants)?
-TrimReads=true
-CleanReads=true
-
+# Shall we trim adapaters and low quality bases from reads, using trimmomatic?
+TrimReadsForAdaptersAndQual=true
 # The trimmomatic manual explains at length the parameters controlling read
-# trimming; the reader is referred to it for explanations of the following two
+# trimming; the reader is referred to it for explanations of the following
 # variables and other options not used here:
 IlluminaClipParams='2:10:7:1:true'
 BaseQualityParams='MINLEN:50 LEADING:20 TRAILING:20 SLIDINGWINDOW:4:20'
 NumThreadsTrimmomatic=1
+
+# Shall we trim primers from reads, using fastaq?
+TrimReadsForPrimers=true
+# Shall we clean (remove read pairs that look like contaminants)?
+CleanReads=true
 
 # Check the smalt documentation for a full explanation of mapping parameters,
 # including those not used by default here.

@@ -21,7 +21,9 @@ SID="$4"
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.sh'
 CheckFilesExist "$ConfigFile" "$bam"
-source "$ConfigFile"
+CheckConfig "$ConfigFile" || \
+{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
+
 
 # Some files we'll create
 consensus="$SID"'_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
@@ -37,6 +39,9 @@ TheRef=$(basename "$TheRef")
 { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
 exit 1 ; }
 "$samtools" index "$bam" 
+
+# TODO: separate the mapping function out into mapping, and the bit below, then
+# replace the bit below by its function.
 
 # Sort the bam file. Thanks Nick Croucher!
 "$samtools" view -b $samtoolsReadFlags -t "$TheRef".fai -o \

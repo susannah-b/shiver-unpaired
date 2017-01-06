@@ -41,7 +41,6 @@ function AlignContigsToRefs {
   OldMafftArg=$7
   ContigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigFile")
 
-  # TODO: remove awk pipe - Imperial College HPC hack for dodgy mafft!
   "$Aligner" $AlignerOptions --add "$ContigFile" "$ThisRefAlignment" > \
   "$TempContigAlignment1" || \
   { echo 'Problem aligning' "$ContigFile"'.' >&2 ; return 1 ; }
@@ -202,6 +201,150 @@ function map {
     "$Consensus" "$ConsensusWcontigs" "$SwapContigsToTop" "$OldMafft" || \
     { echo 'Problem aligning the contigs to the consensus.' >&2 ; \
     return 1 ; }
+  fi
+
+}
+
+
+function CheckConfig {
+
+  ConfigFile="$1"
+  source "$ConfigFile"
+
+  # Check 0 < MaxContigGappiness < 1, and 0 < MinContigHitFrac < 1
+  NonNegativeRegex='^[0-9]+([.][0-9]+)?$'
+  if [[ "$MaxContigGappiness" =~ $NonNegativeRegex ]] && \
+  (( $(echo "$MaxContigGappiness > 0" | bc -l) )) && \
+  (( $(echo "$MaxContigGappiness < 1" | bc -l) )); then
+    :
+  else
+    echo "The 'MaxContigGappiness' variable in the config file should be" \
+    "greater than 0 and less than 1." >&2
+    return 1
+  fi
+  if [[ "$MinContigHitFrac" =~ $NonNegativeRegex ]] && \
+  (( $(echo "$MinContigHitFrac > 0" | bc -l) )) && \
+  (( $(echo "$MinContigHitFrac < 1" | bc -l) )); then
+    :
+  else
+    echo "The 'MinContigHitFrac' variable in the contig file should be a" \
+    "number greater than 0 and less than 1." >&2
+    return 1
+  fi
+
+  # Check BlastDBcommand works
+  "$BlastDBcommand" -help &> /dev/null || { echo "Error running" \
+  "'$BlastDBcommand -help'. Are you sure that blast is installed, and that you"\
+  "chose the right value for the config file variable 'BlastDBcommand'?" >&2; \
+  return 1; }
+
+  # Check BlastNcommand works
+  "$BlastNcommand" -help &> /dev/null || { echo "Error running" \
+  "'$BlastNcommand -help'. Are you sure that blast is installed, and that you"\
+  "chose the right value for the config file variable 'BlastNcommand'?" >&2; \
+  return 1; }
+
+  # Check smalt works
+  "$smalt" version &> /dev/null || { echo "Error running" \
+  "'$smalt version'. Are you sure that smalt is installed, and that you"\
+  "chose the right value for the config file variable 'smalt'?" >&2; \
+  return 1; }
+
+  # Check samtools works
+  "$samtools" help &> /dev/null || { echo "Error running" \
+  "'$samtools help'. Are you sure that samtools is installed, and that you"\
+  "chose the right value for the config file variable 'samtools'?" >&2; \
+  return 1; }
+
+  # Check mafft works
+  echo -e ">seq1\naa\n>seq2\naa" | "$mafft" - &> /dev/null || { echo "Error" \
+  "running '$mafft'. Are you sure that mafft is installed, and that you"\
+  "chose the right value for the config file variable 'mafft'?" >&2; \
+  return 1; }
+
+  # Check boolean variables are either true or false.
+  if [[ "$TrimReadsForAdaptersAndQual" != "true" ]] && \
+  [[ "$TrimReadsForAdaptersAndQual" != "false" ]]; then
+    echo "The 'TrimReadsForAdaptersAndQual' variable in the config file should"\
+    "be either true or false."
+    return 1
+  fi
+  if [[ "$TrimReadsForPrimers" != "true" ]] && \
+  [[ "$TrimReadsForPrimers" != "false" ]]; then
+    echo "The 'TrimReadsForPrimers' variable in the config file should"\
+    "be either true or false."
+    return 1
+  fi
+  if [[ "$CleanReads" != "true" ]] && [[ "$CleanReads" != "false" ]]; then
+    echo "The 'CleanReads' variable in the config file should"\
+    "be either true or false."
+    return 1
+  fi
+  if [[ "$remap" != "true" ]] && [[ "$remap" != "false" ]]; then
+    echo "The 'remap' variable in the config file should"\
+    "be either true or false."
+    return 1
+  fi
+  if [[ "$MapContaminantReads" != "true" ]] && \
+  [[ "$MapContaminantReads" != "false" ]]; then
+    echo "The 'MapContaminantReads' variable in the config file should"\
+    "be either true or false."
+    return 1
+  fi
+
+  # Check fastaq works, if needed
+  if [[ "$TrimReadsForPrimers" == "true" ]]; then
+    "$fastaq" version &> /dev/null || { echo "Error running" \
+    "'$fastaq version'. Are you sure that fastaq is installed, and that you"\
+    "chose the right value for the config file variable 'fastaq'?" >&2; \
+    return 1; }
+  fi
+
+  # Check trimmomatic works, if needed
+  if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then
+    "$trimmomatic" -version &> /dev/null || { echo "Error running" \
+    "'$trimmomatic -version'. Are you sure that trimmomatic is installed, and"\
+    "that you chose the right value for the config file variable" \
+    "'trimmomatic'?" >&2; return 1; }
+  fi
+
+  # Check positive ints are positive ints
+  NonNegativeIntRegex='^[0-9]+$'
+  if ! [[ "$NumThreadsTrimmomatic" =~ $NonNegativeIntRegex ]] || \
+  [[ "$NumThreadsTrimmomatic" -lt 1 ]]; then
+    echo "The 'NumThreadsTrimmomatic' variable in the config file should be an"\
+    "integer greater than 0." >&2
+    return 1
+  fi
+  if ! [[ "$MinCov1" =~ $NonNegativeIntRegex ]] || \
+  [[ "$MinCov1" -lt 1 ]]; then
+    echo "The 'MinCov1' variable in the config file should be an"\
+    "integer greater than 0." >&2
+    return 1
+  fi
+  if ! [[ "$MinCov2" =~ $NonNegativeIntRegex ]] || \
+  [[ "$MinCov2" -lt 1 ]]; then
+    echo "The 'MinCov2' variable in the config file should be an"\
+    "integer greater than 0." >&2
+    return 1
+  fi
+
+  # Check MinCov2 >= MinCov1
+  if [[ "$MinCov2" -lt "$MinCov1" ]]; then
+    echo "The 'MinCov2' variable in the config file should be greater than or"\
+    "equal to MinCov1." >&2
+    return 1
+  fi
+
+  # Check MinBaseFrac <= 1
+  FloatRegex='^-?[0-9]+([.][0-9]+)?$'
+  if [[ "$MinBaseFrac" =~ $FloatRegex ]] && \
+  (( $(echo "$MinBaseFrac <= 1" | bc -l) )); then
+    :
+  else
+    echo "The 'MinBaseFrac' variable in the config file should be equal to or" \
+    "less than 1." >&2
+    return 1
   fi
 
 }

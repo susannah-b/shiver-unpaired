@@ -23,14 +23,22 @@ def File(MyFile):
 ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('FastaFile', type=File)
+parser.add_argument('-?', '--q-mark', action='store_true', help='''Remove
+columns that only contain the '-' character and/or the '?' character (assumed
+throughout Chris Wymant's code to mean missing coverage).''')
 args = parser.parse_args()
+
+# Are we checking just for "-", or also for "?"
+BlankChars = '-'
+if args.q_mark:
+  BlankChars += '?'
 
 alignment = AlignIO.read(args.FastaFile, "fasta")
 AlignmentLength = alignment.get_alignment_length()
 for column in reversed(xrange(AlignmentLength)):
   PureGap = True
   for base in alignment[:, column]:
-    if base != '-':
+    if not base in BlankChars:
       PureGap = False
       break
   if PureGap:

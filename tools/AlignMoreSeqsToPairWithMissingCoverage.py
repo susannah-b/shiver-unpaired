@@ -76,26 +76,24 @@ if consensus.id == ref.id:
   args.SeqPairWithMissingCov + ". Quitting.", file=sys.stderr)
   exit(1)
 
-# Check the consensus and its ref are aligned with no pure-gap columns.
+# Check the consensus and its ref are aligned. Skip positions with no bases.
 ConsensusAsString = str(consensus.seq)
 RefAsString = str(ref.seq)
 if len(ConsensusAsString) != len(RefAsString):
   print(args.SeqPairWithMissingCov, 'is not an alignment - seq lengths', \
   'differ. Quitting.', file=sys.stderr)
   exit(1)
+NewConsensusAsString = ''
+NewRefAsString = ''
 for ConsensusBase, RefBase in itertools.izip(ConsensusAsString, RefAsString):
-  if RefBase == '-':
-    if ConsensusBase == '-':
-      print("Found position in", args.SeqPairWithMissingCov, 'at which both', \
-      'sequences have a gap. Such positions should be removed first.', \
-      'Quitting.', file=sys.stderr)
-      exit(1)
-    if ConsensusBase == '?':
-      print("Found position in", args.SeqPairWithMissingCov, 'at which the', \
-      'consensus has a "?" character and the reference has a "-" character.', \
-      'Such positions should be removed first. Quitting.', file=sys.stderr)
-      exit(1)
-    
+  if RefBase == '-' and (ConsensusBase == '-' or ConsensusBase == '?'):
+    continue
+  else:
+    NewConsensusAsString += ConsensusBase
+    NewRefAsString += RefBase
+ConsensusAsString = NewConsensusAsString
+RefAsString = NewRefAsString
+ref.seq = Seq.Seq(RefAsString)
 
 # Replaces gaps that border "no coverage" by "no coverage".
 ConsensusAsString = PropagateNoCoverageChar(ConsensusAsString)

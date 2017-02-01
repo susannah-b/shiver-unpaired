@@ -6,7 +6,7 @@ from __future__ import print_function
 ##
 ## Overview:
 ExplanatoryMessage = '''Aligns more sequences to a pairwise alignment in which
-the first sequence contains missing coverage - the "?" character. Output is
+the first sequence contains missing coverage, i.e. the "?" character. Output is
 printed to stdout suitable for redirection to a fasta-format file. The pairwise 
 alignment is nominally the consensus (called from parsing mapped reads) and the
 reference used for mapping, in that order. Alignment is performed using mafft;
@@ -47,7 +47,16 @@ default='temp_AlnToMissingCovPair1.fasta')
 parser.add_argument('-T2', '--temp-file-2', \
 default='temp_AlnToMissingCovPair2.fasta')
 parser.add_argument('--x-mafft', default='mafft', help=\
-'The command required to invoke mafft (by default: mafft).')
+'''The command required to call mafft. You may include extra mafft options in
+this command (except --add or --addfragments, since one of these must be used
+and that is addressed with the -F argument to this script; and --preservecase is
+always included here), which need to separated by white space as usual and then
+the whole thing needs to be surrounded with one pair of quotation marks (so that
+the mafft binary and its options are kept together as one option for this
+script). If you include a path to your mafft binary (necessary if it is not in
+the $PATH variable of your terminal), it may not include whitespace, since
+whitespace is interpreted as separating raxml options. (The default value is
+mafft).''')
 args = parser.parse_args()
 
 # Find the consensus and its ref
@@ -122,7 +131,7 @@ else:
   AddOption = '--add'
 with open(args.temp_file_2, 'w') as f:
   try:
-    ExitStatus = subprocess.call([args.x_mafft, '--quiet', '--preservecase', \
+    ExitStatus = subprocess.call(args.x_mafft.split() + ['--preservecase',
     AddOption, args.OtherSeqsToBeAdded, args.temp_file_1], stdout=f)
     assert ExitStatus == 0
   except:

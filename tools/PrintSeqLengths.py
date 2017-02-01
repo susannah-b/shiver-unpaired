@@ -32,20 +32,37 @@ parser.add_argument('-1', '--first-seq-only', action='store_true', \
 help='''Print the length of the first sequence only. Faster for alignments
 containing many sequences (in which case you'll likely want the -g option
 too!).''')
+parser.add_argument('-F', '--fragments', action='store_true', help='''Print the
+length of the 'fragments' of the sequence, i.e. those parts that are separated
+by one or more '?' characters (denoting missing sequence data). If a sequence
+consists of N fragments, we will print N values followed by a zero (meaning that
+the length of the (N+1)th fragment is zero).''')
 args = parser.parse_args()
 
+# Can't use --include-gaps and --fragments
+if args.include_gaps and args.fragments:
+  print('The --include-gaps and --fragments options cannot both be used at',
+  'once. Quitting.', file=sys.stderr)
+  exit(1)
 
 SeqLengths = []
 for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
   if not args.include_gaps:
-    seq.seq = seq.seq.ungap("-").ungap("?")
+    seq.seq = seq.seq.ungap("-")
+    if not args.fragments:
+      seq.seq = seq.seq.ungap("?")
   if args.ignore_lower_case:
     seq.seq = ''.join(x for x in seq.seq if not x.islower())
-  SeqLengths.append([seq.id, len(seq.seq)])
+  if args.fragments:
+    FragLengths = [len(frag) for frag in seq.seq.split('?') if len(frag) > 0]
+    FragLengths = sorted(FragLengths, reverse=True)
+    FragLengths.append(0)
+    SeqLengths.append([seq.id] + FragLengths)
+  else:
+    SeqLengths.append([seq.id, len(seq.seq)])
   if args.first_seq_only:
     break
 
-for [SeqName,SeqLength] in SeqLengths:
-  print(SeqName, SeqLength)
-
+for data in SeqLengths:
+  print(' '.join(map(str,data)))
 

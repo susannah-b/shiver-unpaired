@@ -63,6 +63,11 @@ help='Sequences whose names begin with one of the strings-to-be-searched for '+\
 parser.add_argument('-B', '--skip-blanks', action='store_true', \
 help='Sequences consisting entirely of gap characters ("-" and "?") are '+\
 'ignored. (By default they are included.)')
+parser.add_argument('-M', '--ignore-missing', action='store_true', help='''
+By default, if any named sequences are not found we stop with an error (unless
+--match-start is used). With this option, we ignore such missing sequences and
+simply print those that were found. Warning: if none of the desired sequences
+were found, the ouput will be blank.''')
 
 args = parser.parse_args()
 
@@ -110,7 +115,7 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
     SeqsWeWant_names.append(seq.id)
 
 # Check we found some sequences for printing!
-if SeqsWeWant == []:
+if (not args.ignore_missing) and SeqsWeWant == []:
   ErrorMsg = 'Searched in ' + args.FastaFile + ' for ' + \
   ' '.join(args.SequenceName)
   if args.invert_search:
@@ -123,7 +128,7 @@ if SeqsWeWant == []:
 
 # Check all specified seqs were encountered (unless only the beginnings of names
 # were specified).
-if not args.match_start:
+if not (args.match_start or args.ignore_missing):
   SeqsNotFound = [seq for seq in args.SequenceName \
   if not seq in AllSeqNamesEncountered]
   if len(SeqsNotFound) != 0:

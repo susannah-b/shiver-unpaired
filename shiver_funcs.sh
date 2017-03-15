@@ -63,10 +63,10 @@ function AlignContigsToRefs {
     "Continuing without using that option."
     OldMafft=true ; }
     NumLinesInAln=$(wc -l "$TempContigAlignment2" | awk '{print $1}')
-    if [[ $NumLinesInAln -gt 0 ]]; then 
+    if ! $OldMafft; then
       MaxContigGappiness2=$("$Code_ConstructRef" -S1 "$TempContigAlignment2" \
       $ContigNames | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo \
-      "Problem analysing $TempContigAlignment1 (i.e. the output from aligning "\
+      "Problem analysing $TempContigAlignment2 (i.e. the output from aligning "\
       "$ContigFile and $ThisRefAlignment) with $Code_ConstructRef." \
       >&2 ; return 1 ; }
       if (( $(echo "$MaxContigGappiness2 < $MaxContigGappiness1" | bc -l) )); 

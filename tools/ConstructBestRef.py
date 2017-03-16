@@ -209,7 +209,7 @@ for ContigName,ContigSeq in ContigDict.items():
 
 if args.summarise_contigs_1:
   for ContigName, length in ContigLengths.items():
-    print(length, ContigGapFractions[ContigName])
+    sys.stdout.write(str(length) + ' ' + str(ContigGapFractions[ContigName]))
   exit(0)
 
 #print(' '.join(map(str, sorted(ContigGapFractions.values(), reverse=True) )))

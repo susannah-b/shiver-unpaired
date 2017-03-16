@@ -137,19 +137,48 @@ function CheckReadNames {
 
 function map {
 
-  LocalRef=$1
-  LocalRefName=$2
-  OutFileStem=$3
+  # Check for the right number of args
+  ExpectedNumArgs=5
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "map function called with $# args; expected $ExpectedNumArgs."\
+    "Quitting." >&2
+    return 1
+  fi
 
+  # Assign the args
+  ReadsToMap1=$1
+  ReadsToMap2=$2
+  LocalRef=$3
+  OutFileStem=$4
+  BamOnlyArg=$5
+
+  # Some out files we'll produce
   InsertSizeCounts="$OutFileStem$InsertSizeCountsSuffix"
   Consensus="$OutFileStem"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
   BaseFreqs="$OutFileStem$BaseFreqsSuffix"
   ConsensusWcontigs="$OutFileStem"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fasta'
 
+  # Check there's one seq in the ref file.
+  NumSeqsInRefFile=$(grep -e '^>' "$LocalRef" | wc -l)
+  if [ "$NumSeqsInRefFile" -eq 0 ]; then
+    echo "Error: there are $NumSeqsInRefFile seqs in $LocalRef; there should"\
+    "be exactly 1 for it to be used as a reference for mapping. Quitting." >&2
+    return 1
+  fi
+  LocalRefName=$(awk '/^>/ {print substr($1,2)}' "$LocalRef")
+
+  # Index the ref
+  "$smalt" index $smaltIndexOptions "$smaltIndex" "$LocalRef" ||
+  { echo 'Problem indexing the refererence with smalt. Quitting.' >&2 ;
+  return 1 ; }
+  "$samtools" faidx "$LocalRef" ||
+  { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+  return 1 ; }
+
   # Do the mapping!
   echo 'Now mapping - typically a slow step.'
   "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
-  "$cleaned1reads" "$cleaned2reads" || \
+  "$ReadsToMap1" "$ReadsToMap2" || \
   { echo 'Smalt mapping failed.' >&2 ; return 1 ; }
 
   # Convert that sam file into a bam file. Thanks Nick Croucher!
@@ -160,6 +189,11 @@ function map {
   "$samtools" sort "$MapOutConversion3".bam -o "$OutFileStem".bam -T "$SamtoolsSortFile" &&
   "$samtools" index "$OutFileStem.bam" || \
   { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
+
+  # Stop here if desired
+  if [[ "$BamOnlyArg" == true ]]; then
+    return 0
+  fi
 
   # Check at least one read was mapped
   NumMappedReads=$(samtools view "$OutFileStem.bam" | wc -l)

@@ -207,14 +207,6 @@ else
 
 fi
 
-# Index the ref
-"$smalt" index $smaltIndexOptions "$smaltIndex" "$TheRef" || \
-{ echo 'Problem indexing the refererence with smalt. Quitting.' >&2 ; exit 1 ; }
-"$samtools" faidx "$TheRef" || \
-{ echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
-exit 1 ; }
-
-
 ################################################################################
 
 ################################################################################
@@ -432,12 +424,10 @@ else
         "$BadReadsBaseName"_2.fastq || \
         { echo 'Problem extracting the contaminant reads using' \
         "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
-        "$smalt" map $smaltMapOptions -o "$AllMappedContaminantReads" \
-        "$smaltIndex" "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq &&
-        "$samtools" view -bS -F 4 -t "$TheRef".fai -o \
-        "$MappedContaminantReads" "$AllMappedContaminantReads" || \
-        { echo "Problem mapping the contaminant reads to $RefName using smalt."\
-        'Quitting.' >&2 ; exit 1 ; }
+        BamOnly=true
+        map "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq "$TheRef" \
+        "$MappedContaminantReads" "$BamOnly" || { echo "Problem mapping the" \
+        "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }
       fi
 
       HaveModifiedReads=true
@@ -452,8 +442,9 @@ fi
 OldMafft=false
 
 # Do the mapping
-map "$TheRef" "$RefName" "$SID" || { echo 'Problem mapping to the reference in'\
-" $TheRef. Quitting." >&2 ; exit 1 ; }
+BamOnly=false
+map "$cleaned1reads" "$cleaned2reads" "$TheRef" "$SID" "$BamOnly" ||
+{ echo "Problem mapping to the reference in $TheRef. Quitting." >&2 ; exit 1 ; }
 
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.
@@ -481,16 +472,11 @@ if [[ "$remap" == "true" ]]; then
   'filling in gaps in the consensus with the corresponding part of the orginal'\
   'reference for mapping. Quitting.' >&2 ; exit 1 ; }
 
-  # Index the ref
-  "$smalt" index $smaltIndexOptions "$smaltIndex" "$NewRef" || \
-  { echo 'Problem indexing the refererence with smalt. Quitting.' >&2 ; exit 1 ; }
-  "$samtools" faidx "$NewRef" || \
-  { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
-  exit 1 ; }
-
-  # Do the mapping
-  map "$NewRef" "$NewRefName" "$NewSID" || { echo 'Problem remapping to the' \
-  'consensus from the first round of mapping. Quitting.' >&2 ; exit 1 ; }
+  # Map!
+  BamOnly=false
+  map "$cleaned1reads" "$cleaned2reads" "$NewRef" "$NewSID" "$BamOnly" ||
+  { echo 'Problem remapping to the consensus from the first round of mapping.'\
+  'Quitting.' >&2 ; exit 1 ; }
 
 fi
 

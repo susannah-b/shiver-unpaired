@@ -104,7 +104,7 @@ MapContaminantReads=false
 # Suffixes we'll append to the sample ID for output files.
 # If you change the extension, you may well break something.
 OutputRefSuffix='_ref.fasta'
-MappedContaminantReadsSuffix='_ContaminantReads.bam'
+MappedContaminantReadsSuffix='_ContaminantReads'
 BaseFreqsSuffix='_BaseFreqs.csv'
 InsertSizeCountsSuffix='_InsertSizeCounts.csv'
 CoordsDictSuffix='_coords.csv'

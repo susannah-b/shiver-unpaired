@@ -344,11 +344,16 @@ function CheckConfig {
   "chose the right value for the config file variable 'smalt'?" >&2; \
   return 1; }
 
-  # Check samtools works
-  "$samtools" help &> /dev/null || { echo "Error running" \
-  "'$samtools help'. Are you sure that samtools is installed, and that you"\
-  "chose the right value for the config file variable 'samtools'?" >&2; \
-  return 1; }
+  # Check samtools works. NB older versions don't have the help option, so try
+  # view the test sam file.
+  "$samtools" help &> /dev/null ||
+  "$samtools" view "$ToolsDir"/test.sam -S &> /dev/null || { echo "Could" \
+  'not run either'
+  echo "$samtools" help
+  echo 'or'
+  echo "$samtools" view "$ToolsDir"/test.sam -S
+  echo 'Are you sure that samtools is installed, and that you chose the right' \
+  "value for the config file variable 'samtools'? Quitting." >&2; return 1; }
 
   # Check mafft works
   echo -e ">seq1\naa\n>seq2\naa" | "$mafft" - &> /dev/null || { echo "Error" \

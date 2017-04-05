@@ -239,6 +239,66 @@ function map {
 
 }
 
+# Designed for convenient use outside of shiver.
+function MapUnpairedReadsStandAlone {
+
+  # Options
+  smalt='smalt'
+  smaltIndexOptions="-k 15 -s 3"
+  samtools='samtools'
+  smaltMapOptions="-y 0.7"
+  samtoolsReadFlags='-F 4'
+
+  # temp files we'll create
+  smaltIndex='temp_smaltRefIndex'
+  MapOutConversion1='temp_MapOutStep1'
+  MapOutConversion2='temp_MapOutStep2'
+  MapOutAsSam='temp_MapOut.sam'
+
+  # Check for the right number of args
+  ExpectedNumArgs=3
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "map function called with $# args; expected $ExpectedNumArgs."\
+    "Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  ReadsToMap=$1
+  LocalRef=$2
+  OutFileStem=$3
+
+  # Check there's one seq in the ref file.
+  NumSeqsInRefFile=$(grep -e '^>' "$LocalRef" | wc -l)
+  if [ "$NumSeqsInRefFile" -eq 0 ]; then
+    echo "Error: there are $NumSeqsInRefFile seqs in $LocalRef; there should"\
+    "be exactly 1 for it to be used as a reference for mapping. Quitting." >&2
+    return 1
+  fi
+  LocalRefName=$(awk '/^>/ {print substr($1,2)}' "$LocalRef")
+
+  # Index the ref
+  "$smalt" index $smaltIndexOptions "$smaltIndex" "$LocalRef" ||
+  { echo 'Problem indexing the refererence with smalt. Quitting.' >&2 ;
+  return 1 ; }
+  "$samtools" faidx "$LocalRef" ||
+  { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+  return 1 ; }
+
+  # Do the mapping!
+  echo 'Now mapping - typically a slow step.'
+  "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
+  "$ReadsToMap" || { echo 'Smalt mapping failed.' >&2 ; return 1 ; }
+
+  # Convert that sam file into a bam file. Thanks Nick Croucher!
+  "$samtools" view -bS $samtoolsReadFlags -t "$LocalRef".fai -o \
+  "$MapOutConversion1".bam "$MapOutAsSam" &&
+  "$samtools" sort "$MapOutConversion1".bam -o "$OutFileStem".bam -T "$SamtoolsSortFile" &&
+  "$samtools" index "$OutFileStem.bam" || \
+  { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
+
+}
+
 
 function CheckConfig {
 

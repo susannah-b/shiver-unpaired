@@ -24,7 +24,7 @@ Code_UngapFasta="$ToolsDir/UngapFasta.py"
 function CheckFilesExist {
   for argument in "$@"; do
     if [ ! -f "$argument" ]; then
-      echo "$argument" 'does not exist. Quitting.' >&2
+      echo "$argument" 'does not exist or is not a regular file. Quitting.' >&2
       exit 1
     fi
   done

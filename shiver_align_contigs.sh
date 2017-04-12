@@ -34,7 +34,7 @@ SID="$4"
 
 # Check InitDir exists. Remove a trailing slash, if present.
 if [ ! -d "$InitDir" ]; then
-  echo "$InitDir does not exist. Quitting." >&2
+  echo "$InitDir does not exist or is not a directory. Quitting." >&2
   exit 1
 fi
 InitDir=$(cd "$InitDir"; pwd)

@@ -144,15 +144,35 @@ with open(PileupFile, 'r') as f:
 
     # Separate the line into fields based on whitespace
     fields = line.split()
+    NumFields = len(fields)
 
-    # There may be only four fields if no short reads map here. That's fine.
-    NoCoverage = len(fields) == 4 and fields[3] == '0'
-
-    # Check there are six fields
-    if len(fields) != 6 and not NoCoverage:
-      print('Expected 6 fields; encountered', len(fields), 'on line', \
+    # Check the number of fields is four (if coverage is zero and the samtools
+    # version was < 1.4), five, or six (final quality field is optional):
+    if not NumFields in [4,5,6]:
+      print('Expected 4, 5 or 6 fields; encountered', NumFields, 'on line', \
       str(LineNumberMin1+1)+'.\nQuitting.', file=sys.stderr)
       exit(1)
+
+    # If there's no coverage, check the fields are consistent with that:
+    # depending on the version of samtools, there may or may not be a fifth
+    # 'placeholder' field.
+    try:
+      NumReads = int(fields[3])
+    except ValueError:
+      print('On line', str(LineNumberMin1+1) + ', could not understand the',
+      'fourth field,', fields[3] + ', as an integer. Quitting.',
+      file=sys.stderr)
+      exit(1)
+    assert NumReads >= 0, 'Number of mapped reads must be positive'
+    NoCoverage = NumReads == 0
+    if NumFields > 4:
+      PileupString = fields[4]
+      if NoCoverage and PileupString != '*':
+        print('On line ', LineNumberMin1+1, ', unexpected fifth field "',
+        PileupString, '" given that the number of mapped reads is zero (',
+        "expected either nothing or the placeholder '*'). Quitting.", sep='',
+        file=sys.stderr)
+        exit(1)
 
     # On line 1, read the reference name. Check the file exists then read it in.
     if LineNumberMin1 == 0:
@@ -195,8 +215,6 @@ with open(PileupFile, 'r') as f:
     # We will only consider adding a new column(s) in between two reference
     # positions if more than half of the reads have an insertion here. If not,
     # we'll save time by not keeping track of the insertion information.
-    NumReads = int(fields[3])
-    PileupString = fields[4]
     NumReadsWithInsertion = PileupString.count('+')
     NumReadsWithoutInsertion = NumReads - NumReadsWithInsertion
     MostReadsHaveInsertion = NumReadsWithInsertion > NumReadsWithoutInsertion

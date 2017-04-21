@@ -240,6 +240,8 @@ function map {
 }
 
 # Designed for convenient use outside of shiver.
+# Call it with three arguments: first the reads, second the reference sequence
+# to which to map, thirdly a base name or stem for naming output files.
 function MapUnpairedReadsStandAlone {
 
   # Options

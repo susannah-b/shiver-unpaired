@@ -122,6 +122,12 @@ elif CheckContigSNPs:
 else:
   ConsensusName = None
 
+# You would think stripping leading and trailing whitespace off the contig names
+# would do nothing, because they are parsed taking whitespace as a delimiter.
+# However, if the Mac \r character is amongst them that messes things up. This
+# solves it.
+ContigNames = [name.strip() for name in ContigNames]
+
 # Can't use these two options together
 if CompareContigsToConsensus and CheckContigSNPs:
   print('You cannot use both --compare-contigs-to-consensus and',

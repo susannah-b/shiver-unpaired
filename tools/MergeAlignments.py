@@ -57,8 +57,8 @@ help='To be used when the alignment you want to add to is the main alignment'+\
 parser.add_argument('-d', '--dont-excise', action='store_true', \
 help='To be used when the alignment you want to add to '+\
 "is the main alignment as is, i.e. including the reference.")
-parser.add_argument('-L', '--log-file', help='The fasta file containing an '+\
-'alignment of the reference and (many?) other sequences.')
+parser.add_argument('-L', '--log-file', help='Used to specify a log file '
+'describing the coordinate transformation.')
 
 args = parser.parse_args()
 

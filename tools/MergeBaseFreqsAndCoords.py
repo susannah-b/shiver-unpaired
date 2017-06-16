@@ -14,7 +14,8 @@ shiver/tools/MergeAlignments.py), or a pairwise
 alignment of the reference in the base frequency file (i.e. the reference to
 which reads were mapped) with any other sequence. In the first case, the other
 coordinate from shiver's transformation is added; in the second case, the
-coordinate of the other sequence is added.'''
+coordinate of the other sequence is added. Output is printed to stdout, suitable
+for redirection to a csv file.'''
 
 import sys
 import os

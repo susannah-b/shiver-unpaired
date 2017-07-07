@@ -101,11 +101,18 @@ remap=true
 # reads would have contaminanted our final bam file had they not been removed?
 MapContaminantReads=false
 
+# Shall we generate a version of the base frequencies file that also includes
+# HXB2 coordinates (by aligning the reference used for mapping to HXB2)? Useful
+# for HIV, clearly inappropriate for other viruses.
+GiveHXB2coords=true
+
 # Suffixes we'll append to the sample ID for output files.
 # If you change the extension, you may well break something.
 OutputRefSuffix='_ref.fasta'
 MappedContaminantReadsSuffix='_ContaminantReads'
 BaseFreqsSuffix='_BaseFreqs.csv'
+BaseFreqsWGlobalSuffix='_BaseFreqs_ForGlobalAln.csv'
+BaseFreqsWHXB2Suffix='_BaseFreqs_WithHXB2.csv'
 InsertSizeCountsSuffix='_InsertSizeCounts.csv'
 CoordsDictSuffix='_coords.csv'
 CleanedReads1Suffix='_clean_1.fastq' # .gz will be added when they're zipped
@@ -160,3 +167,5 @@ ContigsWith1ref='temp_ContigsWith1ref.fasta'
 RefMatchLog='temp_RefMatchLog.txt'
 ContigAlignmentsToRefsDir='temp_ContigAlignmentsToRefsDir' # no whitespace!
 SamtoolsSortFile='temp_SamtoolsSortFile'
+RefWHXB2unaln='temp_RefWHXB2unaln.fasta'
+RefWHXB2aln='temp_RefWHXB2aln.fasta'

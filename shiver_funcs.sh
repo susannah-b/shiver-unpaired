@@ -19,6 +19,7 @@ Code_MergeAlignments="$ToolsDir/MergeAlignments.py"
 Code_RemoveBlankCols="$ToolsDir/RemoveBlankColumns.py"
 Code_SplitFasta="$ToolsDir/SplitFasta.py"
 Code_UngapFasta="$ToolsDir/UngapFasta.py"
+Code_MergeBaseFreqsAndCoords="$ToolsDir/MergeBaseFreqsAndCoords.py"
 
 # For quitting if files don't exist.
 function CheckFilesExist {
@@ -220,16 +221,35 @@ function map {
   "$samtools" mpileup $mpileupOptions -f "$LocalRef" "$OutFileStem.bam" > \
   "$PileupFile" || { echo 'Failed to generate pileup.' >&2 ; return 1 ; }
 
-  # Generate base frequencies and the consensuses
+  # Generate the base frequencies
   "$Code_AnalysePileup" "$PileupFile" "$LocalRef" > "$BaseFreqs" || \
   { echo 'Problem analysing the pileup.' >&2 ; return 1 ; }
+
+  # Generate a version of the base freqs file with HXB2 coordinates, if desired.
+  if [[ "$GiveHXB2coords" == "true" ]]; then
+    HXB2file="$ThisDir/info/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta"
+    if [[ ! -f "$HXB2file" ]]; then
+      echo "Warning: the HXB2 sequence file, expected to be at $HXB2file, was"\
+      "not found. We will not generate a version of the base frequency file"\
+      "with HXB2 coordinates." >&2;
+    else
+      cat "$LocalRef" "$HXB2file" > "$RefWHXB2unaln"
+      "$mafft" "$RefWHXB2unaln" > "$RefWHXB2aln" ||
+      { echo "Problem running $mafft" >&2 ; return 1 ; }
+      "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" --pairwise-aln \
+      "$RefWHXB2aln" > "$OutFileStem$BaseFreqsWHXB2Suffix" ||
+      { echo "Problem running $Code_MergeBaseFreqsAndCoords" >&2 ; return 1 ; }
+    fi
+  fi
+
+  # Call the consensuses
   "$Code_CallConsensus" "$BaseFreqs" "$MinCov1" "$MinCov2" "$MinBaseFrac" \
   --consensus-seq-name "$OutFileStem"'_consensus' --ref-seq-name "$LocalRefName" > \
   "$Consensus" || \
   { echo 'Problem calling the consensus.' >&2 ; return 1 ; }
 
+  # Add the contigs to the alignment of the consensus and its reference.
   if [[ $NumHIVContigs -gt 0 ]]; then
-    # Add the contigs to the alignment of the consensus and its reference.
     SwapContigsToTop=false
     AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
     "$Consensus" "$ConsensusWcontigs" "$SwapContigsToTop" "$OldMafft" || \

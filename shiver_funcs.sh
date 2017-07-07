@@ -249,7 +249,8 @@ function map {
   { echo 'Problem calling the consensus.' >&2 ; return 1 ; }
 
   # Add the contigs to the alignment of the consensus and its reference.
-  if [[ $NumHIVContigs -gt 0 ]]; then
+  if [[ "$AlignContigsToConsensus" == "true" ]] && \
+  [[ $NumHIVContigs -gt 0 ]]; then
     SwapContigsToTop=false
     AlignContigsToRefs "$Code_AlignToConsensus" '-S' "$RawContigFile2" \
     "$Consensus" "$ConsensusWcontigs" "$SwapContigsToTop" "$OldMafft" || \

@@ -72,6 +72,7 @@ cleaned1reads="$SID$CleanedReads1Suffix"
 cleaned2reads="$SID$CleanedReads2Suffix"
 CoordsDict="$SID$CoordsDictSuffix"
 BaseFreqs="$SID$BaseFreqsSuffix"
+BaseFreqsWGlobal="$SID$BaseFreqsWGlobalSuffix"
 ################################################################################
 
 ################################################################################
@@ -453,8 +454,10 @@ if $RefIsInAlignment; then
   "$TempRefAlignment" "$consensus" > "$ConsensusForGlobalAln"
 fi
 
-# TODO: merge CoordsDict with BaseFreqs, like this?
-#  ~/Dropbox\ \(Infectious\ Disease\)/chris/SeqAnal/MergeBaseFreqsAndCoords.py "$BaseFreqs" "$CoordsDict" > "$CoordsDict"_wGlobal.csv; 
+# Add the global alignment coordinates to the base frequencies file.
+"$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" -C "$CoordsDict" > \
+"$BaseFreqsWGlobal" || { echo 'Problem adding the global alignment'\
+'coordinates to the base frequencies file. Quitting.' >&2 ; exit 1 ; }
 
 if [[ "$remap" == "true" ]]; then
 

@@ -451,13 +451,16 @@ map "$cleaned1reads" "$cleaned2reads" "$TheRef" "$SID" "$BamOnly" ||
 # a global alignment with others.
 if $RefIsInAlignment; then
   "$Code_MergeAlignments" "$GlobalAlignExcisionFlag" -L "$CoordsDict" \
-  "$TempRefAlignment" "$consensus" > "$ConsensusForGlobalAln"
-fi
+  "$TempRefAlignment" "$consensus" > "$ConsensusForGlobalAln" ||
+  { echo 'Problem translating the coordinates of the consensus for the'\
+  'global alignment. Quitting.' >&2 ; exit 1 ; }
 
-# Add the global alignment coordinates to the base frequencies file.
-"$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" -C "$CoordsDict" > \
-"$BaseFreqsWGlobal" || { echo 'Problem adding the global alignment'\
-'coordinates to the base frequencies file. Quitting.' >&2 ; exit 1 ; }
+  # Add the global alignment coordinates to the base frequencies file.
+  "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" -C "$CoordsDict" > \
+  "$BaseFreqsWGlobal" || { echo 'Problem adding the global alignment'\
+  'coordinates to the base frequencies file. Quitting.' >&2 ; exit 1 ; }
+
+fi
 
 if [[ "$remap" == "true" ]]; then
 

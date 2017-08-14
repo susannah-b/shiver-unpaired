@@ -183,13 +183,30 @@ function map {
   { echo 'Smalt mapping failed.' >&2 ; return 1 ; }
 
   # Convert that sam file into a bam file. Thanks Nick Croucher!
+  FinalOutBam="$OutFileStem".bam
+  if [[ "$deduplicate" == true ]]; then
+    FinalConversionStepOut="$MapOutConversion4".bam
+  else
+    FinalConversionStepOut="$FinalOutBam"
+  fi
   "$samtools" view -bS $samtoolsReadFlags -t "$LocalRef".fai -o \
   "$MapOutConversion1".bam "$MapOutAsSam" &&
   "$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam -T "$SamtoolsSortFile" &&
   "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
-  "$samtools" sort "$MapOutConversion3".bam -o "$OutFileStem".bam -T "$SamtoolsSortFile" &&
-  "$samtools" index "$OutFileStem.bam" || \
+  "$samtools" sort "$MapOutConversion3".bam -o "$FinalConversionStepOut" -T "$SamtoolsSortFile" ||
   { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
+
+  # Deduplicate if desired
+  if [[ "$deduplicate" == true ]]; then
+    $DeduplicationCommand REMOVE_DUPLICATES=True I="$FinalConversionStepOut" \
+    O="$FinalOutBam" M="$OutFileStem$DeduplicationStatsSuffix" &&
+    ls "$FinalOutBam" > /dev/null ||
+    { echo "Problem running $DeduplicationCommand" >&2 ; return 1 ; }
+  fi
+
+  # Index the bam
+  "$samtools" index "$FinalOutBam" ||
+  { echo "Problem running $samtools index" >&2 ; return 1 ; }
 
   # Stop here if desired
   if [[ "$BamOnlyArg" == true ]]; then
@@ -424,7 +441,7 @@ function CheckConfig {
 
   # Check trimmomatic works, if needed
   if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then
-    "$trimmomatic" -version &> /dev/null || { echo "Error running" \
+    $trimmomatic -version &> /dev/null || { echo "Error running" \
     "'$trimmomatic -version'. Are you sure that trimmomatic is installed, and"\
     "that you chose the right value for the config file variable" \
     "'trimmomatic'?" >&2; return 1; }

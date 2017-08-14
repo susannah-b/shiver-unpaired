@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 ################################################################################
+
+# Note that for boolean variables, only the exact value "true" (all lower case)
+# will be interpreted as true, anything else is taken to mean false.
+
 # Two options only needed for the fully automatic version: the maximum allowed
 # percentage of gaps inside contigs when aligned to their closest reference (too
 # much gap content indicates misalignment, rather than deletions), and the
@@ -90,6 +94,20 @@ MinCov2=30
 # ambiguity code for those bases.
 MinBaseFrac=-1
 
+# Shall we remove read pairs marked as duplicates? i.e. using picard, for each
+# set of pairs sharing the same mapped coordinates (start & end of each mate),
+# keep only one pair and discard the rest? This can cause loss of diversity in
+# the reads due to true biological variation as well sequencing error. We
+# suggest you use this only if you understand duplication in your sequencing
+# data... 
+deduplicate=false
+# Desired command (note that MarkDuplicatesWithMateCigar exists, which may be
+# better, however it still seems to have beta status; also note that you can
+# include options in this command, such as a non-default
+# DUPLICATE_SCORING_STRATEGY, but do not include options relating to file-naming
+# or the associated shiver commands will break):
+DeduplicationCommand="picard MarkDuplicates"
+
 # Shall we remap to the consensus? (For remapping, gaps in coverage in the 
 # consensus will filled in by the corresponding part of the orginal reference,
 # and ambiguity codes will simplified to just one of the bases they represent.
@@ -112,6 +130,7 @@ AlignContigsToConsensus=false
 # Suffixes we'll append to the sample ID for output files.
 # If you change the extension, you may well break something.
 OutputRefSuffix='_ref.fasta'
+DeduplicationStatsSuffix='_DedupStats.txt'
 MappedContaminantReadsSuffix='_ContaminantReads'
 BaseFreqsSuffix='_BaseFreqs.csv'
 BaseFreqsWGlobalSuffix='_BaseFreqs_ForGlobalAln.csv'
@@ -155,6 +174,7 @@ MapOutAsSam='temp_MapOut.sam'
 MapOutConversion1='temp_MapOutStep1'
 MapOutConversion2='temp_MapOutStep2'
 MapOutConversion3='temp_MapOutStep3'
+MapOutConversion4='temp_MapOutStep4'
 InsertSizes1='temp_InsertSizes.txt'
 InsertSizes2='temp_InsertSizes2.txt'
 PileupFile='temp_MapOut.pileup'

@@ -157,7 +157,11 @@ function map {
   InsertSizeCounts="$OutFileStem$InsertSizeCountsSuffix"
   Consensus="$OutFileStem"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
   BaseFreqs="$OutFileStem$BaseFreqsSuffix"
+  BaseFreqsWHXB2="$OutFileStem$BaseFreqsWHXB2Suffix"
   ConsensusWcontigs="$OutFileStem"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fasta'
+  PreDedupBam="$OutFileStem$PreDeduplicationBamSuffix.bam"
+  FinalOutBam="$OutFileStem.bam"
+  DedupStats="$OutFileStem$DeduplicationStatsSuffix"
 
   # Check there's one seq in the ref file.
   NumSeqsInRefFile=$(grep -e '^>' "$LocalRef" | wc -l)
@@ -183,9 +187,8 @@ function map {
   { echo 'Smalt mapping failed.' >&2 ; return 1 ; }
 
   # Convert that sam file into a bam file. Thanks Nick Croucher!
-  FinalOutBam="$OutFileStem".bam
   if [[ "$deduplicate" == true ]]; then
-    FinalConversionStepOut="$MapOutConversion4".bam
+    FinalConversionStepOut="$PreDedupBam"
   else
     FinalConversionStepOut="$FinalOutBam"
   fi
@@ -199,7 +202,7 @@ function map {
   # Deduplicate if desired
   if [[ "$deduplicate" == true ]]; then
     $DeduplicationCommand REMOVE_DUPLICATES=True I="$FinalConversionStepOut" \
-    O="$FinalOutBam" M="$OutFileStem$DeduplicationStatsSuffix" &&
+    O="$FinalOutBam" M="$DedupStats" &&
     ls "$FinalOutBam" > /dev/null ||
     { echo "Problem running $DeduplicationCommand" >&2 ; return 1 ; }
   fi
@@ -214,28 +217,28 @@ function map {
   fi
 
   # Check at least one read was mapped
-  NumMappedReads=$(samtools view "$OutFileStem.bam" | wc -l)
+  NumMappedReads=$(samtools view "$FinalOutBam" | wc -l)
   if [[ $NumMappedReads -eq 0 ]]; then
-    echo "$OutFileStem.bam is empty - no reads were mapped!"
+    echo "$FinalOutBam is empty - no reads were mapped!"
     return 1
   fi
 
   # Calculate the normalised insert size distribution.
-  "$samtools" view "$OutFileStem.bam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
+  "$samtools" view "$FinalOutBam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
   InsertCount=$(wc -l "$InsertSizes1" | awk '{print $1}')
   if [[ $InsertCount -gt 0 ]]; then
     sort -n "$InsertSizes1" | uniq -c > "$InsertSizes2"
     awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" > \
     "$InsertSizeCounts"
   else
-    echo "Warning: no read in $OutFileStem.bam was identified as having"\
+    echo "Warning: no read in $FinalOutBam was identified as having"\
     "positive insert size. Unexpected. We'll skip making an insert size"\
     "distribution and continue."
   fi
 
   # Generate pileup
   echo 'Now calculating pileup - typically a slow step.'
-  "$samtools" mpileup $mpileupOptions -f "$LocalRef" "$OutFileStem.bam" > \
+  "$samtools" mpileup $mpileupOptions -f "$LocalRef" "$FinalOutBam" > \
   "$PileupFile" || { echo 'Failed to generate pileup.' >&2 ; return 1 ; }
 
   # Generate the base frequencies
@@ -254,7 +257,7 @@ function map {
       "$mafft" "$RefWHXB2unaln" > "$RefWHXB2aln" ||
       { echo "Problem running $mafft" >&2 ; return 1 ; }
       "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" --pairwise-aln \
-      "$RefWHXB2aln" > "$OutFileStem$BaseFreqsWHXB2Suffix" ||
+      "$RefWHXB2aln" > "$BaseFreqsWHXB2" ||
       { echo "Problem running $Code_MergeBaseFreqsAndCoords" >&2 ; return 1 ; }
     fi
   fi
@@ -334,7 +337,7 @@ function MapUnpairedReadsStandAlone {
   "$samtools" view -bS $samtoolsReadFlags -t "$LocalRef".fai -o \
   "$MapOutConversion1".bam "$MapOutAsSam" &&
   "$samtools" sort "$MapOutConversion1".bam -o "$OutFileStem".bam -T "$SamtoolsSortFile" &&
-  "$samtools" index "$OutFileStem.bam" || \
+  "$samtools" index "$FinalOutBam" || \
   { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
 
 }

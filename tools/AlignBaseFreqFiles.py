@@ -37,8 +37,8 @@ each position in the alignment, instead of printing the base frequencies for
 each reference, print their coverage (the total number of reads mapped there,
 i.e. the sum of the base counts).''')
 parser.add_argument('-CF', '--compare', action='store_true', help='''At each
-position in the alignment, instead of printing the base frequencies for both
-references, print a score in the range [0,1] to summarise how similar the two
+position in the alignment
+print a score in the range [0,1] to summarise how similar the two
 sets of frequencies are to each other. That score is calculated as follows. The
 count for "N" is ignored. For each base "A", "C", "G", "T", "-", we calculate
 the absolute difference between the fraction of all reads each reference has
@@ -81,12 +81,6 @@ if args.ref1name == args.ref2name:
 if ',' in args.ref1name or ',' in args.ref2name:
   print('Reference names may not contain commas. Rename the sequences in',
   args.alignment, 'and try again. Quitting.', file=sys.stderr)
-  exit(1)
-
-# Can't use both --compare and --compare-simple
-if args.compare and args.compare_simple:
-  print('You cannot use both --compare and --compare-simple. Quitting.',
-  file=sys.stderr)
   exit(1)
 
 # Find the consensus and its ref
@@ -188,11 +182,7 @@ outstring = 'Alignment position,Position in ' + args.ref1name + \
 if args.coverage_only:
   outstring += ',coverage for ' + args.ref1name + ',coverage for ' + \
   args.ref2name
-if args.compare:
-  outstring += ',base frequency similarity score'
-elif args.compare_simple:
-  outstring += ',agreement on the most common base?'
-elif not args.coverage_only:
+else:
   outstring += ',A count for ' + args.ref1name + \
   ',C count for ' + args.ref1name + ',G count for ' + args.ref1name + \
   ',T count for ' + args.ref1name + ',gap count for ' + args.ref1name + \
@@ -200,6 +190,12 @@ elif not args.coverage_only:
   ',C count for ' + args.ref2name + ',G count for ' + args.ref2name + \
   ',T count for ' + args.ref2name + ',gap count for ' + args.ref2name + \
   ',N count for ' + args.ref2name
+if args.compare_simple:
+  outstring += ',agreement on the most common base?'
+if args.compare:
+  outstring += ',base frequency similarity score'
+
+
 
 NumPosWithHigherCovIn1 = 0
 NumPosWithHigherCovIn2 = 0
@@ -216,56 +212,62 @@ ref2freqs)):
     ref1cov = sum(ref1freqs)
     ref2cov = sum(ref2freqs)
     outstring += ',' + str(ref1cov) + ',' + str(ref2cov)
-
-  if args.compare or args.compare_simple or args.compare_snips_with_coverage:
-    ref1freqs = ref1freqs[:5]
-    ref2freqs = ref2freqs[:5]  
-    ref1cov = sum(ref1freqs)
-    ref2cov = sum(ref2freqs)
-    if ref1cov == 0 or ref2cov == 0 or PosInRef1 == '-' or PosInRef2 == '-':
-      SimScore = 'NA'
-    else:
-      if args.compare_simple or args.compare_snips_with_coverage:
-        MaxFreq1 = max(ref1freqs)
-        BasesWithMaxCount1 = [i for i,count in enumerate(ref1freqs) \
-        if count == MaxFreq1]
-        MaxFreq2 = max(ref2freqs)
-        BasesWithMaxCount2 = [i for i,count in enumerate(ref2freqs) \
-        if count == MaxFreq2]
-        if BasesWithMaxCount1 == BasesWithMaxCount2:
-          SimScore = 1
-        else:
-          SimScore = 0
-        # Compare snps with coverage, if desired, in the specified window of the
-        # alignment, when both references have enough coverage, and when neither
-        # of them calls a gap as the most common base.
-        if SimScore == 0 and args.compare_snips_with_coverage and \
-        PosMin1+1 >= args.start_pos_in_aln and \
-        PosMin1+1 <= args.end_pos_in_aln and \
-        ref1cov >= args.min_coverage and \
-        ref2cov >= args.min_coverage and \
-        BasesWithMaxCount1 != [4] and \
-        BasesWithMaxCount2 != [4]:
-          if ref1cov > ref2cov:
-            NumPosWithHigherCovIn1 += 1
-          else:
-            NumPosWithHigherCovIn2 += 1
-      else:
-        SimScore = 0
-        for i in range(5):
-          SimScore += \
-          abs(float(ref1freqs[i])/ref1cov - float(ref2freqs[i])/ref2cov)
-        SimScore = 1 - SimScore/2
-      SimScore = str(SimScore)
-    outstring += ',' + SimScore
-
-  elif not args.coverage_only:
+  else:
     if PosInRef1 == '-':
       ref1freqs = ['-'] * 6
     if PosInRef2 == '-':
       ref2freqs = ['-'] * 6
     outstring += ',' + ','.join(map(str,ref1freqs)) + ',' + \
     ','.join(map(str,ref2freqs))
+
+  if args.compare or args.compare_simple or args.compare_snips_with_coverage:
+    if PosInRef1 == '-' or PosInRef2 == '-':
+      SimScoreBin = 'NA'
+      SimScoreCont = 'NA'
+    else:
+      ref1freqs = ref1freqs[:5]
+      ref2freqs = ref2freqs[:5]  
+      ref1cov = sum(ref1freqs)
+      ref2cov = sum(ref2freqs)
+      if ref1cov == 0 or ref2cov == 0:
+        SimScoreBin = 'NA'
+        SimScoreCont = 'NA'
+      else:
+        if args.compare_simple or args.compare_snips_with_coverage:
+          MaxFreq1 = max(ref1freqs)
+          BasesWithMaxCount1 = [i for i,count in enumerate(ref1freqs) \
+          if count == MaxFreq1]
+          MaxFreq2 = max(ref2freqs)
+          BasesWithMaxCount2 = [i for i,count in enumerate(ref2freqs) \
+          if count == MaxFreq2]
+          if BasesWithMaxCount1 == BasesWithMaxCount2:
+            SimScoreBin = 1
+          else:
+            SimScoreBin = 0
+          # Compare snps with coverage, if desired, in the specified window of
+          # the alignment, when both references have enough coverage, and when
+          # neither of them calls a gap as the most common base.
+          if SimScoreBin == 0 and args.compare_snips_with_coverage and \
+          PosMin1+1 >= args.start_pos_in_aln and \
+          PosMin1+1 <= args.end_pos_in_aln and \
+          ref1cov >= args.min_coverage and \
+          ref2cov >= args.min_coverage and \
+          BasesWithMaxCount1 != [4] and \
+          BasesWithMaxCount2 != [4]:
+            if ref1cov > ref2cov:
+              NumPosWithHigherCovIn1 += 1
+            else:
+              NumPosWithHigherCovIn2 += 1
+        if args.compare:
+          SimScoreCont = 0
+          for i in range(5):
+            SimScoreCont += \
+            abs(float(ref1freqs[i])/ref1cov - float(ref2freqs[i])/ref2cov)
+          SimScoreCont = 1 - SimScoreCont/2
+    if args.compare_simple:
+      outstring += ',' + str(SimScoreBin)
+    if args.compare:
+      outstring += ',' + str(SimScoreCont)
 
 # Print output
 if args.compare_snips_with_coverage:  

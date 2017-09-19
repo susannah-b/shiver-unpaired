@@ -253,7 +253,9 @@ function map {
       "not found. We will not generate a version of the base frequency file"\
       "with HXB2 coordinates." >&2;
     else
-      cat "$LocalRef" "$HXB2file" > "$RefWHXB2unaln"
+      cat "$LocalRef" > "$RefWHXB2unaln"
+      echo >> "$RefWHXB2unaln"
+      cat "$HXB2file" >> "$RefWHXB2unaln"
       "$mafft" "$RefWHXB2unaln" > "$RefWHXB2aln" ||
       { echo "Problem running $mafft" >&2 ; return 1 ; }
       "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" --pairwise-aln \

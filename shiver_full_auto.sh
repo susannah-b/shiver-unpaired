@@ -112,7 +112,9 @@ for ref in "$InitDir"/'IndividualRefs'/*'.fasta'; do
   echo "Aligning contigs to ref $CurrentRef of $NumRefs."
 
   # Make one alignment with regular mafft...
-  cat "$ref" "$RawContigFile1" > "$ContigsWith1ref"
+  cat "$ref" > "$ContigsWith1ref"
+  echo >> "$ContigsWith1ref"
+  cat "$RawContigFile1" >> "$ContigsWith1ref"
   AlnFile1="$ContigAlignmentsToRefsDir"/'temp_1_'$(basename "$ref")
   "$mafft" --quiet "$ContigsWith1ref" > "$AlnFile1" || \
   { echo 'Problem aligning' "$ContigsWith1ref"'. Quitting.' >&2 ; exit 1 ; }

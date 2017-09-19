@@ -268,6 +268,24 @@ if [[ "$TrimReadsForPrimers" == "true" ]]; then
   reads2="$reads2trim2"
 fi
 
+# If RawContigsFile is empty we cannot do read cleaning, so switch it from true
+# to false if necessary, and warn.
+if [[ "$CleanReads" == "true" ]]; then
+
+  # List all the contigs and the HIV ones.
+  awk '/^>/ {print substr($1,2)}' "$RawContigsFile" | sort > "$AllContigsList"
+  awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq > "$HIVContigsList"
+
+  # Check there are some contigs
+  NumContigs=$(wc -l "$AllContigsList" | awk '{print $1}')
+  if [ "$NumContigs" -eq 0 ]; then
+    echo "WARNING: the config variable 'CleanReads' was set to 'true', but"\
+    "cleaning is not possible as $RawContigsFile is empty. Setting"\
+    "'CleanReads' to 'false' and continuing." >&2
+    CleanReads=false
+  fi
+fi
+
 # If we're not cleaning reads:
 if [[ "$CleanReads" != "true" ]]; then
 
@@ -286,18 +304,6 @@ if [[ "$CleanReads" != "true" ]]; then
     cleaned2reads="$reads2"
   fi
 else
-
-  # List all the contigs and the HIV ones.
-  awk '/^>/ {print substr($1,2)}' "$RawContigsFile" | sort > "$AllContigsList"
-  awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq > "$HIVContigsList"
-
-  # Check there are some contigs
-  NumContigs=$(wc -l "$AllContigsList" | awk '{print $1}')
-  if [ "$NumContigs" -eq 0 ]; then
-    echo 'Error: there are no contigs in' "$RawContigsFile"
-    echo 'Quitting.' >&2
-    exit 1
-  fi
 
   # Check that there aren't any contigs appearing in the blast file & missing from
   # the file of contigs.

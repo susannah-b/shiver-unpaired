@@ -136,6 +136,72 @@ function CheckReadNames {
 
 }
 
+
+function sam_to_bam {
+
+  # Check for the right number of args
+  ExpectedNumArgs=3
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "sam_to_bam function called with $# args; expected $ExpectedNumArgs."\
+    "Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  InSam=$1
+  LocalRefFAIindex=$2
+  OutBam=$3
+
+  # Thanks to Nick Croucher for these steps.
+  "$samtools" view -bS $samtoolsReadFlags -t "$LocalRefFAIindex" -o \
+  "$MapOutConversion1".bam "$InSam" &&
+  "$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam -T \
+  "$SamtoolsSortFile" &&
+  "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
+  "$samtools" sort "$MapOutConversion3".bam -o "$OutBam" -T \
+  "$SamtoolsSortFile" ||
+  { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
+}
+
+function map_with_smalt {
+
+  # Check for the right number of args
+  ExpectedNumArgs=4
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "map_with_smalt function called with $# args; expected"\
+    "$ExpectedNumArgs. Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  ReadsToMap1=$1
+  ReadsToMap2=$2
+  LocalRef=$3
+  OutFileAsBam=$4
+
+  # Index the ref
+  "$smalt" index $smaltIndexOptions "$smaltIndex" "$LocalRef" ||
+  { echo 'Problem indexing the refererence with smalt.' >&2 ;
+  return 1 ; }
+
+  # Do the mapping!
+  echo 'Now mapping (with smalt) - typically a slow step.'
+  "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
+  "$ReadsToMap1" "$ReadsToMap2" || \
+  { echo 'Smalt mapping failed.' >&2 ; return 1 ; }
+
+  # Make the reference's .fai index if needed.
+  LocalRefFAIindex="$LocalRef".fai
+  if [[ ! -f "$LocalRefFAIindex" ]]; then
+    "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
+    { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+    return 1 ; }
+  fi
+
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
+}
+
 function map {
 
   # Check for the right number of args
@@ -173,31 +239,21 @@ function map {
   LocalRefName=$(awk '/^>/ {print substr($1,2)}' "$LocalRef")
 
   # Index the ref
-  "$smalt" index $smaltIndexOptions "$smaltIndex" "$LocalRef" ||
-  { echo 'Problem indexing the refererence with smalt. Quitting.' >&2 ;
-  return 1 ; }
-  "$samtools" faidx "$LocalRef" ||
+  "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
   { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
   return 1 ; }
 
-  # Do the mapping!
-  echo 'Now mapping - typically a slow step.'
-  "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
-  "$ReadsToMap1" "$ReadsToMap2" || \
-  { echo 'Smalt mapping failed.' >&2 ; return 1 ; }
-
-  # Convert that sam file into a bam file. Thanks Nick Croucher!
+  # Set the file name of the bam according to whether we will be deduplicating
+  # it or not.
   if [[ "$deduplicate" == true ]]; then
     FinalConversionStepOut="$PreDedupBam"
   else
     FinalConversionStepOut="$FinalOutBam"
   fi
-  "$samtools" view -bS $samtoolsReadFlags -t "$LocalRef".fai -o \
-  "$MapOutConversion1".bam "$MapOutAsSam" &&
-  "$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam -T "$SamtoolsSortFile" &&
-  "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
-  "$samtools" sort "$MapOutConversion3".bam -o "$FinalConversionStepOut" -T "$SamtoolsSortFile" ||
-  { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
+
+  map_with_smalt "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+  "$FinalConversionStepOut" ||
+  { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
 
   # Deduplicate if desired
   if [[ "$deduplicate" == true ]]; then

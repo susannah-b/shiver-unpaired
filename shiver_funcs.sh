@@ -185,10 +185,90 @@ function map_with_smalt {
   return 1 ; }
 
   # Do the mapping!
-  echo 'Now mapping (with smalt) - typically a slow step.'
+  echo "Now mapping using smalt with options \"$smaltMapOptions\". Typically a"\
+  "slow step."
   "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
   "$ReadsToMap1" "$ReadsToMap2" || \
   { echo 'Smalt mapping failed.' >&2 ; return 1 ; }
+
+  # Make the reference's .fai index if needed.
+  LocalRefFAIindex="$LocalRef".fai
+  if [[ ! -f "$LocalRefFAIindex" ]]; then
+    "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
+    { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+    return 1 ; }
+  fi
+
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
+}
+
+function map_with_bwa_mem {
+
+  # Check for the right number of args
+  ExpectedNumArgs=4
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "map_with_bwa_mem function called with $# args; expected"\
+    "$ExpectedNumArgs. Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  ReadsToMap1=$1
+  ReadsToMap2=$2
+  LocalRef=$3
+  OutFileAsBam=$4
+
+  # Index the ref
+  "$bwa" index "$LocalRef" ||
+  { echo 'Problem indexing the refererence with bwa.' >&2 ;
+  return 1 ; }
+
+  # Do the mapping!
+  echo "Now mapping using bwa mem with options \"$bwaOptions\". Typically a"\
+  "slow step."
+  "$bwa" mem "$LocalRef" "$ReadsToMap1" "$ReadsToMap2" $bwaOptions > \
+  "$MapOutAsSam" || { echo 'bwa mem mapping failed.' >&2 ; return 1 ; }
+
+  # Make the reference's .fai index if needed.
+  LocalRefFAIindex="$LocalRef".fai
+  if [[ ! -f "$LocalRefFAIindex" ]]; then
+    "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
+    { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+    return 1 ; }
+  fi
+
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
+}
+
+function map_with_bowtie {
+
+  # Check for the right number of args
+  ExpectedNumArgs=4
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "map_with_bowtie function called with $# args; expected"\
+    "$ExpectedNumArgs. Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  ReadsToMap1=$1
+  ReadsToMap2=$2
+  LocalRef=$3
+  OutFileAsBam=$4
+
+  # Index the ref
+  "$bowtie2_build" "$LocalRef" "$bowtieIndex" ||
+  { echo 'Problem indexing the refererence with bowtie2.' >&2 ;
+  return 1 ; }
+
+  # Do the mapping!
+  echo "Now mapping using bowtie2 with options \"$bowtieOptions\". Typically a"\
+  "slow step."
+  "$bowtie2" -x "$bowtieIndex" -1 "$ReadsToMap1" -2 "$ReadsToMap2" -S \
+  "$MapOutAsSam" $bowtieOptions || \
+  { echo 'bowtie2 mapping failed.' >&2 ; return 1 ; }
 
   # Make the reference's .fai index if needed.
   LocalRefFAIindex="$LocalRef".fai
@@ -251,9 +331,25 @@ function map {
     FinalConversionStepOut="$FinalOutBam"
   fi
 
-  map_with_smalt "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
-  "$FinalConversionStepOut" ||
-  { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
+
+  # Map with the chosen mapper.
+  if [[ "$mapper" == "smalt" ]]; then
+    map_with_smalt "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+    "$FinalConversionStepOut" ||
+    { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
+  elif [[ "$mapper" == "bowtie" ]]; then
+    map_with_bowtie "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+    "$FinalConversionStepOut" ||
+    { echo 'Problem mapping with bowtie.' >&2 ; return 1 ; }
+  elif [[ "$mapper" == "bwa" ]]; then
+    map_with_bwa_mem "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+    "$FinalConversionStepOut" ||
+    { echo 'Problem mapping with bwa mem.' >&2 ; return 1 ; }
+  else
+    echo "Unrecognised value $mapper for the 'mapper' config file variable;"\
+    "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
+    return 1
+  fi
 
   # Deduplicate if desired
   if [[ "$deduplicate" == true ]]; then
@@ -439,12 +535,6 @@ function CheckConfig {
   "chose the right value for the config file variable 'BlastNcommand'?" >&2; \
   return 1; }
 
-  # Check smalt works
-  "$smalt" version &> /dev/null || { echo "Error running" \
-  "'$smalt version'. Are you sure that smalt is installed, and that you"\
-  "chose the right value for the config file variable 'smalt'?" >&2; \
-  return 1; }
-
   # Check samtools works. NB older versions don't have the help option, so try
   # view the test sam file.
   "$samtools" help &> /dev/null ||
@@ -506,6 +596,27 @@ function CheckConfig {
     "'$trimmomatic -version'. Are you sure that trimmomatic is installed, and"\
     "that you chose the right value for the config file variable" \
     "'trimmomatic'?" >&2; return 1; }
+  fi
+
+  # Test the mapper is one we support and can run.
+  if [[ "$mapper" == "smalt" ]]; then
+    "$smalt" version &> /dev/null || { echo "Error running" \
+    "'$smalt version'. Are you sure that smalt is installed, and that you"\
+    "chose the right value for the config file variable 'mapper'?" >&2; \
+    return 1; }
+  elif [[ "$mapper" == "bowtie" ]]; then
+    "$bowtie2" --help &> /dev/null || { echo "Error running" \
+    "$bowtie2 --help. Are you sure that bowtie2 is installed, and"\
+    "that you chose the right value for the config file variable" \
+    "'mapper'?" >&2; return 1; }
+  elif [[ "$mapper" == "bwa" ]]; then
+    # bwa doesn't seem to have any kind of 'help' or 'version' command that we
+    # can call to test it works.
+    :
+  else
+    echo "Unrecognised value $mapper for the 'mapper' config file variable;"\
+    "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
+    return 1
   fi
 
   # Check positive ints are positive ints

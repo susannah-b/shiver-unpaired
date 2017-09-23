@@ -18,6 +18,9 @@ MinContigHitFrac=0.9
 BlastDBcommand='makeblastdb'
 BlastNcommand='blastn'
 smalt='smalt'
+bwa='bwa'
+bowtie2='bowtie2'
+bowtie2_build='bowtie2-build'
 samtools='samtools'
 mafft='mafft'
 fastaq='fastaq'
@@ -44,7 +47,11 @@ TrimReadsForPrimers=true
 # Shall we clean (remove read pairs that look like contaminants)?
 CleanReads=true
 
-# Check the smalt documentation for a full explanation of mapping parameters,
+# Which mapper to use? "smalt", "bwa" or "bowtie"? You can ignore the options
+# for a mapper you're not using, and it doesn't need to be installed.
+mapper="smalt"
+
+# Check the smalt documentation for a full explanation of options,
 # including those not used by default here.
 # A summary of the index options used below:
 # -k sets the word (kmer) length, -s the sampling step size (i.e. is every word
@@ -58,6 +65,26 @@ CleanReads=true
 # pair is still mapped, but flagged as improperly paired.
 smaltIndexOptions="-k 15 -s 3"
 smaltMapOptions="-x -y 0.7 -j 0 -i 2000"
+
+# Check the bowtie2 documentation for a full explanation of options,
+# including those not used by default here.
+# A summary of the options used below:
+# --local means bowtie might soft-clip read ends if doing so maximizes the
+# alignment score.
+# --maxins 2000 means the maximum allowed insert size is 2000
+# --no-discordant stops bowtie from looking for discordant alignments of mates
+# in a pair (incorrectly oriented or exceeding the specified maximum insert
+# size).
+# --no-unal keeps unaligned reads out of the output (see also shiver's
+# samtoolsReadFlags option below).
+# --quiet means "Print nothing besides alignments and serious errors".
+bowtieOptions="--local --maxins 2000 --no-discordant --no-unal --quiet"
+
+# Check the bwa mem documentation for a full explanation of options,
+# including those not used by default here.
+# A summary of the options used below:
+# -v 2 sets the verbosity to "warnings and errors" but not "normal messages".
+bwaOptions='-v 2'
 
 # After mapping, the choice of what kinds of reads should be kept is specified
 # with SAM format flags, whose documentation is here:
@@ -163,6 +190,7 @@ RefAndContaminantContigs='temp_RefAndContaminantContigs.fasta' # no whitespace!
 BlastDB='temp_BlastDB' # no whitespace!
 BadReadsBaseName='temp_ContaminantReads'
 smaltIndex='temp_smaltRefIndex'
+bowtieIndex='temp_bowtieRefIndex'
 AllMappedContaminantReads='temp_ContaminantReads_IncUnmapped.sam'
 RefFromAlignment='temp_RefFromAlignment.fasta'
 AllSeqsInAln='temp_AllSeqsInAln.txt'

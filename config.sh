@@ -32,8 +32,14 @@ fastaq='fastaq'
 trimmomatic="trimmomatic"
 
 # Minimum contig length: contigs shorter than this will be discarded at the
-# start.
+# start. In addition, when contigs are blasted against the existing reference 
+# set, we will only keep hits for which the length of the hit multipled by its 
+# identity to the reference is at least this length.
 MinContigLength=300
+
+# Blast's "Word size for wordfinder algorithm" when blasting contigs against
+# references.
+BlastWordSize=17
 
 # Shall we trim adapaters and low quality bases from reads, using trimmomatic?
 TrimReadsForAdaptersAndQual=true

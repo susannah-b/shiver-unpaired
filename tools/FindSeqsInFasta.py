@@ -60,14 +60,17 @@ help='Remove all gap characters ("-" and "?") before printing. NB if '+\
 parser.add_argument('-S', '--match-start', action='store_true', \
 help='Sequences whose names begin with one of the strings-to-be-searched for '+\
 'are returned.')
-parser.add_argument('-B', '--skip-blanks', action='store_true', \
-help='Sequences consisting entirely of gap characters ("-" and "?") are '+\
-'ignored. (By default they are included.)')
 parser.add_argument('-M', '--ignore-missing', action='store_true', help='''
 By default, if any named sequences are not found we stop with an error (unless
 --match-start is used). With this option, we ignore such missing sequences and
 simply print those that were found. Warning: if none of the desired sequences
 were found, the ouput will be blank.''')
+parser.add_argument('-L', '--min-length', type=int, help='''Exclude from the
+results any sequence whose length (after removing any "-" or "?" characters) is
+less than this value. Note that if this length criterion is the only search
+criterion you require, i.e. you don't want to search by sequence name, you can
+set the compulsory SequenceName argument to the empty string "" and use the
+--match-start option.''')
 
 args = parser.parse_args()
 
@@ -148,11 +151,11 @@ for seq in SeqsWeWant:
   if args.gap_strip:
     seq.seq = seq.seq.ungap("-").ungap("?")
 
-# Skip blank sequences if desired
-if args.skip_blanks:
+# Skip too-short sequences if desired
+if args.min_length:
   NewSeqsWeWant = []
   for seq in SeqsWeWant:
-    if len(seq.seq.ungap("-").ungap("?")) != 0:
+    if len(seq.seq.ungap("-").ungap("?")) >= args.min_length:
       NewSeqsWeWant.append(seq)
   SeqsWeWant = NewSeqsWeWant
 

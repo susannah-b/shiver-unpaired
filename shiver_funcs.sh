@@ -536,10 +536,12 @@ function GetHIVcontigs {
   "$MinContigLength" > "$LongContigs" || { echo "Problem removing short"\
   "contigs from $ContigFile." >&2 ; return 1 ; }
 
-  # Blast the contigs
-  "$BlastNcommand" -query "$LongContigs" -db "$BlastDatabase" -out \
-  "$BlastFile" -max_target_seqs 1 -outfmt \
-  '10 qseqid sseqid evalue pident qlen qstart qend sstart send' || \
+  # Blast the contigs. Keep only hits for which (length * fractional identity)
+  # is longer than the minimum contig length.
+  "$BlastNcommand" -query "$LongContigs" -db "$BlastDatabase" -max_target_seqs \
+  1 -outfmt '10 qseqid sseqid evalue pident qlen qstart qend sstart send' \
+  -word_size "$BlastWordSize" | awk -F, \
+  '($4/100 * ($7-$6+1))>='"$MinContigLength" > "$BlastFile" || 
   { echo "Problem blasting $LongContigs." >&2 ; return 1 ; }
 
   # If there are no blast hits, nothing needs doing. Exit.

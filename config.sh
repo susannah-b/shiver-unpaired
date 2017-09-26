@@ -31,6 +31,10 @@ fastaq='fastaq'
 # which means you just type 'trimmomatic' to run it:
 trimmomatic="trimmomatic"
 
+# Minimum contig length: contigs shorter than this will be discarded at the
+# start.
+MinContigLength=300
+
 # Shall we trim adapaters and low quality bases from reads, using trimmomatic?
 TrimReadsForAdaptersAndQual=true
 # The trimmomatic manual explains at length the parameters controlling read
@@ -168,6 +172,8 @@ BaseFreqsWGlobalSuffix='_BaseFreqs_ForGlobalAln.csv'
 BaseFreqsWHXB2Suffix='_BaseFreqs_WithHXB2.csv'
 InsertSizeCountsSuffix='_InsertSizeCounts.csv'
 CoordsDictSuffix='_coords.csv'
+LongEnoughContigsSuffix='_contigs_NoShortOnes.fasta'
+BlastSuffix='.blast'
 CleanedReads1Suffix='_clean_1.fastq' # .gz will be added when they're zipped
 CleanedReads2Suffix='_clean_2.fastq' # .gz will be added when they're zipped
 GlobalAlnSuffix='_ForGlobalAln.fasta'

@@ -73,11 +73,13 @@ function AlignContigsToRefs {
       if (( $(echo "$MaxContigGappiness2 < $MaxContigGappiness1" | bc -l) )); 
       then
         BestContigAlignment="$TempContigAlignment2"
-        echo 'Info: the --addfragments mafft option performed better than'\
-        '--add. Using the former.'
+        echo 'Info: the --addfragments mafft option produced a less'\
+        "gappy alignment than --add did when aligning $ContigFile. Using the"\
+        "--addfragments result."
       else
-        echo 'Info: the --addfragments mafft option performed no better than'\
-        '--add. Using the latter.'
+        echo 'Info: the --addfragments mafft option did not produce a less'\
+        "gappy alignment than --add did when aligning $ContigFile. Using the"\
+        "--add result."
       fi
     fi
   fi
@@ -455,8 +457,8 @@ function MapUnpairedReadsStandAlone {
   # Check for the right number of args
   ExpectedNumArgs=3
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
-    echo "map function called with $# args; expected $ExpectedNumArgs."\
-    "Quitting." >&2
+    echo "MapUnpairedReadsStandAlone function called with $# args; expected"\
+    "$ExpectedNumArgs. Quitting." >&2
     return 1
   fi
 
@@ -493,6 +495,67 @@ function MapUnpairedReadsStandAlone {
   "$samtools" sort "$MapOutConversion1".bam -o "$OutFileStem".bam -T "$SamtoolsSortFile" &&
   "$samtools" index "$FinalOutBam" || \
   { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
+
+}
+
+function GetHIVcontigs {
+
+  # Check for the right number of args and assign them.
+  ExpectedNumArgs=4
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "GetHIVcontigs function called with $# args; expected"\
+    "$ExpectedNumArgs. Quitting." >&2
+    return 1
+  fi
+  ContigFile=$1
+  LongContigs=$2
+  BlastFile=$3
+  HIVcontigsFile=$4
+
+  # Check that there are some contigs, that their IDs are unique, and that their
+  # IDs don't contain commas.
+  ContigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigFile" | sort)
+  NumContigs=$(echo "$ContigNames" | wc -w)
+  if [[ $NumContigs -eq 0 ]]; then
+    echo "$ContigFile contains no sequences." >&2
+    return 1;
+  fi
+  NumUniqueIDs=$(printf '%s\n' $ContigNames | uniq | wc -l)
+  if [[ $NumUniqueIDs -ne $NumContigs ]]; then
+    echo "$ContigFile contains some identically named sequences. Rename"\
+    'these and try again.' >&2
+    return 1;
+  fi
+  if [[ "$ContigNames" == *","* ]]; then
+    echo "Contig names must not contain commas." >&2
+    return 1
+  fi
+
+  # Create a new file of contigs keeping only those that are long enough.
+  "$Code_FindSeqsInFasta" "$ContigFile" "" --match-start --min-length \
+  "$MinContigLength" > "$LongContigs" || { echo "Problem removing short"\
+  "contigs from $ContigFile." >&2 ; return 1 ; }
+
+  # Blast the contigs
+  "$BlastNcommand" -query "$LongContigs" -db "$BlastDatabase" -out \
+  "$BlastFile" -max_target_seqs 1 -outfmt \
+  '10 qseqid sseqid evalue pident qlen qstart qend sstart send' || \
+  { echo "Problem blasting $LongContigs." >&2 ; return 1 ; }
+
+  # If there are no blast hits, nothing needs doing. Exit.
+  NumBlastHits=$(wc -l "$BlastFile" | awk '{print $1}')
+  if [ "$NumBlastHits" -eq 0 ]; then
+    echo "No contig in $LongContigs has a blast hit against any of the"\
+    "references used to create the shiver initialisation directory (i.e. this"\
+    "sample is presumably pure contamination)."
+    return 1
+  fi
+
+  # Extract those contigs that have a blast hit.
+  HIVcontigNames=$(awk -F, '{print $1}' "$BlastFile" | sort | uniq)
+  "$Code_FindSeqsInFasta" "$LongContigs" $HIVcontigNames > \
+  "$HIVcontigsFile" || { echo 'Problem extracting the HIV contigs using the'\
+  'blast results.' >&2 ; return 1 ; }
 
 }
 
@@ -636,6 +699,12 @@ function CheckConfig {
   if ! [[ "$MinCov2" =~ $NonNegativeIntRegex ]] || \
   [[ "$MinCov2" -lt 1 ]]; then
     echo "The 'MinCov2' variable in the config file should be an"\
+    "integer greater than 0." >&2
+    return 1
+  fi
+  if ! [[ "$MinContigLength" =~ $NonNegativeIntRegex ]] || \
+  [[ "$MinContigLength" -lt 1 ]]; then
+    echo "The 'MinContigLength' variable in the config file should be an"\
     "integer greater than 0." >&2
     return 1
   fi

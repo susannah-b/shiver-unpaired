@@ -46,55 +46,26 @@ CheckFilesExist "$ContigFile" "$RefAlignment" "$reads1" "$reads2"
 CheckConfig "$ConfigFile" || \
 { echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
-# Check that there are some contigs, that their IDs are unique, and that their
-# IDs don't contain commas.
-ContigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigFile" | sort)
-NumContigs=$(echo "$ContigNames" | wc -w)
-if [[ $NumContigs -eq 0 ]]; then
-  echo "$ContigFile contains no sequences. Quitting." >&2
-  exit 1;
-fi
-NumUniqueIDs=$(printf '%s\n' $ContigNames | uniq | wc -l)
-if [[ $NumUniqueIDs -ne $NumContigs ]]; then
-  echo "$ContigFile contains some identically named sequences. Rename"\
-  'these and try again. Quitting.' >&2
-  exit 1;
-fi
-if [[ "$ContigNames" == *","* ]]; then
-  echo "Contig names must not contain commas. Quitting." >&2
-  exit 1
-fi
-
 # The names for output files we'll produce.
-BlastFile="$SID.blast"
+LongContigs="$SID$LongEnoughContigsSuffix"
+BlastFile="$SID$BlastSuffix"
 BestContigToRefAlignment="$SID$BestContigToRefAlignmentSuffix"
 TheRef="$SID$OutputRefSuffix"
 
-# Blast the contigs
-"$BlastNcommand" -query "$ContigFile" -db "$BlastDatabase" -out "$BlastFile" \
--max_target_seqs 1 -outfmt \
-'10 qseqid sseqid evalue pident qlen qstart qend sstart send' || \
-{ echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
+# Extract just the HIV contigs (those that blast to the refs) and put them in
+# $RawContigFile1
+GetHIVcontigs "$ContigFile" "$LongContigs" "$BlastFile" "$RawContigFile1" || \
+{ echo "Problem encountered while checking the contigs in $ContigFile and"\
+" extracting those thought to be HIV. Quitting." >&2 ; exit 1 ; }
 
-# If there are no blast hits, nothing needs doing. Exit.
-NumBlastHits=$(wc -l "$BlastFile" | awk '{print $1}')
-if [ "$NumBlastHits" -eq 0 ]; then
-  echo "No contig in $ContigFile has a blast hit (i.e. this is presumably pure"\
-  "contamination). Quitting."
-  exit 0
-fi
-
-# Extract those contigs that have a blast hit.
-HIVcontigNames=$(awk -F, '{print $1}' "$BlastFile" | sort | uniq)
-"$Code_FindSeqsInFasta" "$ContigFile" $HIVcontigNames > "$RawContigFile1" || \
-{ echo 'Problem extracting the HIV contigs. Quitting.' >&2 ; exit 1 ; }
+HIVcontigNames=$(awk '/^>/ {print substr($1,2)}' "$RawContigFile1")
 
 # Run the contig cutting & flipping code. Check it works, and quit if it thinks
 # the contigs need correcting.
 "$Code_CorrectContigs" "$BlastFile" --min-hit-frac "$MinContigHitFrac" || \
-{ echo "The contigs in $ContigFile appear to need correcting. (Or a problem" \
-"was encountered running $Code_CorrectContigs.) Fully automatic processing" \
-"not possible. Quitting." >&2 ; exit 1 ; }
+{ echo "The contigs in $ContigFile appear to need correcting (or a problem" \
+"was encountered running $Code_CorrectContigs; check any error messages" \
+"above). Fully automatic processing not possible. Quitting." >&2 ; exit 1 ; }
 
 # Prepare to iterate through all existing references
 mkdir "$ContigAlignmentsToRefsDir" || \

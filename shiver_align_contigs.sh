@@ -73,11 +73,21 @@ AlignContigsToRefs "$mafft" '--quiet' "$RawContigFile1" "$RefAlignment" \
 { echo "Problem encountered running $Code_CorrectContigs. Quitting." >&2 ; \
 exit 1; }
 
-# If the contigs needed cutting and/or flipping: align the modified contigs.
+# If the contigs needed correcting, align the corrected contigs. 
 if [[ -f "$CutContigFile" ]]; then
+
+  # Align
   AlignContigsToRefs "$mafft" '--quiet' "$CutContigFile" "$RefAlignment" \
-  "$CutContigAlignment" "$SwapContigsToTop" "$OldMafft" || \
+  "$TempContigAlignment3" "$SwapContigsToTop" "$OldMafft" || \
   { echo 'Problem aligning the cut/modified contigs to refs. Quitting.' >&2 ;
   exit 1 ; }
+
+  # Split gappy contigs after alignment.
+  CutContigNames=$(awk '/^>/ {print substr($1,2)}' "$CutContigFile")
+  "$Code_SplitGappyContigs" "$TempContigAlignment3" $CutContigNames \
+  --split-gap-size "$MinGapSizeToSplitGontig" --min-contig-size \
+  "$MinContigFragmentLength" > "$CutContigAlignment" || { echo 'Problem'\
+  'splitting gappy contigs after alignment. Quitting.' >&2 ; exit 1 ; }  
+
 fi
 

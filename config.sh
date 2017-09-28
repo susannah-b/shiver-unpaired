@@ -36,6 +36,15 @@ trimmomatic="trimmomatic"
 # set, we will only keep hits for which the length of the hit multipled by its 
 # identity to the reference is at least this length.
 MinContigLength=300
+# A contig will be split/cut if it has multiple blast hits. After alignment to
+# a set of references, it may be split again if it contains a large gap: this
+# parameter sets the gap size that will result in such a splitting...
+MinGapSizeToSplitGontig=100
+# ...and as such splitting occasionally results in cutting off a small bit of
+# a contig into a new separate contig that you might not want to bother keeping,
+# we have a second length threshold (which you could set to equal the
+# MinContigLength parameter above but by default we are more permissive).
+MinContigFragmentLength=80
 
 # Blast's "Word size for wordfinder algorithm" when blasting contigs against
 # references.
@@ -192,6 +201,7 @@ RawContigFile2='temp_HIVcontigs_uncut2.fasta'
 CutContigFile='temp_HIVcontigs_cut.fasta'
 TempContigAlignment1='temp_HIVcontigs_wRefs_swap_1.fasta'
 TempContigAlignment2='temp_HIVcontigs_wRefs_swap_2.fasta'
+TempContigAlignment3='temp_HIVcontigs_wRefs_3.fasta'
 TempRefAlignment='temp_RefAlignment.fasta'
 GappyRefWithExtraSeq='temp_GappyRefWithExtraSeq.fasta'
 FlattenedContigs='temp_FlattenedContigs.fasta'

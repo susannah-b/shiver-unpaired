@@ -20,6 +20,7 @@ Code_RemoveBlankCols="$ToolsDir/RemoveBlankColumns.py"
 Code_SplitFasta="$ToolsDir/SplitFasta.py"
 Code_UngapFasta="$ToolsDir/UngapFasta.py"
 Code_MergeBaseFreqsAndCoords="$ToolsDir/MergeBaseFreqsAndCoords.py"
+Code_SplitGappyContigs="$ToolsDir/SplitGappyContigs.py"
 
 # For quitting if files don't exist.
 function CheckFilesExist {

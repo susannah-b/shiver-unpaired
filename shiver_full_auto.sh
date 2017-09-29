@@ -43,7 +43,7 @@ RefAlignment="$InitDir/ExistingRefAlignment.fasta"
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.sh'
 CheckFilesExist "$ContigFile" "$RefAlignment" "$reads1" "$reads2"
-CheckConfig "$ConfigFile" || \
+CheckConfig false true true "$ConfigFile" || \
 { echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 # The names for output files we'll produce.

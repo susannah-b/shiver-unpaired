@@ -56,7 +56,7 @@ source "$ThisDir"/'shiver_funcs.sh'
 CheckFilesExist "$ConfigFile" "$reads1" "$reads2" "$RawContigsFile" \
 "$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
 "$primers"
-CheckConfig "$ConfigFile" || \
+CheckConfig "$ConfigFile" false false true || \
 { echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 echo $(basename "$0") 'was called thus:'

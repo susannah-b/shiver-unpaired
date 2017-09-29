@@ -565,8 +565,35 @@ function GetHIVcontigs {
 
 function CheckConfig {
 
-  ConfigFile="$1"
+  # Check for the right number of args and assign them.
+  ExpectedNumArgs=4
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "CheckConfig function called with $# args; expected"\
+    "$ExpectedNumArgs. Quitting." >&2
+    return 1
+  fi
+  ConfigFile=$1
+  CheckForInit=$2
+  CheckForAligningContigs=$3
+  CheckForMapping=$4
   source "$ConfigFile"
+
+  # Coerce boolean args into true bools if needed
+  if [[ "$CheckForInit" == "true" ]]; then
+    CheckForInit=true
+  else
+    CheckForInit=false
+  fi
+  if [[ "$CheckForAligningContigs" == "true" ]]; then
+    CheckForAligningContigs=true
+  else
+    CheckForAligningContigs=false
+  fi
+  if [[ "$CheckForMapping" == "true" ]]; then
+    CheckForMapping=true
+  else
+    CheckForMapping=false
+  fi
 
   # Check 0 < MaxContigGappiness < 1, and 0 < MinContigHitFrac < 1
   NonNegativeRegex='^[0-9]+([.][0-9]+)?$'
@@ -590,33 +617,42 @@ function CheckConfig {
   fi
 
   # Check BlastDBcommand works
-  "$BlastDBcommand" -help &> /dev/null || { echo "Error running" \
-  "'$BlastDBcommand -help'. Are you sure that blast is installed, and that you"\
-  "chose the right value for the config file variable 'BlastDBcommand'?" >&2; \
-  return 1; }
+  if $CheckForInit || $CheckForMapping; then
+    "$BlastDBcommand" -help &> /dev/null || { echo "Error running" \
+    "'$BlastDBcommand -help'. Are you sure that blast is installed, and that you"\
+    "chose the right value for the config file variable 'BlastDBcommand'?" >&2; \
+    return 1; }
+  fi
 
   # Check BlastNcommand works
-  "$BlastNcommand" -help &> /dev/null || { echo "Error running" \
-  "'$BlastNcommand -help'. Are you sure that blast is installed, and that you"\
-  "chose the right value for the config file variable 'BlastNcommand'?" >&2; \
-  return 1; }
+  if $CheckForAligningContigs || $CheckForMapping; then
+    "$BlastNcommand" -help &> /dev/null || { echo "Error running" \
+    "'$BlastNcommand -help'. Are you sure that blast is installed, and that"\
+    "you chose the right value for the config file variable 'BlastNcommand'?"\
+    >&2; return 1; }
+  fi
 
   # Check samtools works. NB older versions don't have the help option, so try
   # view the test sam file.
-  "$samtools" help &> /dev/null ||
-  "$samtools" view "$ToolsDir"/test.sam -S &> /dev/null || { echo "Could" \
-  'not run either'
-  echo "$samtools" help
-  echo 'or'
-  echo "$samtools" view "$ToolsDir"/test.sam -S
-  echo 'Are you sure that samtools is installed, and that you chose the right' \
-  "value for the config file variable 'samtools'? Quitting." >&2; return 1; }
+  if $CheckForMapping; then
+    "$samtools" help &> /dev/null ||
+    "$samtools" view "$ToolsDir"/test.sam -S &> /dev/null || { echo "Could" \
+    'not run either'
+    echo "$samtools" help
+    echo 'or'
+    echo "$samtools" view "$ToolsDir"/test.sam -S
+    echo 'Are you sure that samtools is installed, and that you chose the' \
+    "right value for the config file variable 'samtools'? Quitting." >&2; \
+    return 1; }
+  fi
 
   # Check mafft works
-  echo -e ">seq1\naa\n>seq2\naa" | "$mafft" - &> /dev/null || { echo "Error" \
-  "running '$mafft'. Are you sure that mafft is installed, and that you"\
-  "chose the right value for the config file variable 'mafft'?" >&2; \
-  return 1; }
+  if $CheckForAligningContigs || $CheckForMapping; then
+    echo -e ">seq1\naa\n>seq2\naa" | "$mafft" - &> /dev/null || { echo "Error" \
+    "running '$mafft'. Are you sure that mafft is installed, and that you"\
+    "chose the right value for the config file variable 'mafft'?" >&2; \
+    return 1; }
+  fi
 
   # Check boolean variables are either true or false.
   if [[ "$TrimReadsForAdaptersAndQual" != "true" ]] && \
@@ -648,41 +684,45 @@ function CheckConfig {
     return 1
   fi
 
-  # Check fastaq works, if needed
-  if [[ "$TrimReadsForPrimers" == "true" ]]; then
-    "$fastaq" version &> /dev/null || { echo "Error running" \
-    "'$fastaq version'. Are you sure that fastaq is installed, and that you"\
-    "chose the right value for the config file variable 'fastaq'?" >&2; \
-    return 1; }
-  fi
+  # Some checks only needed if we're mapping:
+  if $CheckForMapping; then
 
-  # Check trimmomatic works, if needed
-  if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then
-    $trimmomatic -version &> /dev/null || { echo "Error running" \
-    "'$trimmomatic -version'. Are you sure that trimmomatic is installed, and"\
-    "that you chose the right value for the config file variable" \
-    "'trimmomatic'?" >&2; return 1; }
-  fi
+    # Check fastaq works, if needed
+    if [[ "$TrimReadsForPrimers" == "true" ]]; then
+      "$fastaq" version &> /dev/null || { echo "Error running" \
+      "'$fastaq version'. Are you sure that fastaq is installed, and that you"\
+      "chose the right value for the config file variable 'fastaq'?" >&2; \
+      return 1; }
+    fi
 
-  # Test the mapper is one we support and can run.
-  if [[ "$mapper" == "smalt" ]]; then
-    "$smalt" version &> /dev/null || { echo "Error running" \
-    "'$smalt version'. Are you sure that smalt is installed, and that you"\
-    "chose the right value for the config file variable 'mapper'?" >&2; \
-    return 1; }
-  elif [[ "$mapper" == "bowtie" ]]; then
-    "$bowtie2" --help &> /dev/null || { echo "Error running" \
-    "$bowtie2 --help. Are you sure that bowtie2 is installed, and"\
-    "that you chose the right value for the config file variable" \
-    "'mapper'?" >&2; return 1; }
-  elif [[ "$mapper" == "bwa" ]]; then
-    # bwa doesn't seem to have any kind of 'help' or 'version' command that we
-    # can call to test it works.
-    :
-  else
-    echo "Unrecognised value $mapper for the 'mapper' config file variable;"\
-    "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
-    return 1
+    # Check trimmomatic works, if needed
+    if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then
+      $trimmomatic -version &> /dev/null || { echo "Error running" \
+      "'$trimmomatic -version'. Are you sure that trimmomatic is installed,"\
+      "and that you chose the right value for the config file variable" \
+      "'trimmomatic'?" >&2; return 1; }
+    fi
+
+    # Test the mapper is one we support and can run.
+    if [[ "$mapper" == "smalt" ]]; then
+      "$smalt" version &> /dev/null || { echo "Error running" \
+      "'$smalt version'. Are you sure that smalt is installed, and that you"\
+      "chose the right value for the config file variable 'mapper'?" >&2; \
+      return 1; }
+    elif [[ "$mapper" == "bowtie" ]]; then
+      "$bowtie2" --help &> /dev/null || { echo "Error running" \
+      "$bowtie2 --help. Are you sure that bowtie2 is installed, and"\
+      "that you chose the right value for the config file variable" \
+      "'mapper'?" >&2; return 1; }
+    elif [[ "$mapper" == "bwa" ]]; then
+      # bwa doesn't seem to have any kind of 'help' or 'version' command that we
+      # can call to test it works.
+      :
+    else
+      echo "Unrecognised value $mapper for the 'mapper' config file variable;"\
+      "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
+      return 1
+    fi
   fi
 
   # Check positive ints are positive ints

@@ -21,7 +21,7 @@ SID="$4"
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.sh'
 CheckFilesExist "$ConfigFile" "$bam"
-CheckConfig "$ConfigFile" || \
+CheckConfig "$ConfigFile" false false true || \
 { echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 

@@ -354,11 +354,11 @@ else
 
     # Blast the reads.
     echo 'Now blasting the reads - typically a slow step.'
-    blastn -query "$reads1asFasta" -db "$BlastDB" -out "$reads1blast1" \
-    -max_target_seqs 1 -outfmt \
+    "$BlastNcommand" -query "$reads1asFasta" -db "$BlastDB" -out \
+    "$reads1blast1" -max_target_seqs 1 -outfmt \
     '10 qacc sacc sseqid evalue pident qstart qend sstart send' &&
-    blastn -query "$reads2asFasta" -db "$BlastDB" -out "$reads2blast1" \
-    -max_target_seqs 1 -outfmt \
+    "$BlastNcommand" -query "$reads2asFasta" -db "$BlastDB" -out \
+    "$reads2blast1" -max_target_seqs 1 -outfmt \
     '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
     { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
 

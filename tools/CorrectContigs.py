@@ -41,11 +41,12 @@ contigs will be written. Specifying "-" will print output to stdout. If
 correction is not required, this file will not be created.''')
 parser.add_argument('--overwrite', action='store_true',
 help='If the out file exists already, overwrite it instead of stopping.')
-parser.add_argument('-F', '--min-hit-frac', type=float, help='Used to specify'+\
-" a minimum fraction of a contig's length that its hit must cover: below this"+\
-" we assume correction is needed (in the form of removing the contig or "+\
-"deleting the non-blasting segment). This option is ignored if the contigs "+\
-"are supplied i.e. if correction is attempted.")
+parser.add_argument('-F', '--min-hit-frac', type=float, help='''Only relevant if
+we're just checking whether correction is needed, not if we're actually doing
+the correction. Use this option to specify a minimum fraction of a contig's
+length that its hit must cover: below this we assume correction is needed
+(either discarding the whole contig or removing the non-blasting segment). The
+default is 0.9.''', default=0.9)
 parser.add_argument('-K', '--keep-non-hits', action='store_true', help='''Only
 relevant if contig correction is being performed. By default we discard non-hit
 regions: stretches of contig sequence not contained inside any blast hit. With
@@ -72,7 +73,6 @@ given if the ACGT was in neither hit (instead of both) and you are using
 --keep-non-hits: 1111ACGT and ACGT2222 without this option, 1111AC and GT2222
 with it.''')
 args = parser.parse_args()
-HaveHitFrac = args.min_hit_frac != None
 
 # The --contigs and --out-file flags need each other.
 MakeCorrections = args.contigs != None
@@ -99,7 +99,7 @@ if MakeCorrections:
       raise
 
 # Check the min hit frac is in (0,1)
-if HaveHitFrac and not (0 < args.min_hit_frac < 1):
+if not (0 < args.min_hit_frac < 1):
   print('The --min-hit-frac value should be greater than 0 and less than 1.', \
   'Quitting.', file=sys.stderr)
   exit(1)
@@ -202,15 +202,30 @@ for contig, hits in HitDict.items():
         file=sys.stderr)
         exit(1)
       CorrectionsNeeded = True
+
   FirstHit = hits[0]
   qseqid, sseqid, evalue, pident, qlen, qstart, qend, sstart, send = FirstHit
-  HitFrac = float(qend - qstart + 1) / qlen
-  if not MakeCorrections and HaveHitFrac and HitFrac < args.min_hit_frac:
+
+  # If there's a bit of the contig that doesn't blast and the user wants to
+  # discard such bits, correction is needed. However if we're just checking 
+  # whether correction is needed (i.e. not actually correcting the contigs), 
+  # don't quit just yet: the --min-hit-frac option is designed to allow some 
+  # flexibility so that we don't report that correction is necessary because 
+  # 0.001% of the contig fails blasting.
+  HitLength = qend - qstart + 1
+  if HitLength < qlen and not args.keep_non_hits and MakeCorrections:
+    CorrectionsNeeded = True
+
+  # Quit if the hit fraction is too small, if desired.
+  HitFrac = float(HitLength) / qlen
+  if not MakeCorrections and HitFrac < args.min_hit_frac:
     print('Contig correction required (the hit\n', \
     ' '.join(map(str, FirstHit)), '\nfor contig', contig, 'has a hit fraction',\
-    HitFrac, "which is below the specified --min-hit-frac of", \
+    HitFrac, "which is below the --min-hit-frac value of", \
     str(args.min_hit_frac) + "). Quitting.", file=sys.stderr)
     exit(1)
+
+  # If reverse complementation is needed, correction is needed. Quit if desired.
   if sstart > send:
     if not MakeCorrections:
       print('Contig correction required (the hit\n', \
@@ -221,8 +236,7 @@ for contig, hits in HitDict.items():
 
 # If no corrections are needed, quit successfully.
 if not CorrectionsNeeded:
-  print('No contig correction needed for', args.BlastFile + '.', \
-  file=sys.stderr)
+  print('No contig correction needed for', args.BlastFile + '.')
   exit(0)
 
 # Read in the contigs

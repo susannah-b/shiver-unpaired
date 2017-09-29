@@ -550,7 +550,7 @@ function GetHIVcontigs {
   if [ "$NumBlastHits" -eq 0 ]; then
     echo "No contig in $LongContigs has a blast hit against any of the"\
     "references used to create the shiver initialisation directory (i.e. this"\
-    "sample is presumably pure contamination)."
+    "sample is presumably pure contamination)." >&2
     return 1
   fi
 

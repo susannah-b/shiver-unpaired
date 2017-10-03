@@ -99,16 +99,18 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
 
   # Compare the sequence in FastaFile to the one in ExistingRefAlignment.
   if $RefIsInAlignment; then
-    "$Code_CheckFastaFileEquality" "$RefFromAlignment" "$FastaFile"
-    ComparisonExitStatus=$?
-    if [ $ComparisonExitStatus -eq 111 ]; then
+    equal=$("$Code_CheckFastaFileEquality" "$RefFromAlignment" "$FastaFile") ||
+    { echo 'Problem running' "$Code_CheckFastaFileEquality"'. Quitting.' >&2 ; \
+    exit 1 ; }
+    if [[ "$equal" == "false" ]]; then
       echo 'Seq' "$RefName" 'differs between' "$FastaFile" 'and' \
       "$ExistingRefAlignment; that's OK," \
       'but after mapping we will not be able to produce a version of the' \
       'consensus seq with gaps suitable for a global alignment. Continuing.' ;
       RefIsInAlignment=false
-    elif [ $ComparisonExitStatus -ne 0 ]; then
-      echo 'Problem running' "$Code_CheckFastaFileEquality"'. Quitting.' >&2
+    elif [[ "$equal" != "true" ]]; then
+      echo "Unexpected output \"$equal\" from $Code_CheckFastaFileEquality."\
+      "Quitting." >&2
       exit 1
     fi 
   fi
@@ -171,15 +173,18 @@ else
   { echo "Problem removing pure-gap columns from $TempRefAlignment (which was"\
   "created by removing the contigs from $ContigToRefAlignment - that's"\
   "probably the problematic file). Quitting." >&2 ; exit 1; }
-  "$Code_CheckFastaFileEquality" "$AlignmentForTesting" "$ExistingRefAlignment"
-  ComparisonExitStatus=$?
-  if [ $ComparisonExitStatus -eq 111 ]; then
+  equal=$("$Code_CheckFastaFileEquality" "$AlignmentForTesting" \
+  "$ExistingRefAlignment") || { echo "Problem running"\
+  "$Code_CheckFastaFileEquality. Quitting." >&2 ; exit 1 ; }
+  if [[ "$equal" == "false" ]]; then
     echo "The reference sequences in $ContigToRefAlignment are different from"\
-    "those in $ExistingRefAlignment. When modifying $ContigToRefAlignment you"\
-    "should only have modified the contigs. Quitting." >&2  
+    "those in $ExistingRefAlignment. If you modify your alignment of contigs"\
+    "to existing reference sequences, you should only modify the contig"\
+    "sequences, not the references. Quitting." >&2  
     exit 1
-  elif [ $ComparisonExitStatus -ne 0 ]; then
-    echo 'Problem running' "$Code_CheckFastaFileEquality"'. Quitting.' >&2
+  elif [[ "$equal" != "true" ]]; then
+    echo "Unexpected output \"$equal\" from $Code_CheckFastaFileEquality."\
+    "Quitting." >&2
     exit 1
   fi
 

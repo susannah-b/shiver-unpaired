@@ -89,5 +89,26 @@ if [[ -f "$CutContigFile" ]]; then
   "$MinContigFragmentLength" > "$CutContigAlignment" || { echo 'Problem'\
   'splitting gappy contigs after alignment. Quitting.' >&2 ; exit 1 ; }  
 
+else
+  # If we don't have a cut contig file, the split-gappy-contigs code might still
+  # want to split the aligned raw contigs. If so, name it the same as aligned
+  # cut contigs for consistency.
+  RawContigNames=$(awk '/^>/ {print substr($1,2)}' "$RawContigFile1")
+  "$Code_SplitGappyContigs" "$RawContigAlignment" $RawContigNames \
+  --split-gap-size "$MinGapSizeToSplitGontig" --min-contig-size \
+  "$MinContigFragmentLength" > "$CutContigAlignment" || { echo 'Problem'\
+  'splitting gappy contigs after alignment. Quitting.' >&2 ; exit 1 ; } 
+
+  equal=$("$Code_CheckFastaFileEquality" "$RawContigAlignment" \
+  "$CutContigAlignment") || { echo "Problem running"\
+  "$Code_CheckFastaFileEquality. Quitting." >&2 ; exit 1 ; }
+  if [[ "$equal" == "true" ]]; then
+    rm "$CutContigAlignment"
+  elif [[ "$equal" != "false" ]]; then
+    echo "Unexpected output \"$equal\" from $Code_CheckFastaFileEquality."\
+    "Quitting." >&2
+    exit 1
+  fi
+
 fi
 

@@ -6,8 +6,11 @@ from __future__ import print_function
 ##
 ## Overview:
 ExplanatoryMessage = '''This script checks that all fasta files supplied as
-arguments contain the same sequences, regardless of formatting. It exits with
-exit code 111 if any difference is found.'''
+arguments contain the same sequences, regardless of formatting. If any
+difference is found we print "false" to stdout and exit with status 0; if no
+difference is found we print "true" to stdout and exit with status 0. Any error
+should result in different output printed to stdout/stderr and a non-zero exit
+status.'''
 
 import argparse
 import os
@@ -44,7 +47,7 @@ def FastaFileToSeqDict(FastaFile):
   for seq in SeqIO.parse(open(FastaFile),'fasta'):
     if seq.id in MyDict:
       print('Sequence', seq.id, 'occurs multiple times in', FastaFile+\
-      '\nQuitting.', file=sys.stderr)
+      '; sequence names ought to be unique. Quitting.', file=sys.stderr)
       exit(1)
     if args.ignore_gaps:
       seq.seq = seq.seq.ungap('-')
@@ -59,9 +62,7 @@ FirstFileDict = FastaFileToSeqDict(args.FastaFile[0])
 for FastaFile in args.FastaFile[1:]:
   SeqDict = FastaFileToSeqDict(FastaFile)
   if SeqDict != FirstFileDict:
-    print('The sequences in', FastaFile, 'differ from those in', \
-    args.FastaFile[0], file=sys.stderr)
-    exit(111)
+    print('false')
+    exit(0)
 
-print('The input fasta files -', ', '.join(args.FastaFile), \
-'- contain the same sequences.')
+print('true')

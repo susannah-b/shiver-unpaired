@@ -90,13 +90,6 @@ if MakeCorrections:
     print(args.out_file, 'exists already. Move, rename or delete it, and try',
     'again. Quitting.', file=sys.stderr)
     exit(1)
-  else:
-    try:
-      with open(args.out_file, "w") as f:
-        pass
-    except IOError:
-      print('Unable to write to', args.out_file)
-      raise
 
 # Check the min hit frac is in (0,1)
 if not (0 < args.min_hit_frac < 1):

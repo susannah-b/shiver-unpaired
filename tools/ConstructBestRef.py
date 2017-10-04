@@ -60,6 +60,17 @@ parser = argparse.ArgumentParser(description=ExplanatoryMessage, \
 formatter_class=SmartFormatter)
 parser.add_argument('FastaFile', type=File)
 parser.add_argument('ContigName', nargs='+')
+parser.add_argument('-AS', '--always-use-sequence', action='store_true',
+help='''By default, at each position we always use whatever the longest contig
+has there, even if it's a deletion (i.e. an internal gap) and a shorter contig
+has a base there. With this option we'll always use a base from the contigs if
+possible, i.e. if a shorter contig has an insertion relative to a longer contig
+we will use the insertion. This protects against cases where a long contig has
+an erroneous internal gap due to misalignment, but may introduce artefactual
+insertions in the flattened contigs due to misalignment. e.g. By default the
+contigs GGGGA-CC- and --TG-ACCT would be flattened to GGGGA-CCT (using the
+longer first contig wherever possible); with this option they would be flattened
+to GGGGAACCT, giving a double-A that is seen in neither contig.''')
 parser.add_argument('-L', '--contigs-length', action='store_true', \
 help='Simply print the length of the flattened contigs (i.e. the number of '+\
 'positions in the alignment that are inside at least one contig, excluding '+\
@@ -235,28 +246,33 @@ EndOfLastContig = max(AllContigEnds)
 
 # Flatten the contigs.
 # Repeat the gap character until the start of the first contig.
-# Then at each position: if no contig has a base there, call a gap; if only one
-# contig has a base there, use that base; if multiple contigs have bases there,
-# use the base of the longest contig. Then repeat the gap character until the
-# end.
+# Then at each position: if all contigs agree on what's there, use that;
+# otherwise, use either [whatever is present in the longest contig there] OR
+# [whatever is present in the longest contig there provided it's not a gap], as
+# desired. Then repeat the gap character until the end.
 FlattenedContigsSeq = GapChar * StartOfFirstContig
 for position in range(StartOfFirstContig,EndOfLastContig+1):
   DictOfBasesHere = {}
   for ContigName,ContigSeq in ContigDict.items():
-    base = ContigSeq[position]
-    if base != GapChar:
-      DictOfBasesHere[ContigName] = ContigSeq[position]
-  if len(DictOfBasesHere) == 0:
-    BaseHere = GapChar
-  elif len(DictOfBasesHere) == 1:
+    DictOfBasesHere[ContigName] = ContigSeq[position]
+  BasesHere = set(DictOfBasesHere.values())
+  if len(BasesHere) == 1:
     BaseHere = DictOfBasesHere.values()[0]
   else:
-    LengthOfLongestContigWithBaseHere = 0
+    LengthOfLongestDesiredContig = 0
     for ContigName in DictOfBasesHere:
-      if ContigLengths[ContigName] > LengthOfLongestContigWithBaseHere:
-        LongestContigWithBaseHere = ContigName
-        LengthOfLongestContigWithBaseHere = ContigLengths[ContigName]
-    BaseHere = DictOfBasesHere[LongestContigWithBaseHere]
+      StartOfContig, EndOfContig = ContigStartsAndEnds[ContigName]
+      if StartOfContig <= position <= EndOfContig and \
+      ContigLengths[ContigName] > LengthOfLongestDesiredContig:
+        ThisContigsBase = DictOfBasesHere[ContigName]
+        if not args.always_use_sequence or ThisContigsBase != GapChar:
+          BaseHere = ThisContigsBase
+          LengthOfLongestDesiredContig = ContigLengths[ContigName]
+    if LengthOfLongestDesiredContig == 0:
+      print('Malfunction of', sys.argv[0] + ": we failed to figure out what",
+      "base to use from the contigs at ", position+1, 'in', AlignmentFile + \
+      '. Please report to Chris Wymant. Quitting.', file=sys.stderr)
+      exit(1)
   FlattenedContigsSeq += BaseHere
 FlattenedContigsSeq += GapChar * (AlignmentLength - EndOfLastContig -1)
 

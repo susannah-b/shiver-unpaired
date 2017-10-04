@@ -1,10 +1,25 @@
-library(ggplot2)
-library(reshape)
-library(grid)
-library(gridExtra)
-library(gtable)
-library(scales)
-library(argparse)
+#!/usr/bin/env Rscript
+
+# Thanks to Matthew Hall, the code's original author.
+
+list.of.packages <- c("ggplot2", "reshape", "grid", "gridExtra", "gtable", "scales", "argparse", "assertthat")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)){
+  cat("Missing dependencies; replacing the path below appropriately, run\nsudo [path to your shiver code]/tools/AlignmentPlotting_PackageInstall.R\nthen try again.\n")
+  quit(save="no", status=1)
+}
+
+
+suppressMessages(require(ggplot2, quietly=TRUE, warn.conflicts=FALSE))
+suppressMessages(require(reshape, quietly=TRUE, warn.conflicts=FALSE))
+suppressMessages(require(grid, quietly=TRUE, warn.conflicts=FALSE))
+suppressMessages(require(gridExtra, quietly=TRUE, warn.conflicts=FALSE))
+suppressMessages(require(gtable, quietly=TRUE, warn.conflicts=FALSE))
+suppressMessages(require(scales, quietly=TRUE, warn.conflicts=FALSE))
+suppressMessages(require(argparse, quietly=TRUE, warn.conflicts=FALSE))
+suppressMessages(require(assertthat, quietly=TRUE, warn.conflicts=FALSE))
+
+
 
 # Miseq
 gene.height <- 3.2
@@ -14,7 +29,6 @@ v.loop.font.size <- 2.5
 plot.relative.heights <- c(2,4,6.5)
 plot.width <- 13
 plot.total.height <- 3.8
-coverage.labels <- c("HXB2", "shiver reference")
 legend.position <- "none"
 
 # Hiseq
@@ -25,23 +39,38 @@ legend.position <- "none"
 #plot.relative.heights <- c(2,5,6.5)
 #plot.width <- 13
 #plot.total.height <- 5
-#coverage.labels <- c("HXB2", "shiver reference")
 #legend.position <- "none"
 
 
-arg_parser = ArgumentParser()
+arg_parser = ArgumentParser(description=paste("Use this script to produce a",
+"plot showing an alignment of sequences, genes relative to those sequences,",
+"and the coverage obtained by mapping to two of those sequences (the alignment",
+"may contain additional sequences with those two). NOTE: I am not",
+"able to offer support for this script as I am for all of the other code in",
+"shiver. It was written, not by me, with the intention of one-off use for the",
+"figures in the shiver paper. In my limited experience of R code I find it",
+"produces incomprehensible error messages; I wish you luck debugging this code",
+"if it doesn't work for you. Also note that there are lots of plotting",
+"parameters - sizes, placements, colours etc. - you can modify these by",
+"opening this file and modifying the code."))
 
-arg_parser$add_argument("covFile", metavar="coverageFileName")  
-arg_parser$add_argument("colFile", metavar="coloursFileName")  
-arg_parser$add_argument("genFile", metavar="genesFileName")  
-arg_parser$add_argument("outFile", metavar="outputFileName")  
+arg_parser$add_argument("coverageFile",
+help=paste("A csv file of the format output by shiver's",
+"tools/AlignBaseFreqFiles.py script with the option --coverage-only. i.e. the",
+"first column should be position in the alignment,",
+"and the fourth and fifth columns should be coverage with respect",
+"to the two references. (The first line of the csv should be the field",
+"names)."))  
+arg_parser$add_argument("coloursFile", help="A csv file produced by running shiver's tools/ConvertAlnToColourCodes.py on your alignment.")  
+arg_parser$add_argument("GeneCoordsFile", help='A csv file with the following fields: "ReadingFrame,GeneName,StartPos,EndPos". The start and end positions should be in the coordinates of your alignment. An optional extra field "OnTop" should contain binary values "yes" or "no", specifying whether that gene should be displayed on top of another gene at the same position (we use yes values for putting loop regions of the env gene on top of env itself). If your alignment contains HXB2, you could create this file by running a command like this (assuming your shiver code lives in ~/shiver/): echo "ReadingFrame,GeneName,StartPos,EndPos" > MyGeneCoordsFile.csv; while read line; do read name RF seq <<< $(echo $line); start=$(~/shiver/tools/FindSubSeqsInAlignment.py "$i" B.FR.83.HXB2_LAI_IIIB_BRU.K03455 --start "$seq" --alignment-coords); end=$(~/shiver/tools/FindSubSeqsInAlignment.py "$i" B.FR.83.HXB2_LAI_IIIB_BRU.K03455 --end "$seq" --alignment-coords); echo "$RF,$name,$start,$end"; done < ~/shiver/info/HXB2_GeneName_ReadingFrame_Sequence.txt >> MyGeneCoordsFile.csv')  
+arg_parser$add_argument("outputFile", help='(Will be in pdf format.)')  
 
 args <- arg_parser$parse_args()
 
-cov.file.name <- args$covFile
-col.file.name <- args$colFile
-gen.file.name <- args$genFile
-out.file.name <- args$outFile
+cov.file.name <- args$coverageFile
+col.file.name <- args$coloursFile
+gen.file.name <- args$GeneCoordsFile
+out.file.name <- args$outputFile
 
 AlignPlots <- function(...) {
   LegendWidth <- function(x) x$grobs[[8]]$grobs[[1]]$widths[[4]]
@@ -125,6 +154,30 @@ process.string <- function(string){
   return(out)
 }
 
+read.csv.and.check.col.names <- function(csv.file, all.required.col.names,
+                                         discard.unwanted.cols=FALSE,
+                                         check.names=TRUE,
+                                         stringsAsFactors=FALSE) {
+  
+  # Read the file, check all required columns present
+  assert_that(file.exists(csv.file))
+  data.frame <- read.table(csv.file, sep=",", header=T, check.names=check.names,
+  stringsAsFactors=stringsAsFactors)
+  col.names <- colnames(data.frame)
+  for (expected.col.name in all.required.col.names) {
+    if (! expected.col.name %in% col.names) {
+      stop("Expected column name ", expected.col.name, " missing from ",
+           csv.file)
+    }
+  }
+  
+  if (discard.unwanted.cols) {
+    data.frame <- data.frame[all.required.col.names]
+  }
+  
+  return(data.frame)
+}
+
 
 cov.data <- read.table(cov.file.name, sep=",", header=T, stringsAsFactors = F)
 cov.data <- cov.data[,c(1,4,5)]
@@ -153,13 +206,19 @@ for(sequence.no in seq(1, nrow(pos.data))){
   
 }
 
-ann.data <- read.table(gen.file.name, sep=",", header=T, stringsAsFactors = F)
-ann.data$display.start <- ann.data$start-0.5
-ann.data$display.end <- ann.data$end+0.5
-ann.data <- ann.data[order(ann.data$gene),]
+ann.data <- read.csv.and.check.col.names(gen.file.name, c('ReadingFrame','GeneName','StartPos','EndPos'))
+ann.data$display.start <- ann.data$StartPos-0.5
+ann.data$display.end <- ann.data$EndPos+0.5
+ann.data <- ann.data[order(ann.data$GeneName),]
 
-ann.data.main <- ann.data[which(ann.data[,5]=="no"),]
-ann.data.extra <- ann.data[which(ann.data[,5]=="yes"),]
+
+stack.genes <- "OnTop" %in% colnames(ann.data)
+if (stack.genes) {
+  ann.data.main <- ann.data[which(ann.data[,5]=="no"),]
+  ann.data.extra <- ann.data[which(ann.data[,5]=="yes"),]
+} else {
+  ann.data.main <- ann.data
+}
 
 graph.cov <- ggplot(data=cov.data)
 
@@ -179,13 +238,11 @@ graph.cov <- graph.cov +
 graph.ann <- ggplot()
 
 graph.ann <- graph.ann + 
-  geom_segment(data = ann.data.main, aes(y=Reading.frame, yend = Reading.frame, x = display.start, xend=display.end, colour=gene), size=gene.height) +
-  geom_text(data = ann.data.main, aes(label=gene, y=Reading.frame, x=display.start), hjust="left", nudge_x=10, size=gene.font.size) +
-  geom_segment(data = ann.data.extra, aes(y=Reading.frame, yend = Reading.frame, x = display.start, xend=display.end), size=gene.height, alpha=0.5, colour="grey10") +
-  geom_text(data = ann.data.extra, aes(label=gene, y=Reading.frame, x=display.start), hjust="left", nudge_x=10, size=v.loop.font.size, colour="white") +
+  geom_segment(data = ann.data.main, aes(y=ReadingFrame, yend = ReadingFrame, x = display.start, xend=display.end, colour=GeneName), size=gene.height) +
+  geom_text(data = ann.data.main, aes(label=GeneName, y=ReadingFrame, x=display.start), hjust="left", nudge_x=10, size=gene.font.size) +
   theme_bw() +
   scale_x_continuous(limits=c(min(cov.data$Alignment.position)-1, max(cov.data$Alignment.position)+1), expand=c(0,100)) +
-  scale_y_continuous(limits=c(0, max(ann.data$Reading.frame)+1)) +
+  scale_y_continuous(limits=c(0, max(ann.data$ReadingFrame)+1)) +
   scale_color_discrete(h = c(0, 720) + 15, direction = -1) +
   theme(axis.text=element_blank(),
         axis.ticks=element_blank(),
@@ -197,6 +254,12 @@ graph.ann <- graph.ann +
         plot.background=element_blank(),
         plot.margin=unit(c(0.5,0.5,0,0.5), "cm"),
         panel.margin=unit(c(0.5,0.5,0,0.5), "cm"))
+
+if (stack.genes) {
+graph.ann <- graph.ann +
+  geom_segment(data = ann.data.extra, aes(y=ReadingFrame, yend = ReadingFrame, x = display.start, xend=display.end), size=gene.height, alpha=0.5, colour="grey10") +
+  geom_text(data = ann.data.extra, aes(label=GeneName, y=ReadingFrame, x=display.start), hjust="left", nudge_x=10, size=v.loop.font.size, colour="white") 
+}
 
 graph.pos <- ggplot(data = line.df)
 
@@ -220,6 +283,9 @@ graph.pos <- graph.pos +
 plots1 <- AlignPlots(graph.ann, graph.pos, graph.cov)
 plots1$ncol <- 1
 plots1$heights <- unit(plot.relative.heights, "null")
+
+# Append '.pdf' to the output file name if not already there.
+if (! grepl('.pdf$', out.file.name)) out.file.name <- paste0(out.file.name, '.pdf')
 
 pdf(file=out.file.name, width=plot.width, height=plot.total.height)
 do.call(grid.arrange, plots1)

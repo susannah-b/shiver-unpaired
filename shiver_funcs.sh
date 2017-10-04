@@ -382,8 +382,9 @@ function map {
   "$samtools" view "$FinalOutBam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
   InsertCount=$(wc -l "$InsertSizes1" | awk '{print $1}')
   if [[ $InsertCount -gt 0 ]]; then
+    echo "Insert size,Count,Unit-normalised count" > "$InsertSizeCounts"
     sort -n "$InsertSizes1" | uniq -c > "$InsertSizes2"
-    awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" > \
+    awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" >> \
     "$InsertSizeCounts"
   else
     echo "Warning: no read in $FinalOutBam was identified as having"\

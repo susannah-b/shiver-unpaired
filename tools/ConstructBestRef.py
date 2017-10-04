@@ -39,7 +39,6 @@ import os.path
 import sys
 import collections
 import argparse
-from string import maketrans
 from AuxiliaryFunctions import ReadSequencesFromFile, PropagateNoCoverageChar
 
 # Define a function to check files exist, as a type for the argparse.

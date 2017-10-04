@@ -33,7 +33,6 @@ FastaSeqLineLength=50
 ################################################################################
 
 import os.path, sys
-from string import maketrans
 from inspect import currentframe, getframeinfo
 from itertools import groupby
 from operator import itemgetter

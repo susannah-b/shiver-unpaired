@@ -21,6 +21,7 @@ Code_SplitFasta="$ToolsDir/SplitFasta.py"
 Code_UngapFasta="$ToolsDir/UngapFasta.py"
 Code_MergeBaseFreqsAndCoords="$ToolsDir/MergeBaseFreqsAndCoords.py"
 Code_SplitGappyContigs="$ToolsDir/SplitGappyContigs.py"
+Code_PrintSeqLengths="$ToolsDir/PrintSeqLengths.py"
 
 # For quitting if files don't exist.
 function CheckFilesExist {
@@ -100,6 +101,36 @@ function AlignContigsToRefs {
   fi
 
 }
+
+function PrintAlnLengthIncrease {
+
+  # Check for the right number of args
+  ExpectedNumArgs=2
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "PrintAlnLengthIncrease function called with $# args; expected"\
+    "$ExpectedNumArgs." >&2
+    return 1
+  fi
+
+  # Assign the args
+  OldAln=$1
+  NewAln=$2
+
+  # Print the increase in the alignment length as a result of adding the contigs
+  OldAlnLength=$("$Code_PrintSeqLengths" --first-seq-only --include-gaps \
+  "$OldAln" | awk '{print $2}') &&
+  NewAlnLength=$("$Code_PrintSeqLengths" --first-seq-only --include-gaps \
+  "$NewAln" | awk '{print $2}') ||
+  { echo "Problem running $Code_PrintSeqLengths." >&2 ; return 1 ; }
+  AlnLengthIncrease=$((NewAlnLength - OldAlnLength))
+  echo "Info: the alignment of just the existing references has length"\
+  "$OldAlnLength; after adding the contigs, the alignment"\
+  "$NewAln has length $NewAlnLength, i.e. the total length of insertions in"\
+  "the contigs not present in any reference (as inferred by this alignment) is"\
+  "$AlnLengthIncrease."
+
+}
+
 
 function CheckReadNames {
 

@@ -274,6 +274,8 @@ for ContigName, hits in HitDict.items():
     sstart, send = hits[0][7:9]
     if sstart > send:
       seq.seq = seq.seq.reverse_complement()
+    seq.id += '_BlastsTo_' + str(min(sstart, send)) + '-' + \
+    str(max(sstart, send))
     OutSeqs.append(seq)
 
   else:
@@ -350,7 +352,6 @@ for ContigName, hits in HitDict.items():
             CutEnd = min(ThisEnd, (ThisEnd + NextStart) / 2)
 
       ThisCutSeq = copy.deepcopy(seq)
-      ThisCutSeq.id += '.' + str(i+1)
       ThisCutSeq.seq = ThisCutSeq.seq[CutStart-1 : CutEnd]
       ThisCutSeq.description = ''
       
@@ -358,6 +359,9 @@ for ContigName, hits in HitDict.items():
       sstart, send = hit[7:9]
       if sstart > send:
         ThisCutSeq.seq = ThisCutSeq.seq.reverse_complement()
+
+      ThisCutSeq.id += '_BlastsTo_' + str(min(sstart, send)) + '-' + \
+      str(max(sstart, send))
 
       OutSeqs.append(ThisCutSeq)
 

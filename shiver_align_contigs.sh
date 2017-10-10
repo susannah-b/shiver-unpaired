@@ -68,6 +68,10 @@ AlignContigsToRefs "$mafft" '--quiet' "$RawContigFile1" "$RefAlignment" \
 "$RawContigAlignment" "$SwapContigsToTop" "$OldMafft" || \
 { echo 'Problem aligning the raw contigs to refs. Quitting.' >&2 ; exit 1 ; }
 
+PrintAlnLengthIncrease "$RefAlignment" "$RawContigAlignment" || \
+{ echo "Problem checking the alignment length increase after adding the raw" \
+"contigs to the existing references. Quitting." >&2 ; exit 1 ; }
+
 # Run the contig cutting & flipping code
 "$Code_CorrectContigs" "$BlastFile" -C "$ContigFile" -O "$CutContigFile" || \
 { echo "Problem encountered running $Code_CorrectContigs. Quitting." >&2 ; \
@@ -87,7 +91,11 @@ if [[ -f "$CutContigFile" ]]; then
   "$Code_SplitGappyContigs" "$TempContigAlignment3" $CutContigNames \
   --split-gap-size "$MinGapSizeToSplitGontig" --min-contig-size \
   "$MinContigFragmentLength" > "$CutContigAlignment" || { echo 'Problem'\
-  'splitting gappy contigs after alignment. Quitting.' >&2 ; exit 1 ; }  
+  'splitting gappy contigs after alignment. Quitting.' >&2 ; exit 1 ; }
+
+  PrintAlnLengthIncrease "$RefAlignment" "$CutContigAlignment" || \
+  { echo "Problem checking the alignment length increase after adding the cut"\
+  "contigs to the existing references. Quitting." >&2 ; exit 1 ; }
 
 else
   # If we don't have a cut contig file, the split-gappy-contigs code might still
@@ -104,7 +112,11 @@ else
   "$Code_CheckFastaFileEquality. Quitting." >&2 ; exit 1 ; }
   if [[ "$equal" == "true" ]]; then
     rm "$CutContigAlignment"
-  elif [[ "$equal" != "false" ]]; then
+  elif [[ "$equal" == "false" ]]; then
+    PrintAlnLengthIncrease "$RefAlignment" "$CutContigAlignment" || \
+    { echo "Problem checking the alignment length increase after adding the"\
+    "cut contigs to the existing references. Quitting." >&2 ; exit 1 ; }
+  else
     echo "Unexpected output \"$equal\" from $Code_CheckFastaFileEquality."\
     "Quitting." >&2
     exit 1

@@ -8,9 +8,9 @@ from __future__ import print_function
 ExplanatoryMessage = '''We construct the optimal reference for a given sample by
 flattening its (de novo assembled) contigs with a set of references.
 How it works:
-(1) We flatten the contigs, taking the base of the longest one where they disagree
-(expecting that the de novo assembly makes the longest contig first with the
-dominant i.e. most numerous set of short reads).
+(1) We flatten the contigs, taking the base (or gap) of the longest one where
+they disagree (expecting that the de novo assembly makes the longest contig
+first with the dominant i.e. most numerous set of short reads).
 (2) We compare every reference to the flattened contigs and count the number of
 agreeing bases. The comparison is not done in the gaps between contigs nor
 before/after the reference/contigs. When we are inside a contig and inside the
@@ -57,7 +57,8 @@ class SmartFormatter(argparse.HelpFormatter):
 # Set up the arguments for this script
 parser = argparse.ArgumentParser(description=ExplanatoryMessage, \
 formatter_class=SmartFormatter)
-parser.add_argument('FastaFile', type=File)
+parser.add_argument('AlignmentOfContigsToRefs', type=File)
+parser.add_argument('OutputFile')
 parser.add_argument('ContigName', nargs='+')
 parser.add_argument('-AS', '--always-use-sequence', action='store_true',
 help='''By default, at each position we always use whatever the longest contig
@@ -85,7 +86,7 @@ help='Simply print the length and gap fraction of each contig in an alignment'+\
 'references are discarded, then pure-gap columns are removed), then exit.')
 parser.add_argument('-C', '--compare-contigs-to-consensus', \
 help='''R|Use this option to specify the name of the consensus
-sequence; use it when the FastaFile argument is the
+sequence; use it when the AlignmentOfContigsToRefs argument is the
 alignment of contigs, consensus and mapping reference.
 We put each position in the alignment in one of the
 following four categories, then print the counts of 
@@ -111,7 +112,7 @@ Contigs: bases + gaps  | 1 or 2 | n/a |  3  | n/a
          no coverage   |   4    | n/a | n/a | n/a
 ''')
 parser.add_argument('-C2', '--check-contig-snps', help='''Use this option to
-specify the name of the consensus sequence; use it when the FastaFile argument
+specify the name of the consensus sequence; use it when the AlignmentOfContigsToRefs argument
 is an alignment containing the contigs and the consensus. Amongst all positions
 at which more than one base (not including gaps) is represented, we count the
 number where the longest contig's base agrees with the consensus (the first
@@ -121,7 +122,7 @@ we'll print to stdout).''')
 args = parser.parse_args()
 
 # Shorthand
-AlignmentFile = args.FastaFile
+AlignmentFile = args.AlignmentOfContigsToRefs
 ContigNames = args.ContigName
 CompareContigsToConsensus = args.compare_contigs_to_consensus != None
 CheckContigSNPs = args.check_contig_snps != None
@@ -501,11 +502,18 @@ def insert_newlines(string, every=50):
     lines.append(string[i:i+every])
   return '\n'.join(lines)
 
+LengthOfFlattenedContigs = len(FlattenedContigsSeq) - FlattenedContigsSeq.count('-')
+LengthOfConstructedRef = len(ConstructedRef) - ConstructedRef.count('-')
+NumBasesOfElongatedRefUsed = LengthOfConstructedRef - LengthOfFlattenedContigs
+print('Info: using', BestRefName, '(elongated with other longer references if',
+'needed) to provide', NumBasesOfElongatedRefUsed, 'bases to fill in gaps',
+'before/between/after contigs. This reference was the best match for the',
+'contigs:', str(100*BestRefScore) + '% of positions in agreement.')
+
 # Print output.
-#TotalContigCoverage = \
-#sum([1 for coverage in ContigCoverageByPosition if coverage > 0])
-print('>ContigsFlattenedWith_'+BestRefName)
-print(insert_newlines(ConstructedRef))
-print('>'+BestRefName+'_elongated')
-print(insert_newlines(ElongatedRef))
+
+with open(args.OutputFile, 'w') as f:
+  f.write('>ContigsFlattenedWith_'+BestRefName + '\n' + \
+  insert_newlines(ConstructedRef) + '\n>' + BestRefName + '_elongated' + \
+  insert_newlines(ElongatedRef) + '\n')
 

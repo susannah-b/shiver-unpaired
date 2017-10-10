@@ -189,8 +189,8 @@ else
   fi
 
   # Construct the tailored ref
-  "$Code_ConstructRef" "$ContigToRefAlignment" $HIVcontigNames \
-  > "$GappyRefWithExtraSeq" || \
+  "$Code_ConstructRef" "$ContigToRefAlignment" "$GappyRefWithExtraSeq" \
+  $HIVcontigNames || \
   { echo 'Failed to construct a ref from the alignment. Quitting.' >&2 ; \
   exit 1 ; }
 

@@ -7,9 +7,10 @@ from __future__ import print_function
 ## Overview:
 ExplanatoryMessage = '''This script, taking an sequence alignment in fasta
 format as input, considers all possible pairs of sequences therein and
-calculates the sizes and positions (with respect to the alignment) of indels
-if those two sequences were aligned on their own, i.e. not counting any position
-at which both sequences have a gap.'''
+calculates the sizes and positions of indels if those two sequences were aligned
+on their own, i.e. ignoring any position at which both sequences have a gap. We
+also ignore positions before max(start of seq 1, start of seq 2) and after
+min(end of seq 1, end of seq 2).'''
 
 import argparse
 import os

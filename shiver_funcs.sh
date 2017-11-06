@@ -47,8 +47,8 @@ function AlignContigsToRefs {
   "$Aligner" $AlignerOptions --add "$ContigFile" "$ThisRefAlignment" > \
   "$TempContigAlignment1" || \
   { echo 'Problem aligning' "$ContigFile"'.' >&2 ; return 1 ; }
-  MaxContigGappiness1=$("$Code_ConstructRef" -S1 "$TempContigAlignment1" \
-  $ContigNames | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo 'Problem'\
+  MaxContigGappiness1=$("$Code_ConstructRef" "$TempContigAlignment1" 'DummyOut' \
+  $ContigNames --summarise-contigs-1 | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo 'Problem'\
   "analysing $TempContigAlignment1 (i.e. the output from aligning $ContigFile"\
   "and $ThisRefAlignment) with $Code_ConstructRef." >&2 ; return 1 ; }
   BestContigAlignment="$TempContigAlignment1"
@@ -67,8 +67,8 @@ function AlignContigsToRefs {
     OldMafft=true ; }
     NumLinesInAln=$(wc -l "$TempContigAlignment2" | awk '{print $1}')
     if ! $OldMafft; then
-      MaxContigGappiness2=$("$Code_ConstructRef" -S1 "$TempContigAlignment2" \
-      $ContigNames | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo \
+      MaxContigGappiness2=$("$Code_ConstructRef" "$TempContigAlignment2" 'DummyOut' \
+      $ContigNames --summarise-contigs-1 | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo \
       "Problem analysing $TempContigAlignment2 (i.e. the output from aligning "\
       "$ContigFile and $ThisRefAlignment) with $Code_ConstructRef." \
       >&2 ; return 1 ; }

@@ -18,7 +18,7 @@ import itertools
 from Bio import AlignIO
 from Bio import Seq  
 from Bio import SeqIO  
-from collections import Counter
+from collections import Counter, OrderedDict
 import numpy as np
 
 
@@ -32,6 +32,12 @@ def File(MyFile):
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('alignment', type=File)
 parser.add_argument('OutputFileBasename')
+parser.add_argument('-R', '--reference', help='''Used to specify the name of a
+reference sequence in the alignment with respect to which we will report indel
+positions (instead of reporting with respect to position in the alignment).''')
+parser.add_argument('-O', '--offset', type=int, help='''Used to specify an
+integer that will be added to all positions in the indel position output
+(helpful if your --reference sequence has had its left-hand end cut off).''')
 args = parser.parse_args()
 
 
@@ -49,6 +55,29 @@ if NumSeqs < 2:
   print('Need at least two sequences. Quitting.', file=sys.stderr)
   exit(1)
 NumComparisons = (NumSeqs * (NumSeqs - 1)) / 2
+
+# Figure out the alignmnet position -> reference position correspondence.
+if args.reference:
+  RefFound = False
+  for seq in alignment:
+    if seq.id == args.reference:
+      if RefFound == True:
+        print('At least two sequences in', args.alignment, 'are named',
+        args.reference + '. Quitting.', file=sys.stderr)
+        exit(1)
+      AlnPosToRefPos = np.empty(AlignmentLength, dtype=int)
+      NumRefBasesSoFar = 0
+      for pos, base in enumerate(str(seq.seq)):
+        if base != '-':
+          NumRefBasesSoFar += 1
+        AlnPosToRefPos[pos] = NumRefBasesSoFar
+      RefFound = True
+  if not RefFound:
+        print('Found no sequences in', args.alignment, 'named',
+        args.reference + '. Quitting.', file=sys.stderr)
+        exit(1)
+  if args.offset:
+    AlnPosToRefPos = AlnPosToRefPos + args.offset
 
 # Our representation of each seq will be an array of bools: True for a gap char,
 # False otherwise
@@ -178,14 +207,34 @@ def FillInCounterBlanksAndRescale(counter):
 FillInCounterBlanksAndRescale(DelPositionCounts)
 FillInCounterBlanksAndRescale(DelSizeCounts)
 
+# Shift to reference coordinates if desired, otherwise shift from 0-based to
+# 1-based. NB the map from aln coords to ref coords is many-to-one.
+if args.reference:
+  DelRefPositionCounts = Counter()
+  for DelPosition, DelPositionCount in DelPositionCounts.items():
+    RefPos = AlnPosToRefPos[DelPosition]
+    DelRefPositionCounts[RefPos] += DelPositionCount
+  DelPositionCounts = DelRefPositionCounts
+else:
+  DelPositionCountsNew = OrderedDict()
+  if args.offset:
+    offset = 1 + args.offset
+  else:
+    offset = 1 
+  for DelPosition, DelPositionCount in DelPositionCounts.items():
+    DelPositionCountsNew[DelPosition + offset] = DelPositionCount
+  DelPositionCounts = DelPositionCountsNew
+
 # Write output  
-with open(args.OutputFileBasename + '.csv', 'w') as f:
+with open(args.OutputFileBasename + '_IndelSizes.csv', 'w') as f:
   f.write('Indel size (bp),Mean number of indels of that size per compared pair of sequences\n')
   for DelSize, DelSizeCount in DelSizeCounts.items():
     f.write(str(DelSize) + ',' + str(DelSizeCount) + '\n')
-with open(args.OutputFileBasename + '_positions.csv', 'w') as f:
-  f.write('Indel pos in alignment,Count\n')
+with open(args.OutputFileBasename + '_IndelPositions.csv', 'w') as f:
+  if args.reference:
+    f.write('Indel pos in ' + args.reference + ',Count\n')
+  else:
+    f.write('Indel pos in alignment,Count\n')
   for DelPosition, DelPositionCount in DelPositionCounts.items():
-    # Shift positions from 0-based to 1-based!
-    f.write(str(DelPosition + 1) + ',' + str(DelPositionCount) + '\n')
+    f.write(str(DelPosition) + ',' + str(DelPositionCount) + '\n')
 

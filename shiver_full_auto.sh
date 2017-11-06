@@ -94,8 +94,8 @@ for ref in "$InitDir"/'IndividualRefs'/*'.fasta'; do
     echo "Error: unexpected whitespace in file $AlnFile1. Quitting." >&2
     exit 1
   fi
-  RefSimilarityScore1=$("$Code_ConstructRef" -P "$AlnFile1" $HIVcontigNames | \
-  awk '{print $1}')
+  RefSimilarityScore1=$("$Code_ConstructRef" "$AlnFile1" 'DummyOut' \
+  $HIVcontigNames --print-best-score | awk '{print $1}')
   echo $RefSimilarityScore1 "$AlnFile1" >> "$RefMatchLog"
 
   # ...and try to make a second with mafft --addfragments
@@ -111,8 +111,8 @@ for ref in "$InitDir"/'IndividualRefs'/*'.fasta'; do
   OldMafft=true
   rm "$AlnFile2"
   continue ; }
-  RefSimilarityScore2=$("$Code_ConstructRef" -P "$AlnFile2" $HIVcontigNames | \
-  awk '{print $1}')
+  RefSimilarityScore2=$("$Code_ConstructRef" "$AlnFile2" 'DummyOut' \
+  $HIVcontigNames --print-best-score | awk '{print $1}')
   echo $RefSimilarityScore2 "$AlnFile2" >> "$RefMatchLog"
 
   # TODO: mafft options, including gap extension parameter!
@@ -124,8 +124,8 @@ mv "$BestRefFile" "$BestContigToRefAlignment"
 
 # Check that the gappiest contig is not too gappy in the best contig-to-ref
 # alignment.
-LargestGapFrac=$("$Code_ConstructRef" -S1 "$BestContigToRefAlignment" \
-$HIVcontigNames | sort -nrk2,2 | head -1 | awk '{print $2}')
+LargestGapFrac=$("$Code_ConstructRef" "$BestContigToRefAlignment" 'DummyOut' \
+$HIVcontigNames --summarise-contigs-1 | sort -nrk2,2 | head -1 | awk '{print $2}')
 if (( $(echo "$LargestGapFrac > $MaxContigGappiness" | bc -l) )); then
   echo "The gappiest contig in the best contig-to-reference alignment," \
   "$BestContigToRefAlignment, has gap fraction $LargestGapFrac which is larger"\
@@ -146,8 +146,8 @@ fi
 #fi
 
 # Construct the tailored ref
-"$Code_ConstructRef" "$BestContigToRefAlignment" $HIVcontigNames \
-> "$GappyRefWithExtraSeq" || \
+"$Code_ConstructRef" "$BestContigToRefAlignment" "$GappyRefWithExtraSeq" \
+$HIVcontigNames ||
 { echo 'Failed to construct a ref from the alignment. Quitting.' >&2; exit 1 ; }
 
 # Extract just the constructed ref (the first sequence)

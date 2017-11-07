@@ -121,7 +121,7 @@ def ProcessRangeOfSeqs(SeqNumbers):
       start2, end2 = StartsAndEnds[j]
 
       count +=1
-      if count % 2000 == 0:
+      if count % 5000 == 0:
         print('Now working on pair', count, 'of', NumComparisons)
 
       # Restrict our focus to the bit of the alignment after the start of both

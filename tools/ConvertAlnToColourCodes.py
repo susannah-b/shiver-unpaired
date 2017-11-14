@@ -43,6 +43,10 @@ found in the shiver publication. (Unlikely to be useful to anyone but the code's
 author.)''')
 parser.add_argument('-RH', '--reorder-Hiseq', action='store_true', help='''As
 --reorder but specific to the Hiseq data.''')
+parser.add_argument('-RP', action='store_true', help='''As --reorder but
+specific to the published version of the shiver paper, not the preprint.''')
+parser.add_argument('-RHP', action='store_true', help='''As --reorder-Hiseq but
+specific to the published version of the shiver paper, not the preprint.''')
 args = parser.parse_args()
 
 # Read in the alignment
@@ -52,6 +56,10 @@ except:
   print('Problem reading', args.alignment + ':', file=sys.stderr)
   raise
 AlignmentLength = alignment.get_alignment_length()
+
+if args.RP or args.RHP:
+  # HXB2 is the last seq. Remove it now so it doesn't affect the consensus.
+  alignment = alignment[:-1, :]
 
 # Convert the alignment to upper case
 for i in range(len(alignment)):
@@ -169,6 +177,32 @@ if args.reorder or args.reorder_Hiseq:
         continue
       OutListReordered.append(('lane 2 contig ' +str(i+1), ContigColourCode))
   OutList = OutListReordered
+
+if args.RP or args.RHP:
+
+  assert len(OutList) >= 5, 'Expected 6+ seqs (ignoring the last - HXB2)'
+  NewOutList = [('closest real reference', OutList[-1][1])]
+  NewOutList.append(('shiver mapping reference', OutList[1][1]))
+  NewOutList.append(('shiver mapping consensus', OutList[0][1]))
+  NewOutList.append(('consensus mapping to real ref', OutList[-2][1]))
+  NumContigsLane1 = 0
+  NumContigsLane2 = 0
+  for ContigName, ContigColourCodes in OutList[2:-2]:
+    if args.RHP:
+      if '_r' in ContigName:
+        NumContigsLane2 += 1
+        NewName = 'lane 2 contig ' + str(NumContigsLane2)
+      else:
+        NumContigsLane1 += 1
+        NewName = 'lane 1 contig ' + str(NumContigsLane1)
+    else:
+      NumContigsLane1 += 1
+      NewName = 'contig ' + str(NumContigsLane1)
+    NewOutList.append((NewName, ContigColourCodes))
+
+  OutList = NewOutList
+  
+  
 
 # Print output
 for seq.id, ColourCodes in OutList:

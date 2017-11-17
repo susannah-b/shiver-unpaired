@@ -39,6 +39,9 @@ positions (instead of reporting with respect to position in the alignment).''')
 parser.add_argument('-O', '--offset', type=int, help='''Used to specify an
 integer that will be added to all positions in the indel position output
 (helpful if your --reference sequence has had its left-hand end cut off).''')
+parser.add_argument('-S', '--subset-size', type=int, help='''Use this to specify
+the size of a randomly chosen subset of sequences from the alignment on which to
+perform the analysis.''')
 args = parser.parse_args()
 
 
@@ -55,7 +58,6 @@ NumSeqs = len(alignment)
 if NumSeqs < 2:
   print('Need at least two sequences. Quitting.', file=sys.stderr)
   exit(1)
-NumComparisons = (NumSeqs * (NumSeqs - 1)) / 2
 
 # Figure out the alignmnet position -> reference position correspondence.
 if args.reference:
@@ -79,6 +81,13 @@ if args.reference:
         exit(1)
   if args.offset:
     AlnPosToRefPos = AlnPosToRefPos + args.offset
+
+if args.subset_size:
+  SeqsToKeep = np.random.choice(NumSeqs, args.subset_size, replace=False)
+  alignment = [alignment[i] for i in SeqsToKeep]
+  NumSeqs = args.subset_size
+
+NumComparisons = (NumSeqs * (NumSeqs - 1)) / 2  
 
 # Our representation of each seq will be an array of bools: True for a gap char,
 # False otherwise

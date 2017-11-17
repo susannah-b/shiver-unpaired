@@ -360,8 +360,8 @@ for ContigName, hits in HitDict.items():
       if sstart > send:
         ThisCutSeq.seq = ThisCutSeq.seq.reverse_complement()
 
-      ThisCutSeq.id += '_BlastsTo_' + str(min(sstart, send)) + '-' + \
-      str(max(sstart, send))
+      ThisCutSeq.id += '.' + str(i + 1) + '_BlastsTo_' + \
+      str(min(sstart, send)) + '-' + str(max(sstart, send))
 
       OutSeqs.append(ThisCutSeq)
 

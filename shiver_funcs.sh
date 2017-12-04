@@ -138,12 +138,31 @@ function CheckReadNames {
   # The second argument is 1 for forward reads or 2 for reverse reads.
   OneOrTwo=$2
 
+  if [[ "$OneOrTwo" == "1" ]]; then
+    WrittenOneOrTwo="forward"
+  elif [[ "$OneOrTwo" == "2" ]]; then
+    WrittenOneOrTwo="reverse"
+  else
+    echo "Error: CheckReadNames function called with a OneOrTwo argument not"\
+    "equal to 1 or 2."
+    return 1
+  fi
+
   # Check all read seq ids end in /1 or /2 as needed.
   suffix=$(awk '{if ((NR-1)%4==0) print substr($1,length($1)-1,
   length($1))}' "$ReadFile" | sort | uniq)
   if [[ "$suffix" != '/'"$OneOrTwo" ]]; then
-    echo "Found at least one read in $ReadFile whose sequence ID does not end"\
-    'in "\'"$OneOrTwo"'".' >&2
+    echo "Error: found at least one read in $ReadFile whose name does"\
+    "not end in '/$OneOrTwo', which is required for $WrittenOneOrTwo reads."\
+    "One particular problem I've seen in reads found online was that the"\
+    "sequence ID lines look like this:" >&2
+    echo "@ReadName descriptor/$OneOrTwo" >&2
+    echo "instead of like this:" >&2
+    echo "@ReadName/$OneOrTwo" >&2
+    echo "In that case you can remove the space, merging the descriptor and"\
+    "the /$OneOrTwo into the name, with a command like this:" >&2
+    echo "awk '"'{if (NR%4 == 1) {print $1 "_" $2} else print}'"' $ReadFile >"\
+    "MyRenamedReads_$OneOrTwo.fastq" >&2
     return 1
   fi
 

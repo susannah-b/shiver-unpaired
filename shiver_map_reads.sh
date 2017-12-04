@@ -218,19 +218,42 @@ fi
 ################################################################################
 # TRIM & CLEAN READS
 
-# Copy the reads to the working directory. Unzip them if they end in .gz.
-# TODO: quit if can't copy, or can't unzip, or don't recognise name after
-# unzipping.
-cp "$reads1" "$reads2" .
-reads1=$(basename "$reads1")
-reads2=$(basename "$reads2")
+# Copy the reads to the working directory.
+if [[ $(dirname "$reads1") != "." ]]; then
+  NewReads1=$(basename "$reads1")
+  if [[ -f "$NewReads1" ]]; then
+    echo "A file called $NewReads1 exists in the working directory, $PWD,"\
+    "already; we will not overwrite it with $reads1. Quitting." >&2; exit 1;
+  fi
+  cp -i "$reads1" . || { echo "Failed to copy $reads1 to the working directory."\
+  "Quitting." >&2; exit 1; } 
+  reads1="$NewReads1"
+fi
+if [[ $(dirname "$reads2") != "." ]]; then
+  NewReads2=$(basename "$reads2")
+  if [[ -f "$NewReads2" ]]; then
+    echo "A file called $NewReads2 exists in the working directory, $PWD,"\
+    "already; we will not overwrite it with $reads2. Quitting." >&2; exit 1;
+  fi
+  cp -i "$reads2" . || { echo "Failed to copy $reads2 to the working directory."\
+  "Quitting." >&2; exit 1; } 
+  reads2="$NewReads2"
+fi
+
+# Unzip the reads if they end in .gz.
 if [[ "$reads1" == *.gz ]]; then
-  gunzip -f "$reads1"
-  reads1="${reads1%.gz}"
+  gunzip -f "$reads1" &&
+  NewReads1="${reads1%.gz}" &&
+  ls $NewReads1 > /dev/null || { echo "Problem unzipping $reads1. Quitting.">&2; 
+  exit 1; } 
+  reads1="$NewReads1"
 fi
 if [[ "$reads2" == *.gz ]]; then
-  gunzip -f "$reads2"
-  reads2="${reads2%.gz}"
+  gunzip -f "$reads2" &&
+  NewReads2="${reads2%.gz}" &&
+  ls $NewReads2 > /dev/null || { echo "Problem unzipping $reads2. Quitting.">&2; 
+  exit 1; } 
+  reads2="$NewReads2"
 fi
 
 # Check all 1 read seq ids end in /1, and 2 reads in /2. Check there are

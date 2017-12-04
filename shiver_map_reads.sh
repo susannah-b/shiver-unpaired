@@ -236,7 +236,7 @@ fi
 # Check all 1 read seq ids end in /1, and 2 reads in /2. Check there are
 # no tabs in the seq id lines.
 CheckReadNames "$reads1" 1 && CheckReadNames "$reads2" 2 || \
-{ echo 'Problem with read names. Quitting.' ; exit 1 ; }
+{ echo 'Problem with read names. Quitting.' >&2 ; exit 1 ; }
 
 HaveModifiedReads=false
 

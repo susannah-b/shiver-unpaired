@@ -78,7 +78,7 @@ BaseFreqsWGlobal="$SID$BaseFreqsWGlobalSuffix"
 ################################################################################
 # CONSTRUCT A REFERENCE, OR USE THE ONE SUPPLIED
 
-# FastaFile should be either a single seq, which we map to as is, or else an 
+# FastaFile should be either a single seq, which we map to as is, or else an
 # alignment of contigs to real refs.
 RefIsInAlignment=true
 NumSeqsInFastaFile=$(grep -e '^>' "$FastaFile" | wc -l)
@@ -112,7 +112,7 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
       echo "Unexpected output \"$equal\" from $Code_CheckFastaFileEquality."\
       "Quitting." >&2
       exit 1
-    fi 
+    fi
   fi
 
   # Set the flag appropriate for use of a real ref, when it comes to
@@ -134,13 +134,6 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
 else
 
   ContigToRefAlignment="$FastaFile"
-
-  #HIVcontigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigToRefAlignment" | \
-  #awk '/'"$SID"'/ {print}')
-  #HIVcontigNames=$(awk '/^>/' "$ContigToRefAlignment" | \
-  #awk '/'"$SID"'/ {printf substr($1,2) " "}')
-  #HIVcontigNames=$(awk '/^>CPZ.US.85.US_Marilyn.AF103818$/ {FoundLastRef=1; next} FoundLastRef && /^>/ {printf substr($0,2) " "}' "$ContigToRefAlignment")
-  #HIVcontigNames=$(awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq)
 
   # ContigToRefAlignment should contain the same set of sequences in the input
   # existing reference alignment, plus the contigs.
@@ -180,7 +173,7 @@ else
     echo "The reference sequences in $ContigToRefAlignment are different from"\
     "those in $ExistingRefAlignment. If you modify your alignment of contigs"\
     "to existing reference sequences, you should only modify the contig"\
-    "sequences, not the references. Quitting." >&2  
+    "sequences, not the references. Quitting." >&2
     exit 1
   elif [[ "$equal" != "true" ]]; then
     echo "Unexpected output \"$equal\" from $Code_CheckFastaFileEquality."\
@@ -207,7 +200,7 @@ else
   # coordinate translation for a global alignment.
   GlobalAlignExcisionFlag='-e'
 
-  # Create a version of the alignment of contigs to real refs, with the contigs 
+  # Create a version of the alignment of contigs to real refs, with the contigs
   # replaced by the constructed ref, ready for coordinate translation later.
   cat "$RefWithGaps" >> "$TempRefAlignment"
 
@@ -225,8 +218,8 @@ if [[ $(dirname "$reads1") != "." ]]; then
     echo "A file called $NewReads1 exists in the working directory, $PWD,"\
     "already; we will not overwrite it with $reads1. Quitting." >&2; exit 1;
   fi
-  cp -i "$reads1" . || { echo "Failed to copy $reads1 to the working directory."\
-  "Quitting." >&2; exit 1; } 
+  cp -i "$reads1" . || { echo "Failed to copy $reads1 to the working"\
+  "directory. Quitting." >&2; exit 1; }
   reads1="$NewReads1"
 fi
 if [[ $(dirname "$reads2") != "." ]]; then
@@ -235,8 +228,8 @@ if [[ $(dirname "$reads2") != "." ]]; then
     echo "A file called $NewReads2 exists in the working directory, $PWD,"\
     "already; we will not overwrite it with $reads2. Quitting." >&2; exit 1;
   fi
-  cp -i "$reads2" . || { echo "Failed to copy $reads2 to the working directory."\
-  "Quitting." >&2; exit 1; } 
+  cp -i "$reads2" . || { echo "Failed to copy $reads2 to the working"\
+  "directory. Quitting." >&2; exit 1; }
   reads2="$NewReads2"
 fi
 
@@ -244,15 +237,15 @@ fi
 if [[ "$reads1" == *.gz ]]; then
   gunzip -f "$reads1" &&
   NewReads1="${reads1%.gz}" &&
-  ls $NewReads1 > /dev/null || { echo "Problem unzipping $reads1. Quitting.">&2; 
-  exit 1; } 
+  ls $NewReads1 > /dev/null || { echo "Problem unzipping $reads1. Quitting.">&2;
+  exit 1; }
   reads1="$NewReads1"
 fi
 if [[ "$reads2" == *.gz ]]; then
   gunzip -f "$reads2" &&
   NewReads2="${reads2%.gz}" &&
-  ls $NewReads2 > /dev/null || { echo "Problem unzipping $reads2. Quitting.">&2; 
-  exit 1; } 
+  ls $NewReads2 > /dev/null || { echo "Problem unzipping $reads2. Quitting.">&2;
+  exit 1; }
   reads2="$NewReads2"
 fi
 
@@ -264,7 +257,7 @@ CheckReadNames "$reads1" 1 && CheckReadNames "$reads2" 2 || \
 HaveModifiedReads=false
 
 # Read trimming:
-if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then 
+if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then
 
   # Trim adapters and low-quality bases
   echo 'Now trimming reads - typically a slow step.'
@@ -283,7 +276,7 @@ if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then
   reads2="$reads2trim1"
 
 fi
-if [[ "$TrimReadsForPrimers" == "true" ]]; then 
+if [[ "$TrimReadsForPrimers" == "true" ]]; then
 
   # Trim primers
   "$fastaq" 'sequence_trim' --revcomp "$reads1" "$reads2" "$reads1trim2" \
@@ -319,7 +312,7 @@ if [[ "$CleanReads" != "true" ]]; then
 
   # If we have trimmed the reads, change their name to the final output name for
   # the reads, to indicate that something has been done to them (we don't want
-  # their name to continue beginning 'temp'). 
+  # their name to continue beginning 'temp').
   # If we haven't trimmed, then just make the cleaned reads variables point to
   # the unprocessed reads: we're not doing anything to the read files provided
   # as input so there's no need to rename to indicate that they're shiver
@@ -333,10 +326,10 @@ if [[ "$CleanReads" != "true" ]]; then
   fi
 else
 
-  # Check that there aren't any contigs appearing in the blast file & missing from
-  # the file of contigs.
-  NumUnknownContigsInBlastHits=$(comm -1 -3 "$AllContigsList" "$HIVContigsList" \
-  | wc -l | awk '{print $1}')
+  # Check that there aren't any contigs appearing in the blast file & missing
+  # from the file of contigs.
+  NumUnknownContigsInBlastHits=$(comm -1 -3 "$AllContigsList" \
+  "$HIVContigsList" | wc -l | awk '{print $1}')
   if [ "$NumUnknownContigsInBlastHits" -ne 0 ]; then
     echo 'Error: the following contigs are named in' "$ContigBlastFile"\
     'but are not in' "$RawContigsFile"':'
@@ -350,7 +343,7 @@ else
   NumContaminantContigs=$(echo $ContaminantContigNames | wc -w)
 
   # If there are no contaminant contigs, we don't need to clean.
-  # We create a blank mapping file to more easily keep track of the fact that 
+  # We create a blank mapping file to more easily keep track of the fact that
   # there are no contaminant reads in this case.
   if [ "$NumContaminantContigs" -eq 0 ]; then
     echo 'There are no contaminant contigs: read cleaning unnecessary.'
@@ -420,7 +413,7 @@ else
         cleaned2reads="$reads2"
       fi
 
-    # We enter this scope if there are some read pairs that blast better to 
+    # We enter this scope if there are some read pairs that blast better to
     # contaminant contigs than the reference.
     else
 
@@ -519,9 +512,4 @@ if [[ "$remap" == "true" ]]; then
   'Quitting.' >&2 ; exit 1 ; }
 
 fi
-
-# If we did something to the reads, zip them
-#if $HaveModifiedReads; then
-#  gzip -f "$cleaned1reads" "$cleaned2reads"
-#fi
 

@@ -1,4 +1,4 @@
-MAC OS NOTES FURTHER DOWN.
+# MAC OS NOTES FURTHER DOWN.
 
 ####################################################################################################
 # INSTALLATION INSTRUCTIONS ON UBUNTU LINUX

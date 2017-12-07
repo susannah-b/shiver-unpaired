@@ -34,6 +34,7 @@ cd samtools-1.6/
 make
 make install
 echo 'PATH=$PATH:~/samtools-1.6/' >> ~/.bashrc; source ~/.bashrc
+cd ~
 
 # mafft. Check which is the latest version at https://mafft.cbrc.jp/alignment/software/source.html;
 # below I assume it's 7.313.
@@ -43,7 +44,7 @@ cd mafft-7.313-without-extensions/core/
 make clean
 make
 sudo make install
-cd -
+cd ~
 
 # Optional: if you are going to use shiver's option to trim reads for quality and adapter
 # sequences, you need Trimmomatic, which requires java.
@@ -75,7 +76,7 @@ cd smalt-0.7.6/
 ./configure
 make
 sudo make install
-cd ..
+cd ~
 
 # BWA
 git clone https://github.com/lh3/bwa.git

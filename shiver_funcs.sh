@@ -584,9 +584,17 @@ function GetHIVcontigs {
   fi
 
   # Create a new file of contigs keeping only those that are long enough.
-  "$Code_FindSeqsInFasta" "$ContigFile" "" --match-start --min-length \
+  "$Code_FindSeqsInFasta" "$ContigFile" -N "" --match-start --min-length \
   "$MinContigLength" > "$LongContigs" || { echo "Problem removing short"\
   "contigs from $ContigFile." >&2 ; return 1 ; }
+
+  # Check at least one contig passed the length requirement.
+  NumLongContigs=$(grep -e '^>' "$LongContigs" | wc -l)
+  if [[ $NumLongContigs -eq 0 ]]; then
+    echo "No contigs passed the minimum length requirement of $MinContigLength"\
+    "(set by the MinContigLength parameter in the config file)." >&2
+    return 1
+  fi
 
   # Blast the contigs. Keep only hits for which (length * fractional identity)
   # is longer than the minimum contig length.
@@ -606,8 +614,8 @@ function GetHIVcontigs {
   fi
 
   # Extract those contigs that have a blast hit.
-  HIVcontigNames=$(awk -F, '{print $1}' "$BlastFile" | sort | uniq)
-  "$Code_FindSeqsInFasta" "$LongContigs" $HIVcontigNames > \
+  awk -F, '{print $1}' "$BlastFile" | sort | uniq > "$HIVContigsListOrig"
+  "$Code_FindSeqsInFasta" "$LongContigs" -F "$HIVContigsListOrig" > \
   "$HIVcontigsFile" || { echo 'Problem extracting the HIV contigs using the'\
   'blast results.' >&2 ; return 1 ; }
 

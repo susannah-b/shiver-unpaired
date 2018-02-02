@@ -78,6 +78,9 @@ BaseFreqsWGlobal="$SID$BaseFreqsWGlobalSuffix"
 ################################################################################
 # CONSTRUCT A REFERENCE, OR USE THE ONE SUPPLIED
 
+# List the HIV contigs
+awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq > "$HIVContigsListOrig"
+
 # FastaFile should be either a single seq, which we map to as is, or else an
 # alignment of contigs to real refs.
 RefIsInAlignment=true
@@ -90,7 +93,7 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
 
   # Try to find the sequence in FastaFile in ExistingRefAlignment.
   RefName=$(awk '/^>/ {print substr($1,2)}' "$FastaFile")
-  "$Code_FindSeqsInFasta" "$ExistingRefAlignment" -g "$RefName" > \
+  "$Code_FindSeqsInFasta" "$ExistingRefAlignment" -g -N "$RefName" > \
   "$RefFromAlignment" || \
   { echo "Could not find seq $RefName in $ExistingRefAlignment; that's OK," \
   'but after mapping we will not be able to produce a version of the' \
@@ -123,10 +126,9 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
   cp "$ExistingRefAlignment" "$TempRefAlignment"
 
   # Extract those contigs that have a blast hit.
-  HIVcontigNames=$(awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq)
-  NumHIVContigs=$(echo $HIVcontigNames | wc -w)
-  if [[ $NumHIVContigs -gt 0 ]]; then
-    "$Code_FindSeqsInFasta" "$RawContigsFile" $HIVcontigNames > \
+  NumHIVContigsOrig=$(wc -w "$HIVContigsListOrig" | awk '{print $1}')
+  if [[ $NumHIVContigsOrig -gt 0 ]]; then
+    "$Code_FindSeqsInFasta" "$RawContigsFile" -F "$HIVContigsListOrig" > \
     "$RawContigFile2" || \
     { echo 'Problem extracting the HIV contigs. Quitting.' >&2 ; exit 1 ; }
   fi
@@ -146,9 +148,9 @@ else
     "missing from $ContigToRefAlignment: $MissingRefs. Quitting." >&2
     exit 1
   fi
-  HIVcontigNames=$(comm -2 -3 "$AllSeqsInAln" "$RefList")
-  NumHIVContigs=$(echo $HIVcontigNames | wc -w)
-  if [ $NumHIVContigs -eq 0 ]; then
+  comm -2 -3 "$AllSeqsInAln" "$RefList" > "$HIVContigsListUser"
+  NumHIVContigsUser=$(wc -w "$HIVContigsListUser" | awk '{print $1}')
+  if [ $NumHIVContigsUser -eq 0 ]; then
     echo "Error: no contigs found in $ContigToRefAlignment. Quitting" >&2
     exit 1
   fi
@@ -157,9 +159,9 @@ else
   # ContigToRefAlignment, and check that they are the same as in
   # ExistingRefAlignment. Also extract just the contigs, stripping gaps, ready
   # for later.
-  "$Code_FindSeqsInFasta" "$ContigToRefAlignment" $HIVcontigNames -v > \
+  "$Code_FindSeqsInFasta" "$ContigToRefAlignment" -F "$HIVContigsListUser" -v > \
   "$TempRefAlignment" &&
-  "$Code_FindSeqsInFasta" "$ContigToRefAlignment" $HIVcontigNames -g > \
+  "$Code_FindSeqsInFasta" "$ContigToRefAlignment" -F "$HIVContigsListUser" -g > \
   "$RawContigFile2" || { echo 'Problem separating the contigs and existing'\
   "refs in $ContigToRefAlignment. Quitting." >&2 ; exit 1 ; }
   "$Code_RemoveBlankCols" "$TempRefAlignment" > "$AlignmentForTesting" || \
@@ -182,6 +184,7 @@ else
   fi
 
   # Construct the tailored ref
+  HIVcontigNames=$(cat "$HIVContigsListUser")
   "$Code_ConstructRef" "$ContigToRefAlignment" "$GappyRefWithExtraSeq" \
   $HIVcontigNames || \
   { echo 'Failed to construct a ref from the alignment. Quitting.' >&2 ; \
@@ -295,7 +298,6 @@ if [[ "$CleanReads" == "true" ]]; then
 
   # List all the contigs and the HIV ones.
   awk '/^>/ {print substr($1,2)}' "$RawContigsFile" | sort > "$AllContigsList"
-  awk -F, '{print $1}' "$ContigBlastFile" | sort | uniq > "$HIVContigsList"
 
   # Check there are some contigs
   NumContigs=$(wc -l "$AllContigsList" | awk '{print $1}')
@@ -329,17 +331,17 @@ else
   # Check that there aren't any contigs appearing in the blast file & missing
   # from the file of contigs.
   NumUnknownContigsInBlastHits=$(comm -1 -3 "$AllContigsList" \
-  "$HIVContigsList" | wc -l | awk '{print $1}')
+  "$HIVContigsListOrig" | wc -l | awk '{print $1}')
   if [ "$NumUnknownContigsInBlastHits" -ne 0 ]; then
     echo 'Error: the following contigs are named in' "$ContigBlastFile"\
     'but are not in' "$RawContigsFile"':'
-    comm -1 -3 "$AllContigsList" "$HIVContigsList"
+    comm -1 -3 "$AllContigsList" "$HIVContigsListOrig"
     echo 'Quitting.' >&2
     exit 1
   fi
 
   # Find the contaminant contigs.
-  ContaminantContigNames=$(comm -3 "$AllContigsList" "$HIVContigsList")
+  ContaminantContigNames=$(comm -3 "$AllContigsList" "$HIVContigsListOrig")
   NumContaminantContigs=$(echo $ContaminantContigNames | wc -w)
 
   # If there are no contaminant contigs, we don't need to clean.

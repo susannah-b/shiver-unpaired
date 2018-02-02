@@ -43,7 +43,8 @@ def CoordPair(MyCoordPair):
 ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('FastaFile', type=File)
-parser.add_argument('SequenceName', nargs='+')
+parser.add_argument('-N', '--seq-names', nargs='+')
+parser.add_argument('-F', '--seq-name-file', type=File)
 parser.add_argument('-v', '--invert-search', action='store_true', \
 help='return all sequences except those searched for')
 parser.add_argument('-W', '--window', type=CoordPair,\
@@ -74,8 +75,30 @@ set the compulsory SequenceName argument to the empty string "" and use the
 
 args = parser.parse_args()
 
+# Check sequence names were specified properly
+if args.seq_name_file and args.seq_names:
+  print('You must use either the --seq-names option or the --seq-name-file',
+  'option, not both. Exiting.', file=sys.stderr)
+  exit(1)
+if (not args.seq_name_file) and (not args.seq_names):
+  print('You must use exactly one the --seq-names option or the --seq-name-file',
+  'option. Exiting.', file=sys.stderr)
+  exit(1)
+
+if args.seq_name_file:
+  SeqNames = []
+  with open(args.seq_name_file, 'r') as f:
+    for line in f:
+      SeqNames += line.split()
+  if not SeqNames:
+    print('Nothing but whitespace found in', args.seq_name_file + '.Exiting.',
+    file=sys.stderr)
+    exit(1)
+else:
+  SeqNames = args.seq_names
+
 # Check all sequences to be searched for are unique
-CounterObject = collections.Counter(args.SequenceName)
+CounterObject = collections.Counter(SeqNames)
 DuplicatedArgs = [i for i in CounterObject if CounterObject[i]>1]
 if len(DuplicatedArgs) != 0:
   for DuplicatedArg in DuplicatedArgs:
@@ -84,7 +107,7 @@ if len(DuplicatedArgs) != 0:
   print('All sequence names should be unique. Exiting.', file=sys.stderr)
   exit(1)
 
-NumSeqsToSearchFor = len(args.SequenceName)
+NumSeqsToSearchFor = len(SeqNames)
 
 # Find the seqs
 AllSeqNamesEncountered = []
@@ -94,12 +117,12 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
   AllSeqNamesEncountered.append(seq.id)
   if args.match_start:
     ThisSeqWasSearchedFor = False
-    for beginning in args.SequenceName:
+    for beginning in SeqNames:
       if seq.id[0:len(beginning)] == beginning:
         ThisSeqWasSearchedFor = True
         break
   else:
-    ThisSeqWasSearchedFor = seq.id in args.SequenceName
+    ThisSeqWasSearchedFor = seq.id in SeqNames
   if ThisSeqWasSearchedFor and (not args.invert_search):
     if seq.id in SeqsWeWant_names:
       print('Sequence', seq.id, 'occurs multiple times in', args.FastaFile+\
@@ -120,7 +143,7 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
 # Check we found some sequences for printing!
 if (not args.ignore_missing) and SeqsWeWant == []:
   ErrorMsg = 'Searched in ' + args.FastaFile + ' for ' + \
-  ' '.join(args.SequenceName)
+  ' '.join(SeqNames)
   if args.invert_search:
     ErrorMsg += ' with the --invert-search option'
   if args.match_start:
@@ -132,7 +155,7 @@ if (not args.ignore_missing) and SeqsWeWant == []:
 # Check all specified seqs were encountered (unless only the beginnings of names
 # were specified).
 if not (args.match_start or args.ignore_missing):
-  SeqsNotFound = [seq for seq in args.SequenceName \
+  SeqsNotFound = [seq for seq in SeqNames \
   if not seq in AllSeqNamesEncountered]
   if len(SeqsNotFound) != 0:
     print('The following sequences were not found in', args.FastaFile+':', \

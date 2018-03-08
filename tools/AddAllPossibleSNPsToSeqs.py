@@ -31,7 +31,7 @@ args = parser.parse_args()
 OKbases = "ACGT"
 NumOKbases = len(OKbases)
 
-UniqueInSeqs = set([])
+UniqueSeqs = set([])
 InSeqObjects = []
 for seq in SeqIO.parse(open(args.InputFasta),'fasta'):
 
@@ -40,7 +40,7 @@ for seq in SeqIO.parse(open(args.InputFasta),'fasta'):
   SeqAsStr = str(seq.seq)
 
   # Check for duplicate seqs in the input.
-  if SeqAsStr in UniqueInSeqs:
+  if SeqAsStr in UniqueSeqs:
     print('Skipping input seq', seq.id, 'whose seq has already been',
     'encountered in', args.InputFasta, '(ignoring upper v lower case',
     'differences).')
@@ -52,27 +52,26 @@ for seq in SeqIO.parse(open(args.InputFasta),'fasta'):
     file=sys.stderr)
     exit(1)
 
-  UniqueInSeqs.add(SeqAsStr)
+  UniqueSeqs.add(SeqAsStr)
   InSeqObjects.append(seq)
 
 OutSeqs = []
-UniqueOutSeqs = set([])
 for seq in InSeqObjects:
+  OutSeqs.append(seq)
   SeqAsStr = str(seq.seq)
   SeqLen = len(SeqAsStr)
   for pos in range(SeqLen):
+    OrigBase = SeqAsStr[pos]
     for base in OKbases:
-      MutatedSeq = SeqAsStr[:pos] + base + SeqAsStr[pos + 1:]
-      if MutatedSeq in UniqueOutSeqs:
-        continue
-      OrigBase = SeqAsStr[pos]
       if base == OrigBase:
-        OutSeqs.append(seq)
-      else:
-        ID = seq.id + '_pos_' + str(pos + 1) + '_' + OrigBase + '_to_' + base
-        OutSeqs.append(SeqIO.SeqRecord(Seq.Seq(MutatedSeq), id=ID,
-        description=''))
-      UniqueOutSeqs.add(MutatedSeq)
+        continue
+      MutatedSeq = SeqAsStr[:pos] + base + SeqAsStr[pos + 1:]
+      if MutatedSeq in UniqueSeqs:
+        continue
+      ID = seq.id + '_pos_' + str(pos + 1) + '_' + OrigBase + '_to_' + base
+      OutSeqs.append(SeqIO.SeqRecord(Seq.Seq(MutatedSeq), id=ID,
+      description=''))
+      UniqueSeqs.add(MutatedSeq)
       
 SeqIO.write(OutSeqs, args.OutputFasta, "fasta")
 #SeqIO.write(OutSeqs, sys.stdout, "fasta")

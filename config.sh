@@ -65,7 +65,7 @@ NumThreadsTrimmomatic=1
 TrimReadsForPrimers=true
 # Shall we also trim matches to the PCR primers that differ by a single base
 # change?
-TrimPrimerWithOneSNP=true
+TrimPrimerWithOneSNP=false
 
 # Shall we clean (remove read pairs that look like contaminants)?
 CleanReads=true

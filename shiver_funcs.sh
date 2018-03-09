@@ -22,6 +22,7 @@ Code_UngapFasta="$ToolsDir/UngapFasta.py"
 Code_MergeBaseFreqsAndCoords="$ToolsDir/MergeBaseFreqsAndCoords.py"
 Code_SplitGappyContigs="$ToolsDir/SplitGappyContigs.py"
 Code_PrintSeqLengths="$ToolsDir/PrintSeqLengths.py"
+Code_AddSNPsToSeqs="$ToolsDir/AddAllPossibleSNPsToSeqs.py"
 
 # For quitting if files don't exist.
 function CheckFilesExist {
@@ -742,6 +743,13 @@ function CheckConfig {
     "be either true or false."
     return 1
   fi
+  if [[ "$TrimPrimerWithOneSNP" != "true" ]] && \
+  [[ "$TrimPrimerWithOneSNP" != "false" ]]; then
+    echo "The 'TrimPrimerWithOneSNP' variable in the config file should"\
+    "be either true or false."
+    return 1
+  fi
+
 
   # Some checks only needed if we're mapping:
   if $CheckForMapping; then

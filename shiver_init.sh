@@ -70,6 +70,13 @@ exit 1; }
 cp "$adapters" "$OutDir"/'adapters.fasta'
 cp "$primers" "$OutDir"/'primers.fasta'
 
+if [[ "$TrimPrimerWithOneSNP" == "true" ]]; then
+  "$Code_AddSNPsToSeqs" "$OutDir/primers.fasta" \
+  "$OutDir/PrimersWithSNPs.fasta" || { echo "Problem generating all possible"\
+  "variants of the sequences in $primers differing by a single base mutation."\
+  "Quitting." >&2; exit 1; }
+fi
+
 # List all names in the reference alignment
 awk '/^>/ {print substr($1,2)}' "$NewRefAlignment" | sort > "$RefList"
 

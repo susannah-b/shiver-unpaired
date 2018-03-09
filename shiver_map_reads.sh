@@ -59,6 +59,24 @@ CheckFilesExist "$ConfigFile" "$reads1" "$reads2" "$RawContigsFile" \
 CheckConfig "$ConfigFile" false false true || \
 { echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
+# Check the primer + SNPs file exists, if it is needed.
+if [[ "$TrimPrimerWithOneSNP" == "true" ]]; then
+  PrimersToUse="$InitDir/PrimersWithSNPs.fasta"
+  if [[ ! -f "$PrimersToUse" ]]; then
+    echo "The file $PrimersToUse does not exist; it should have been created"\
+    "when you ran shiver_init.sh. Perhaps the variable 'TrimPrimerWithOneSNP'"\
+    "in the config file was set to false when you ran shiver_init.sh, and you"\
+    "changed it to true afterwards? You can generate this file from your"\
+    "primers by running" >&2
+    echo "$Code_AddSNPsToSeqs $InitDir/primers.fasta"\
+    "$InitDir/PrimersWithSNPs.fasta" >&2
+    echo "Quitting." >&2
+    exit 1
+  fi
+else
+  PrimersToUse="$primers"
+fi
+
 echo $(basename "$0") 'was called thus:'
 echo "$0" $@
 
@@ -283,7 +301,7 @@ if [[ "$TrimReadsForPrimers" == "true" ]]; then
 
   # Trim primers
   "$fastaq" 'sequence_trim' --revcomp "$reads1" "$reads2" "$reads1trim2" \
-  "$reads2trim2" "$primers" || \
+  "$reads2trim2" "$PrimersToUse" || \
   { echo 'Problem running fastaq. Quitting.' >&2 ; exit 1 ; }
   echo "fastaq completed successfully."
 

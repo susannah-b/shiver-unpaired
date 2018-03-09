@@ -30,6 +30,10 @@ fastaq='fastaq'
 # If someone else installed it for you (e.g. on MRC CLIMB) there may be an alias
 # which means you just type 'trimmomatic' to run it:
 trimmomatic="trimmomatic"
+# If you leave 'GiveHXB2coords', below, as 'true', we'll do pairwise alignment
+# of the mapping reference with HXB2. You may as well use mafft options to make
+# it more accurate (though slower).
+MafftArgsForPairwise='--maxiterate 1000 --localpair'
 
 # Minimum contig length: contigs shorter than this will be discarded at the
 # start. In addition, when contigs are blasted against the existing reference 

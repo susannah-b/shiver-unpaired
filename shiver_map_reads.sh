@@ -380,8 +380,9 @@ else
   else
 
     # Make a blast database out of the contaminant contigs and the ref.
-    "$Code_FindSeqsInFasta" "$RawContigsFile" $ContaminantContigNames > \
-    "$RefAndContaminantContigs"
+    "$Code_FindSeqsInFasta" "$RawContigsFile" -N $ContaminantContigNames > \
+    "$RefAndContaminantContigs" || { echo "Problem extracting contaminant"\
+    "contigs from $RawContigsFile. Quitting." >&2; exit 1; }
     cat "$TheRef" >> "$RefAndContaminantContigs"
     "$BlastDBcommand" -dbtype nucl -in "$RefAndContaminantContigs" \
     -input_type fasta -out "$BlastDB" || \

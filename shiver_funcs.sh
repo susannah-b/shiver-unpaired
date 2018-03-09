@@ -463,8 +463,8 @@ function map {
       cat "$LocalRef" > "$RefWHXB2unaln"
       echo >> "$RefWHXB2unaln"
       cat "$HXB2file" >> "$RefWHXB2unaln"
-      "$mafft" "$RefWHXB2unaln" > "$RefWHXB2aln" ||
-      { echo "Problem running $mafft" >&2 ; return 1 ; }
+      "$mafft" $MafftArgsForPairwise "$RefWHXB2unaln" > "$RefWHXB2aln" ||
+      { echo "Problem running $mafft $MafftArgsForPairwise" >&2 ; return 1 ; }
       "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" --pairwise-aln \
       "$RefWHXB2aln" > "$BaseFreqsWHXB2" ||
       { echo "Problem running $Code_MergeBaseFreqsAndCoords" >&2 ; return 1 ; }

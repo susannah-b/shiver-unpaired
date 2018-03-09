@@ -61,8 +61,12 @@ BaseQualityParams='MINLEN:50 LEADING:20 TRAILING:20 SLIDINGWINDOW:4:20'
 # not to, which can be problematic on clusters).
 NumThreadsTrimmomatic=1
 
-# Shall we trim primers from reads, using fastaq?
+# Shall we trim exact matches to PCR primers from the end of reads using fastaq?
 TrimReadsForPrimers=true
+# Shall we also trim matches to the PCR primers that differ by a single base
+# change?
+TrimPrimerWithOneSNP=true
+
 # Shall we clean (remove read pairs that look like contaminants)?
 CleanReads=true
 

@@ -15,6 +15,7 @@ import sys
 from Bio import SeqIO
 from Bio import Seq
 import collections
+import copy
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -26,6 +27,7 @@ def File(MyFile):
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('InputFasta', type=File)
 parser.add_argument('OutputFasta')
+#parser.add_argument('-RC', '--rev-comp', action='store_true')
 args = parser.parse_args()
 
 OKbases = "ACGT"
@@ -54,6 +56,13 @@ for seq in SeqIO.parse(open(args.InputFasta),'fasta'):
 
   UniqueSeqs.add(SeqAsStr)
   InSeqObjects.append(seq)
+
+  #if args.rev_comp:
+  #  RevSeq = copy.deepcopy(seq)
+  #  RevSeq.seq = RevSeq.seq.reverse_complement()
+  #  RevSeq.id += '_RevComp'
+  #  UniqueSeqs.add(str(RevSeq.seq))
+  #  InSeqObjects.append(RevSeq)
 
 OutSeqs = []
 for seq in InSeqObjects:

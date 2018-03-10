@@ -54,6 +54,15 @@ MinContigFragmentLength=80
 # references.
 BlastWordSize=17
 
+# If you have a more recent mafft installation that includes the --addfragments
+# option, we will use both --addfragments and --add to align the contigs to the
+# existing reference alignment, then automatically choose one to keep. There are
+# two available strategies for doing this: one is to use the alignment with the
+# shortest length ("MinAlnLength"), the other is to calculate the fractional gap
+# content of each contig after alignment, find the maximum over all contigs, and
+# use the alignment with the smaller maximum ("MinMaxGappiness").
+MafftTestingStrategy="MinAlnLength"
+
 # Shall we trim adapaters and low quality bases from reads, using trimmomatic?
 TrimReadsForAdaptersAndQual=true
 # The trimmomatic manual explains at length the parameters controlling read

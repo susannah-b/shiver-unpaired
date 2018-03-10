@@ -48,16 +48,21 @@ function AlignContigsToRefs {
   "$Aligner" $AlignerOptions --add "$ContigFile" "$ThisRefAlignment" > \
   "$TempContigAlignment1" || \
   { echo 'Problem aligning' "$ContigFile"'.' >&2 ; return 1 ; }
-  MaxContigGappiness1=$("$Code_ConstructRef" "$TempContigAlignment1" 'DummyOut' \
-  $ContigNames --summarise-contigs-1 | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo 'Problem'\
-  "analysing $TempContigAlignment1 (i.e. the output from aligning $ContigFile"\
-  "and $ThisRefAlignment) with $Code_ConstructRef." >&2 ; return 1 ; }
+  if [[ $MafftTestingStrategy == "MinAlnLength" ]]; then
+    PenaltyForAdd=$("$Code_PrintSeqLengths" --first-seq-only --include-gaps \
+    "$TempContigAlignment1" | awk '{print $2}') || { echo "Problem running"\
+    "$Code_PrintSeqLengths." >&2 ; return 1 ; }
+  elif [[ $MafftTestingStrategy == "MinMaxGappiness" ]]; then
+    PenaltyForAdd=$("$Code_ConstructRef" "$TempContigAlignment1" 'DummyOut' \
+    $ContigNames --summarise-contigs-1 | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo 'Problem'\
+    "analysing $TempContigAlignment1 (i.e. the output from aligning $ContigFile"\
+    "and $ThisRefAlignment) with $Code_ConstructRef." >&2 ; return 1 ; }
+  fi
   BestContigAlignment="$TempContigAlignment1"
 
   # If the function was called with OldMafftArg=true, don't bother trying the
   # addfragments option. Otherwise, try. If it doesn't work, set OldMafft=true
-  # ready for the next call of this function; if it does work, use the least
-  # gappy alignment.
+  # ready for the next call of this function...
   if ! $OldMafftArg; then
     "$Aligner" $AlignerOptions --addfragments "$ContigFile" \
     "$ThisRefAlignment" > "$TempContigAlignment2" || \
@@ -68,22 +73,37 @@ function AlignContigsToRefs {
     OldMafft=true ; }
     NumLinesInAln=$(wc -l "$TempContigAlignment2" | awk '{print $1}')
     if ! $OldMafft; then
-      MaxContigGappiness2=$("$Code_ConstructRef" "$TempContigAlignment2" 'DummyOut' \
-      $ContigNames --summarise-contigs-1 | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo \
-      "Problem analysing $TempContigAlignment2 (i.e. the output from aligning "\
-      "$ContigFile and $ThisRefAlignment) with $Code_ConstructRef." \
-      >&2 ; return 1 ; }
-      if (( $(echo "$MaxContigGappiness2 < $MaxContigGappiness1" | bc -l) )); 
+
+      # ...however if addfragments did work, use the best alignment.
+      if [[ $MafftTestingStrategy == "MinAlnLength" ]]; then
+        PenaltyForAddFrag=$("$Code_PrintSeqLengths" --first-seq-only --include-gaps \
+        "$TempContigAlignment1" | awk '{print $2}') || { echo "Problem running"\
+        "$Code_PrintSeqLengths." >&2 ; return 1 ; }
+      elif [[ $MafftTestingStrategy == "MinMaxGappiness" ]]; then
+        PenaltyForAddFrag=$("$Code_ConstructRef" "$TempContigAlignment2" 'DummyOut' \
+        $ContigNames --summarise-contigs-1 | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo \
+        "Problem analysing $TempContigAlignment2 (i.e. the output from aligning "\
+        "$ContigFile and $ThisRefAlignment) with $Code_ConstructRef." \
+        >&2 ; return 1 ; }
+      fi
+
+      if (( $(echo "$PenaltyForAddFrag < $PenaltyForAdd" | bc -l) )); 
       then
         BestContigAlignment="$TempContigAlignment2"
-        echo 'Info: the --addfragments mafft option produced a less'\
-        "gappy alignment than --add did when aligning $ContigFile. Using the"\
-        "--addfragments result."
+        printf 'Info: the --addfragments mafft option produced a better'
+        printf " alignment than --add did when aligning $ContigFile to the"
+        printf " existing references. Using the --addfragments result."
       else
-        echo 'Info: the --addfragments mafft option did not produce a less'\
-        "gappy alignment than --add did when aligning $ContigFile. Using the"\
-        "--add result."
+        printf 'Info: the --addfragments mafft option did not produce a better'
+        printf " alignment than --add did when aligning $ContigFile to the"
+        printf " existing references. Using the --add result."
       fi
+      if [[ $MafftTestingStrategy == "MinAlnLength" ]]; then
+        printf " (Alignment length: " 
+      elif [[ $MafftTestingStrategy == "MinMaxGappiness" ]]; then
+        printf " (Gap fraction of the most gappy contig: " 
+      fi
+      echo "$PenaltyForAdd for --add and $PenaltyForAddFrag for add fragments)."
     fi
   fi
 
@@ -673,6 +693,14 @@ function CheckConfig {
   else
     echo "The 'MinContigHitFrac' variable in the contig file should be a" \
     "number greater than 0 and less than 1." >&2
+    return 1
+  fi
+
+  # Check MafftTestingStrategy is an allowed value
+  if [[ $MafftTestingStrategy != "MinAlnLength" ]] &&
+  [[ $MafftTestingStrategy != "MinMaxGappiness" ]]; then
+    echo "The 'MafftTestingStrategy' variable in the contig file should be"\
+    "either 'MinAlnLength' or 'MinMaxGappiness'." >&2
     return 1
   fi
 

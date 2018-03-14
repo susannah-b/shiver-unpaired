@@ -480,9 +480,20 @@ function map {
       "not found. We will not generate a version of the base frequency file"\
       "with HXB2 coordinates." >&2;
     else
+
+      # Handle the possibility that the user's mapping reference is HXB2 - 
+      # give the two sequences distinct names.
       cat "$LocalRef" > "$RefWHXB2unaln"
       echo >> "$RefWHXB2unaln"
-      cat "$HXB2file" >> "$RefWHXB2unaln"
+      ShiverHXB2name=$(awk '/^>/ {print substr($1,2)}' "$HXB2file")
+      if [[ "$LocalRefName" == "$ShiverHXB2name" ]]; then
+        cat "$HXB2file" | sed \
+        's/>'"$ShiverHXB2name"'/>'"$ShiverHXB2name"'_ShiverCopy/' >> \
+        "$RefWHXB2unaln"
+      else
+        cat "$HXB2file" >> "$RefWHXB2unaln"
+      fi
+
       "$mafft" $MafftArgsForPairwise "$RefWHXB2unaln" > "$RefWHXB2aln" ||
       { echo "Problem running $mafft $MafftArgsForPairwise" >&2 ; return 1 ; }
       "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" --pairwise-aln \

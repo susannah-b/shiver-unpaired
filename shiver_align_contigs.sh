@@ -57,9 +57,16 @@ CutContigAlignment="$SID"'_cut_wRefs.fasta'
 
 # Extract just the HIV contigs (those that blast to the refs) and put them in
 # $RawContigFile1
-GetHIVcontigs "$ContigFile" "$LongContigs" "$BlastFile" "$RawContigFile1" || \
-{ echo "Problem encountered while checking the contigs in $ContigFile and"\
-" extracting those thought to be HIV. Quitting." >&2 ; exit 1 ; }
+GetHIVcontigs "$ContigFile" "$LongContigs" "$BlastFile" "$RawContigFile1"
+GetHIVcontigsStatus=$?
+if [[ $GetHIVcontigsStatus == 2 ]]; then
+  echo "No HIV contigs to analyse for $SID. Quitting." >&2 
+  exit 2
+elif [[ $GetHIVcontigsStatus != 0 ]]; then
+  echo "Problem encountered while checking the contigs in $ContigFile and"\
+  "extracting those thought to be HIV. Quitting." >&2
+  exit 1
+fi
 
 # Align the HIV contigs.
 OldMafft=false

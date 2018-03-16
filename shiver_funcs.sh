@@ -602,7 +602,7 @@ function GetHIVcontigs {
   NumContigs=$(echo "$ContigNames" | wc -w)
   if [[ $NumContigs -eq 0 ]]; then
     echo "$ContigFile contains no sequences." >&2
-    return 2;
+    return 3;
   fi
   NumUniqueIDs=$(printf '%s\n' $ContigNames | uniq | wc -l)
   if [[ $NumUniqueIDs -ne $NumContigs ]]; then
@@ -625,7 +625,7 @@ function GetHIVcontigs {
   if [[ $NumLongContigs -eq 0 ]]; then
     echo "No contigs passed the minimum length requirement of $MinContigLength"\
     "(set by the MinContigLength parameter in the config file)." >&2
-    return 2
+    return 3
   fi
 
   # Blast the contigs. Keep only hits for which (length * fractional identity)
@@ -642,7 +642,7 @@ function GetHIVcontigs {
     echo "No contig in $LongContigs has a blast hit against any of the"\
     "references used to create the shiver initialisation directory (i.e. this"\
     "sample is presumably pure contamination)." >&2
-    return 2
+    return 3
   fi
 
   # Extract those contigs that have a blast hit.

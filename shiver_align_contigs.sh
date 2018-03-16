@@ -61,7 +61,7 @@ GetHIVcontigs "$ContigFile" "$LongContigs" "$BlastFile" "$RawContigFile1"
 GetHIVcontigsStatus=$?
 if [[ $GetHIVcontigsStatus == 2 ]]; then
   echo "No HIV contigs to analyse for $SID. Quitting." >&2 
-  exit 2
+  exit 3
 elif [[ $GetHIVcontigsStatus != 0 ]]; then
   echo "Problem encountered while checking the contigs in $ContigFile and"\
   "extracting those thought to be HIV. Quitting." >&2

@@ -43,6 +43,7 @@ AlignmentLength = alignment.get_alignment_length()
 OKbases = "ACGTNacgtn-?"
 
 BaseCountsByPos = []
+BaseCountTotalsByPos = []
 for pos in xrange(AlignmentLength):
 
   # Sort the OKbases here by how common they are. (Check there are some!)
@@ -56,7 +57,8 @@ for pos in xrange(AlignmentLength):
     + 1, "in", args.alignment + ". This code does not know how to estimate",
     "ambiguity codes in this case. Quitting.", file=sys.stderr)
     exit(1)
-  BaseCountsByPos.append([base for base, count in BaseCounts.most_common()])
+  BaseCountsByPos.append(BaseCounts.most_common())
+  BaseCountTotalsByPos.append(sum(BaseCounts.values()))
 
 # Make the alignment writable
 MutableSeqList = [seq.seq.tomutable() for seq in alignment]
@@ -85,9 +87,10 @@ for row in xrange(len(MutableSeqList)):
       # Iterate through the OKbases from most common to least common, take the
       # first match. If there's no match, crash - we don't know what to do.
       MatchToBaseElsewhere = False
-      for BaseElsewhere in BaseCountsByPos[pos]:
+      for BaseElsewhere, count in BaseCountsByPos[pos]:
         if BaseElsewhere in bases:
-          BaseToUse = BaseElsewhere 
+          BaseToUse = BaseElsewhere
+          CountToUse = count 
           MatchToBaseElsewhere = True
           break
       if not MatchToBaseElsewhere:
@@ -103,8 +106,9 @@ for row in xrange(len(MutableSeqList)):
         BaseToUse = BaseToUse.lower()
       MutableSeqList[row][pos] = BaseToUse
       if args.verbose:
-        print("Base", base, "changed to", BaseToUse, 'at position', pos + 1,
-        'for seq', ID)
+        print('At position', pos + 1, 'for seq', ID, "base", base,
+        "was changed to", BaseToUse, "(the latter appearing", CountToUse,
+        "times amongst", BaseCountTotalsByPos[pos], "unambiguous bases here).")
 
 SeqIO.write((SeqIO.SeqRecord(seq, id=IDs[i], description='') for i, seq in \
 enumerate(MutableSeqList)), args.OutputFile, 'fasta')

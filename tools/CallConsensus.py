@@ -68,6 +68,13 @@ reference used for mapping - is missing.''')
 parser.add_argument('--N-count-missing', action='store_true', help='''To be used
 on base frequency files for which shiver's last column - the count of base "N" -
 is missing.''')
+parser.add_argument('--keep-gaps-by-missing', action='store_true', help='''By
+default, we replace any deletions ("-") that neighbour missing coverage by
+missing coverage. The logic is that deletions should only be called when you
+know what is either side. With this option we keep deletions that neighbour
+missing coverage (not recommended unless you really know what you're doing).''')
+parser.add_argument('--use-n-for-missing', action='store_true', help='''Use
+"N" for missing coverage, not "?".''')
 args = parser.parse_args()
 
 BaseFreqFile = args.BaseFreqFile
@@ -239,7 +246,8 @@ with open(BaseFreqFile, 'r') as f:
     consensus += BaseToCall
       
 # Replaces gaps that border "no coverage" by "no coverage".
-consensus = PropagateNoCoverageChar(consensus)
+if not args.keep_gaps_by_missing:
+  consensus = PropagateNoCoverageChar(consensus)
 
 # Skip positions at which the ref has a gap and the consensus has a gap or
 # missing cov.
@@ -257,6 +265,10 @@ if not args.ref_seq_missing:
 
   RefSeqObj = SeqIO.SeqRecord(Seq.Seq(RefSeq), \
   id=args.ref_seq_name, description='')
+
+# Replace "?" by "N" if desired.
+if args.use_n_for_missing:
+  consensus = consensus.replace("?", "N")
 
 ConsensusSeqObj = SeqIO.SeqRecord(Seq.Seq(consensus), \
 id=args.consensus_seq_name, description='')

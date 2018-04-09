@@ -94,6 +94,35 @@ def BaseMatch(base1,base2):
     return base1 in IUPACdict[base2]
   return False
 
+
+def CallAmbigBaseIfNeeded(bases, coverage, MinCovForUpper, BaseFreqFile):
+  '''If several bases are supplied, calls an ambiguity code. Uses upper/lower
+  case appropriately.'''
+
+  bases = ''.join(sorted(bases))
+  NumBases = len(bases)
+  assert NumBases > 0, 'CallAmbigBaseIfNeeded function called with no bases.'
+  if len(bases) == 1:
+    BaseHere = bases
+  else:
+    # If a gap is one of the things most common at this position, call an 'N';
+    # otherwise, find the ambiguity code for this set of bases.
+    if "-" in bases:
+      BaseHere = 'N'
+    else:  
+      try:
+        BaseHere = ReverseIUPACdict2[bases]
+      except KeyError:
+        print('Unexpected set of bases', bases, 'found in', BaseFreqFile, \
+        ', not found amonst those for which we have ambiguity codes, namely:', \
+        ' '.join(ReverseIUPACdict2.keys()) + '. Quitting.', file=sys.stderr)
+        raise
+  if coverage < MinCovForUpper - 0.5:
+    return BaseHere.lower()
+  else:
+    return BaseHere.upper()
+
+
 def PropagateNoCoverageChar(seq, LeftToRightDone=False):
   '''Replaces gaps that border "no coverage" by "no coverage".
 

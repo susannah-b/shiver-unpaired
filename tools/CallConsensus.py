@@ -27,6 +27,7 @@ from AuxiliaryFunctions import ReverseIUPACdict2, PropagateNoCoverageChar
 import argparse
 from Bio import SeqIO
 from Bio import Seq
+from re import sub
 
 
 # Define a function to check files exist, as a type for the argparse.
@@ -75,6 +76,7 @@ know what is either side. With this option we keep deletions that neighbour
 missing coverage (not recommended unless you really know what you're doing).''')
 parser.add_argument('--use-n-for-missing', action='store_true', help='''Use
 "N" for missing coverage, not "?".''')
+parser.add_argument('--skip-ref-in-output', action='store_true')
 args = parser.parse_args()
 
 BaseFreqFile = args.BaseFreqFile
@@ -274,7 +276,9 @@ ConsensusSeqObj = SeqIO.SeqRecord(Seq.Seq(consensus), \
 id=args.consensus_seq_name, description='')
 OutputSeqs = [ConsensusSeqObj]
 
-if not args.ref_seq_missing:
+if args.skip_ref_in_output:
+  consensus = sub("-", "", consensus)
+elif not args.ref_seq_missing:
   OutputSeqs.append(RefSeqObj)
 
 SeqIO.write(OutputSeqs, sys.stdout, "fasta")

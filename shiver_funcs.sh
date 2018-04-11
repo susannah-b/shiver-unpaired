@@ -446,7 +446,7 @@ function map {
   NumMappedReads=$(samtools view "$FinalOutBam" | wc -l)
   if [[ $NumMappedReads -eq 0 ]]; then
     echo "$FinalOutBam is empty - no reads were mapped!"
-    return 1
+    return 3
   fi
 
   # Calculate the normalised insert size distribution.

@@ -59,7 +59,7 @@ CutContigAlignment="$SID"'_cut_wRefs.fasta'
 # $RawContigFile1
 GetHIVcontigs "$ContigFile" "$LongContigs" "$BlastFile" "$RawContigFile1"
 GetHIVcontigsStatus=$?
-if [[ $GetHIVcontigsStatus == 2 ]]; then
+if [[ $GetHIVcontigsStatus == 3 ]]; then
   echo "No HIV contigs to analyse for $SID. Quitting." >&2 
   exit 3
 elif [[ $GetHIVcontigsStatus != 0 ]]; then

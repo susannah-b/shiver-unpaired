@@ -492,8 +492,15 @@ OldMafft=false
 
 # Do the mapping
 BamOnly=false
-map "$cleaned1reads" "$cleaned2reads" "$TheRef" "$SID" "$BamOnly" ||
-{ echo "Problem mapping to the reference in $TheRef. Quitting." >&2 ; exit 1 ; }
+map "$cleaned1reads" "$cleaned2reads" "$TheRef" "$SID" "$BamOnly"
+MapStatus=$?
+if [[ $MapStatus == 3 ]]; then
+  echo "Quitting." >&2
+  exit 3
+elif [[ $MapStatus != 0 ]]; then
+  echo "Problem mapping to the reference in $TheRef. Quitting." >&2
+  exit 1
+fi
 
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.

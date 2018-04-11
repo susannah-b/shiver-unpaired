@@ -877,3 +877,24 @@ function CheckConfig {
   fi
 
 }
+
+function CheckNonEmptyReads {
+
+  # Check for the right number of args
+  ExpectedNumArgs=1
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "CheckNonEmptyReads function called with $# args; expected"\
+    "$ExpectedNumArgs." >&2
+    return 1
+  fi
+
+  ReadsToCheck="$1"
+
+  NumReadsTimes4=$(wc -l "$ReadsToCheck" | awk '{print $1}')
+  if [[ $NumReadsTimes4 -eq 0 ]]; then
+    echo "$ReadsToCheck is empty." >&2
+    return 3
+  fi
+
+}
+

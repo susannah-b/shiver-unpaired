@@ -93,6 +93,9 @@ BaseFreqs="$SID$BaseFreqsSuffix"
 BaseFreqsWGlobal="$SID$BaseFreqsWGlobalSuffix"
 ################################################################################
 
+# Check we have some reads
+CheckNonEmptyReads "$reads1" || { echo 'Quitting.' >&2; exit 3; }
+
 ################################################################################
 # CONSTRUCT A REFERENCE, OR USE THE ONE SUPPLIED
 
@@ -310,6 +313,12 @@ if [[ "$TrimReadsForPrimers" == "true" ]]; then
   reads2="$reads2trim2"
 fi
 
+# Check some reads are left after trimming
+if $HaveModifiedReads; then
+  CheckNonEmptyReads "$reads1" ||
+  { echo 'No reads left after trimming. Quitting.' >&2; exit 3; }
+fi
+
 # If RawContigsFile is empty we cannot do read cleaning, so switch it from true
 # to false if necessary, and warn.
 if [[ "$CleanReads" == "true" ]]; then
@@ -463,6 +472,10 @@ else
       "$cleaned2reads" || \
       { echo 'Problem extracting the non-contaminant reads using' \
       "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
+
+      # Check some reads are left after cleaning
+      CheckNonEmptyReads "$cleaned1reads" ||
+      { echo 'No reads left after cleaning. Quitting.' >&2; exit 3; }
 
       # Map the contaminant reads to the reference, to measure how useful the
       # cleaning procedure was.

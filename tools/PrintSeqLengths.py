@@ -37,6 +37,8 @@ length of the 'fragments' of the sequence, i.e. those parts that are separated
 by one or more '?' characters (denoting missing sequence data). If a sequence
 consists of N fragments, we will print N values followed by a zero (meaning that
 the length of the (N+1)th fragment is zero).''')
+parser.add_argument('--ignore-n', action='store_true', \
+help='exclude the "N" and "n" characters, included by default')
 args = parser.parse_args()
 
 # Can't use --include-gaps and --fragments
@@ -51,6 +53,9 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
     seq.seq = seq.seq.ungap("-")
     if not args.fragments:
       seq.seq = seq.seq.ungap("?")
+  if args.ignore_n:
+      seq.seq = seq.seq.ungap("n")
+      seq.seq = seq.seq.ungap("N")
   if args.ignore_lower_case:
     seq.seq = ''.join(x for x in seq.seq if not x.islower())
   if args.fragments:

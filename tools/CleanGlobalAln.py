@@ -5,7 +5,22 @@ from __future__ import print_function
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
-ExplanatoryMessage = '''TODO'''
+ExplanatoryMessage = '''This script 'cleans' a sequence alignment. Currently it
+uses input files required to be formatted in a very specific way, and so is
+unlikely to be useful to anyone but the code's author, but I may make it more
+flexible at some point. The steps are as follows. Any lower-case
+base or "?" character is replaced by "N". The amplicon_regions_file given as an
+argument groups the columns positions of the alignment (nominally into 'amplicon
+regions'); the seq_based_blacklist given as an argument is used for specifying
+which regions which for which sequences should be blacklisted (masked by a run
+of "N"s). Additionally, any region that is more than 20% "N" characters is
+blacklisted. The patient_based_blacklist given as an arg is used to wholly
+remove the sequence(s) from particular individuals (nominally patients).
+Multiple sequences for the same patient are flattened into one sequence by using
+the base of the longest sequence (the most bases excluding N or gaps) if is not
+an N, otherwise the base of the second-longest sequence if it is not an N, etc.
+Then any gap character neighbouring an N is iteratively replaced by an N. Any
+wholly undetermined (purely N) sequences are removed.'''
 
 import argparse
 import os
@@ -28,17 +43,46 @@ def File(_file):
 
 # Set up the arguments for this script
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
-parser.add_argument('alignment', type=File)
-parser.add_argument('patient_based_blacklist', type=File)
-parser.add_argument('seq_based_blacklist', type=File)
-parser.add_argument('amplicon_regions_file', type=File)
-parser.add_argument('output_file')
+parser.add_argument('alignment', type=File, help='''A nucleotide alignment. It
+should contain no ambiguity codes; Ambiguity codes can be estimated using
+shiver/tools/EstimateAmbiguousBases.py. If sequence names contain the string
+"_consensus" and/or "_MinCov", the name is truncated by removing the string and
+every thing after it. After that, each sequence name should be either the ID of
+a patient, or the ID of a patient followed by an underscore then a unique
+string, to distinguish multiple sequences associated with the same patient.''')
+parser.add_argument('patient_based_blacklist', type=File, help='''A plain text
+file in which each line is the name of a patient to be blacklisted, i.e. the
+sequence(s) for that patient should be removed. A header line is not expected.
+''')
+parser.add_argument('seq_based_blacklist', type=File, help='''A csv-format file
+specifying particular sequences and particular regions in sequences to be
+blacklisted. A header is expected with the following column names: BAM (values
+of this column should coincide with sequence names in the alignment, after the
+latter have been truncated as desribed above), keep.at.all (values of this
+column should be TRUE or FALSE, reflecting whether that sequence should be
+wholly blacklisted), then should come the names of the different amplicon
+regions (values of each of these columns should TRUE or FALSE, reflecting
+whether that region for that sequence should be blacklisted), finally the column
+'origin' is ignored.''')
+parser.add_argument('amplicon_regions_file', type=File, help='''A csv file in
+which the first column is the name of a region, the second column is the
+(1-based) start position of that region, and the third column is the (1-based)
+end position of that region. A header line is not expected. Regions should be
+mutually exclusive and collectively exhaustive, i.e. every position in the
+alignment should be in exactly one region.''')
+parser.add_argument('output_file', help='''To which we'll write the cleaned
+alignment.''')
 parser.add_argument('-V', '--verbose', action='store_true',
 help="Print a line for each blacklisting action.")
-parser.add_argument('-SA', '--split-amplicons', action='store_true')
+parser.add_argument('-SA', '--split-amplicons', action='store_true',
+help='''With this option we write a separate alignment for each region. The
+output file names will all begin with the string specified for the compulsory
+output_file argument. The different region alignments will not generally contain
+the same set of patients, as any patient who has had some but not all regions
+blacklisted will appear in some region alignments but not others.''')
 parser.add_argument('--print_new_seq_blacklist', help='''Use this to specify the
 name of file in which we'll store additions to the seq_based_blacklist (due to
-our analysis here of completeness in each region).''')
+our analysis here of completeness/missingness in each region).''')
 args = parser.parse_args()
 
 # Read the alignment
@@ -376,6 +420,7 @@ if args.split_amplicons:
   for region, (start, end) in regions_dict.items():
     OutSeqs = []
     region_length = end - start + 1
+    # TODO: make max_unknown_chars max_missingness * region_length
     max_unknown_chars = region_length / 2 # int division, OK
     for seq_id, seq in sorted_seqs:
       seq_here = seq[start - 1: end]

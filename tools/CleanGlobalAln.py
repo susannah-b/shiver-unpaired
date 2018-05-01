@@ -420,11 +420,9 @@ if args.split_amplicons:
   for region, (start, end) in regions_dict.items():
     OutSeqs = []
     region_length = end - start + 1
-    # TODO: make max_unknown_chars max_missingness * region_length
-    max_unknown_chars = region_length / 2 # int division, OK
     for seq_id, seq in sorted_seqs:
       seq_here = seq[start - 1: end]
-      if seq_here.count("N") <= max_unknown_chars:
+      if not all(base == "N" for base in seq_here):
         OutSeqs.append(SeqIO.SeqRecord(Seq.Seq(seq_here), id=seq_id,
         description=''))
     SeqIO.write(OutSeqs, per_region_output_file_dict[region], 'fasta')    

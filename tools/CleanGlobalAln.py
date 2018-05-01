@@ -60,9 +60,6 @@ for seq in alignment:
   id_ = seq.id
   id_ = id_.split('_consensus', 1)[0]
   id_ = id_.split('_MinCov', 1)[0]
-  if id_ == "BEE0006-2":
-    print("Removing BEE0006-2 from the alignment, for sanity purposes.")
-    continue
   if id_ in seq_dict:
     print('Encountered seq', id_, 'a second time in',
     args.alignment + '. Quitting.', file=sys.stderr)

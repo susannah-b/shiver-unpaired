@@ -180,19 +180,12 @@ with open(args.seq_based_blacklist, 'r') as f:
     # should.
     if id_ in seq_blacklist_dict:
       previous_values = seq_blacklist_dict[id_]
-      #if args.verbose:
-      #  print("   Initial amplicon blacklisting for seq", id_ + ": ",
-      #  ' '.join(map(str, previous_values)) + ";\nadditional amplicon",
-      #  "blacklisting for seq", id_ + ":", ' '.join(map(str, values)) \
-      #  + ";\n    merged amplicon blacklisting for seq", id_ + ": ", end='')
       for i, new_value in enumerate(values):
         previous_value = previous_values[i]
         if new_value and previous_value:
           values[i] = True
         else:
           values[i] = False
-      #if args.verbose:
-      #  print(' '.join(map(str, values)), end="\n\n")
 
     seq_blacklist_dict[id_] = values
 
@@ -405,41 +398,3 @@ else:
   SeqIO.write(OutSeqs, args.output_file, 'fasta')
         
 
-# Abandoned attempt to read in the seq blacklist csv in a nice way
-'''
-id_header = 'BAM'
-keep_header = 'keep.at.all'
-extra_headers = ['origin']
-try:
-  seq_blacklist_df = pd.read_csv(args.seq_based_blacklist, dtype=str,
-  na_filter=False)
-except:
-  print('Problem reading', args.seq_based_blacklist + ':', file=sys.stderr)
-  raise
-
-# Check the seq-based blacklist has the expected columns
-expected_cols = set([id_header, keep_header] + extra_headers + \
-regions)
-observed_cols = set(seq_blacklist_df.columns)
-missing_cols = expected_cols - observed_cols 
-unexpected_cols = observed_cols - expected_cols
-if len(unexpected_cols) > 0:
-  print('Found the following unexpected columns in', args.seq_based_blacklist +\
-  ':', ' '.join(unexpected_cols) + '. Quitting', file=sys.stderr)
-  exit(1)
-if len(missing_cols) > 0:
-  print('The following expected columns are missing in',
-  args.seq_based_blacklist + ':', ' '.join(missing_cols)  + '. Quitting',
-  file=sys.stderr)
-  exit(1)
-
-# Check the seq-based blacklist has bools appropriately 
-bool_coercion_dict = {'TRUE':True, 'FALSE':False}
-for col in [keep_header] + regions:
-  seq_blacklist_df[col] = seq_blacklist_df[col].map(bool_coercion_dict)
-  if seq_blacklist_df[col].hasnans:
-    print('Unexpected value in column', col, 'in', args.amplicon_regions_file +\
-    ': expected only TRUE or FALSE. Quitting.', file=sys.stderr)
-    exit(1)
-print(list(seq_blacklist_df.index))
-'''

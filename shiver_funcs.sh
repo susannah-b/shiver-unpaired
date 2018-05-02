@@ -788,7 +788,12 @@ function CheckConfig {
     "be either true or false."
     return 1
   fi
-
+  if [[ "$KeepPreMappingReads" != "true" ]] && \
+  [[ "$KeepPreMappingReads" != "false" ]]; then
+    echo "The 'KeepPreMappingReads' variable in the config file should"\
+    "be either true or false."
+    return 1
+  fi
 
   # Some checks only needed if we're mapping:
   if $CheckForMapping; then

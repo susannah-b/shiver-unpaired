@@ -498,6 +498,14 @@ else
   fi
 fi
 
+# Prepend modified read filenames by temp_ if desired.
+if [[ "$KeepPreMappingReads" == "false" ]] && $HaveModifiedReads; then
+  mv "$cleaned1reads" "temp_$cleaned1reads"
+  mv "$cleaned2reads" "temp_$cleaned2reads"
+  cleaned1reads="temp_$cleaned1reads"
+  cleaned2reads="temp_$cleaned2reads"
+fi
+
 ################################################################################
 # MAP
 

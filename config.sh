@@ -216,8 +216,8 @@ InsertSizeCountsSuffix='_InsertSizeCounts.csv'
 CoordsDictSuffix='_coords.csv'
 LongEnoughContigsSuffix='_contigs_NoShortOnes.fasta'
 BlastSuffix='.blast'
-CleanedReads1Suffix='_clean_1.fastq'
-CleanedReads2Suffix='_clean_2.fastq'
+ReadsPreMapping1Suffix='_PreMapping_1.fastq'
+ReadsPreMapping2Suffix='_PreMapping_2.fastq'
 GlobalAlnSuffix='_ForGlobalAln.fasta'
 BestContigToRefAlignmentSuffix='_ContigsAndBestRef.fasta' # only for fully auto.
 ################################################################################

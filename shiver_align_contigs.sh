@@ -50,14 +50,13 @@ CheckConfig "$ConfigFile" false true false || \
 { echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 # Out files we'll make
-LongContigs="$SID$LongEnoughContigsSuffix"
 BlastFile="$SID$BlastSuffix"
 RawContigAlignment="$SID"'_raw_wRefs.fasta'
 CutContigAlignment="$SID"'_cut_wRefs.fasta'
 
 # Extract just the HIV contigs (those that blast to the refs) and put them in
 # $RawContigFile1
-GetHIVcontigs "$ContigFile" "$LongContigs" "$BlastFile" "$RawContigFile1"
+GetHIVcontigs "$ContigFile" "$ContigsNoShortOnes" "$BlastFile" "$RawContigFile1"
 GetHIVcontigsStatus=$?
 if [[ $GetHIVcontigsStatus == 3 ]]; then
   echo "No HIV contigs to analyse for $SID. Quitting." >&2 

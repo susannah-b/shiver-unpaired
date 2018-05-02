@@ -47,14 +47,13 @@ CheckConfig "$ConfigFile" false true true || \
 { echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 # The names for output files we'll produce.
-LongContigs="$SID$LongEnoughContigsSuffix"
 BlastFile="$SID$BlastSuffix"
 BestContigToRefAlignment="$SID$BestContigToRefAlignmentSuffix"
 TheRef="$SID$OutputRefSuffix"
 
 # Extract just the HIV contigs (those that blast to the refs) and put them in
 # $RawContigFile1
-GetHIVcontigs "$ContigFile" "$LongContigs" "$BlastFile" "$RawContigFile1" || \
+GetHIVcontigs "$ContigFile" "$ContigsNoShortOnes" "$BlastFile" "$RawContigFile1" || \
 { echo "Problem encountered while checking the contigs in $ContigFile and"\
 " extracting those thought to be HIV. Quitting." >&2 ; exit 1 ; }
 

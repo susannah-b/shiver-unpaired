@@ -193,8 +193,18 @@ GiveHXB2coords=true
 # Shall we align the contigs to the consensus, for comparison?
 AlignContigsToConsensus=false
 
+# With the default value of false, the reads in their state just before mapping 
+# (after any trimming of primers or adapters or low-quality bases, and after
+# removal of suspected contaminant reads) will have 'temp_' prepended to their
+# filenames so that they removed by the "rm temp*" command that you probably
+# want to run after shiver to get rid of temporary files. Changing the value to
+# true means the reads in that state don't have 'temp_' prepended to their
+# filenames - handy if you want to keep them. (By request of shiver-pro Tanya!)
+KeepPreMappingReads=false
+
 # Suffixes we'll append to the sample ID for output files.
-# If you change the extension, you may well break something.
+# If you change the extension (whatever follows the dot) you might break
+# something.
 OutputRefSuffix='_ref.fasta'
 DeduplicationStatsSuffix='_DedupStats.txt'
 PreDeduplicationBamSuffix='_PreDedup'
@@ -206,8 +216,8 @@ InsertSizeCountsSuffix='_InsertSizeCounts.csv'
 CoordsDictSuffix='_coords.csv'
 LongEnoughContigsSuffix='_contigs_NoShortOnes.fasta'
 BlastSuffix='.blast'
-CleanedReads1Suffix='_clean_1.fastq' # .gz will be added when they're zipped
-CleanedReads2Suffix='_clean_2.fastq' # .gz will be added when they're zipped
+CleanedReads1Suffix='_clean_1.fastq'
+CleanedReads2Suffix='_clean_2.fastq'
 GlobalAlnSuffix='_ForGlobalAln.fasta'
 BestContigToRefAlignmentSuffix='_ContigsAndBestRef.fasta' # only for fully auto.
 ################################################################################

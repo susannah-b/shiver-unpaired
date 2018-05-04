@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 from __future__ import print_function
 
-## Author: Chris Wymant, c.wymant@imperial.ac.uk
+## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview: this script is called from the command line with a pileup file and

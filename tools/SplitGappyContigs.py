@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 from __future__ import print_function
 
-## Author: Tanya Golubchik and Chris Wymant
+## Author: Tanya Golubchik and Chris Wymant chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: written with funding from the ERC Advanced Grant PBDR-339251 
 ##
 ## Overview

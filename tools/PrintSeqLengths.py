@@ -1,7 +1,6 @@
 #!/usr/bin/env python2
 from __future__ import print_function
-
-## Author: Chris Wymant, c.wymant@imperial.ac.uk
+chris.wymant@bdi.ox.ac.ukc.wymant@imperial.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:

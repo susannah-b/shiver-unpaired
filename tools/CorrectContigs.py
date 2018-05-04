@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
-## Author: Chris Wymant, c.wymant@imperial.ac.uk and Francois Blanquart who
+## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk and Francois Blanquart who
 ## wrote the original version of this script in R. Thanks to Tanya Golubchick
 ## for suggesting discarding contig sequence not contained in blast hits.
 ## Acknowledgement: this was written thanks to ERC Advanced Grant PBDR-339251

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-## Author: Chris Wymant, c.wymant@imperial.ac.uk
+## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:

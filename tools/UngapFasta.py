@@ -12,6 +12,8 @@ import argparse
 import os
 import sys
 from Bio import SeqIO
+from Bio import Seq
+from re import sub
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -24,8 +26,9 @@ ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('FastaFile', type=File)
 parser.add_argument('-?', '--q-mark', action='store_true', help="Remove the "\
-" '?' character (assumed throughout Chris Wymant's code to mean missing"\
-"coverage) too.")
+" '?' character (used in shiver consensuses to mean missing coverage) too.")
+parser.add_argument('-TE', '--trim-missing-ends', action='store_true', help='''
+Trims any "?", "N" or "n" characters from the ends of each sequence.''')
 args = parser.parse_args()
 
 UngappedSeqs = []
@@ -33,6 +36,11 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
   seq.seq = seq.seq.ungap("-")
   if args.q_mark:
     seq.seq = seq.seq.ungap("?")
+  if args.trim_missing_ends:
+    SeqAsStr = str(seq.seq)
+    SeqAsStr = sub("^[Nn?]+", "", SeqAsStr)
+    SeqAsStr = sub("[Nn?]+$", "", SeqAsStr)
+    seq.seq = Seq.Seq(SeqAsStr)
   UngappedSeqs.append(seq)
 
 if UngappedSeqs == []:

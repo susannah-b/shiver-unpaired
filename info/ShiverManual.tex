@@ -5,8 +5,8 @@
 \usepackage[hidelinks]{hyperref}
 \usepackage{color}
 \usepackage{fancyvrb}
-\newcommand{\shiv}{\texttt{shiver}\xspace}
-\newcommand{\sac}{\texttt{shiver\char`_align\char`_contigs.sh}}
+\newcommand{\shiv}{\c{shiver}\xspace}
+\newcommand{\sac}{\c{shiver\char`_align\char`_contigs.sh}}
 \let\c\texttt
 \newcommand{\www}{\color{blue} \underline}
 
@@ -24,57 +24,76 @@
 \end{figure}
 
 
-\shiv is a tool for mapping paired-end short reads to a custom reference sequence constructed using do novo assembled contigs, in order to minimise the biased loss of information that occurs from mapping to an reference that differs from the sample.
+\shiv is a tool for mapping paired-end short reads to a custom reference sequence constructed using {\it de novo} assembled contigs, in order to minimise the biased loss of information that occurs from mapping to a reference that differs from the sample.
 From the mapped reads, base frequencies are quantified, and a consensus sequence is called.
-\shiv was designed for HIV but has broader applicabilty; if you are using it for sequence data from organism X instead of HIV, mentally replace {\it HIV} by {\it X} when reading this manual.
+\shiv was designed for HIV but has broader applicability; if you are using it for sequence data from organism X instead of HIV, mentally replace {\it HIV} by {\it X} when reading this manual.
 
 The method and its performance are discussed in \cite{Wymant092916}; please cite this if you find \shiv helpful.
-If you use \shiv, please also cite the publications of its dependencies: \c{SAMtools}~\cite{Li08062009}, \c{MAFFT}~\cite{Katoh15072002}, \c{trimmomatic}\cite{Bolger01082014}, \c{BLAST}~\cite{ALTSCHUL1990403}, and \c{BWA}~\cite{doi:10.1093/bioinformatics/btp698} or \c{bowtie}~\cite{Langmead2009} if you switched the default mapper from \c{smalt} (for which there is no publication to cite).
+If you use \shiv, please also cite the publications of its dependencies: \c{SAMtools}~\cite{Li08062009}, \c{MAFFT}~\cite{Katoh15072002}, \c{Trimmomatic}\cite{Bolger01082014}, \c{BLAST}~\cite{ALTSCHUL1990403}, and \c{BWA}~\cite{doi:10.1093/bioinformatics/btp698} or \c{bowtie}~\cite{Langmead2009} if you switched the default mapper from \c{smalt} (for which there is no publication to cite).
 Details of these are found in the file \c{CitationDetails.bib} in \shiv's \c{info} subdirectory.
+
+\shiv is run `through the command line' (or `in a terminal'), not by clicking on things in a graphical user interface.
+If you don't know how to run programs from the command line, you should look that up first\footnote{These resources were recommended by the organisers of the Wellcome Trust Genome Campus' {\it Genomics and Clinical Virology} course: \href{http://rik.smith-unna.com/command_line_bootcamp}{\www{http://rik.smith-unna.com/command\_line\_bootcamp}},\\
+\href{http://www.ee.surrey.ac.uk/Teaching/Unix}{\www{http://www.ee.surrey.ac.uk/Teaching/Unix}},\\
+\href{http://swcarpentry.github.io/shell-novice/}{\www{http://swcarpentry.github.io/shell-novice/}}.}.
+
+\shiv runs natively on Linux and Mac OS, but not Windows.
+To install the dependencies of \shiv follow \href{https://github.com/ChrisHIV/shiver/blob/master/info/InstallationNotes.sh}{\www{these}} instructions.
+Once the dependencies are installed, to run \shiv you only need to download its code from the \href{https://github.com/ChrisHIV/shiver}{\www{GitHub repository}}; after download no installation is required.
+On any operating system (including Windows), if you have \href{https://www.virtualbox.org/wiki/Downloads}{\www{VirtualBox}} installed, you can run \href{https://www.dropbox.com/sh/j3pmmunhxlc7g1w/AABddPfc5dN9oVnP9vQfAZOta?dl=0}{\www{this}} image of Linux Ubuntu 16.04.03 which contains \shiv and all its dependencies.
+(It also contains our separate tool \href{https://github.com/BDI-pathogens/phyloscanner}{\www{\c{phyloscanner}}}, which allows you to infer and analyse phylogenies using mapped reads, for example those produced by \shiv).
+
+To update your \shiv code, in a terminal you need to change directory to where your \shiv code lives, and run the command \c{git pull}.
 
 If you have a problem getting the code to run or think you've found a bug, please create a \href{https://github.com/ChrisHIV/shiver/issues}{\www{\it New issue}} on the GitHub repository.
 
 Throughout this manual, I'll assume your \shiv code lives in \c{\path{~}/shiver/}.
-If you downloaded it somewhere else, e.g. \c{my/other/directory/shiver/}, simply replace every occurence of \c{\path{~}/shiver/} in by \c{my/other/directory/shiver/} (or if you're feeling lazy, create a link to \c{my/other/directory/shiver}, call it \c{shiver}, and put it in your home directory).
+If you downloaded it somewhere else, e.g. \c{my/other/directory/shiver/}, simply replace every occurrence of \c{\path{~}/shiver/} in this manual by \c{my/other/directory/shiver/}; alternatively if you're feeling lazy, create a symbolic link to \c{my/other/directory/shiver}, call it \c{shiver}, and put it in your home directory.
 
-By default, to run \shiv commands, you have to tell the command line where those commands can be found, i.e. include their path: \c{\path{~}/shiver/shiver\char`_align\char`_contigs.sh}.
-If you don't want to type the path every time, so that you can just type \sac, you need to add the directory containing the \shiv code (\c{\path{~}/shiver/}) to your \c{PATH} environmental variable.
-Google this if you don't know how to do that.
+By default, to run a \shiv command, you have to tell the command line where the binary/exectuable file for that command is found, i.e. including its path, e.g. \c{\path{~}/shiver/shiver\char`_align\char`_contigs.sh}.
+If you don't want to type the path every time -- you want to be able to just type \sac -- you need to add the directory containing the \shiv code (\c{\path{~}/shiver/}) to your \c{PATH} environmental variable.
+Search on Google if you don't know how to do that.
 
-Throughout this manual, a \c{\$} character at the start of a line just indicates that what follows should be run from command line -- it should not be entered as part of your command.
-
+Throughout this manual, a \c{\$} character at the start of a line just indicates that what follows should be run from command line; you should be able to just copy and paste this into your terminal, then press enter to execute the command.
+Don't include that initial \c{\$} character in what you copy and paste.
+Be sure to highlight the whole command for copying and pasting.
+If a command is split over multiple lines, you can copy all of them in one go then press enter.
 
 \section{Initialisation}
 Before you begin processing a collection of samples there's an initialisation step: it should be run once only (i.e. not once for each sample).
-It requires  
+It requires:
 \begin{itemize}
-\item The \shiv configuration file, named by default \c{config.sh}.
-(Here it is needed only to tell \shiv how to run the program blast; you can change your mind about all the pipeline parameters contained in this file later on. See also the section {\it The config file}.);  
-\item An alignment of your choice of existing reference genomes (lots of which are available to download from the \href{http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html}{\www{Los Alamos National Lab}}) called \c{RefAlignment.fasta}, say.  
-\item Fasta files containing the adapters and primers used for sequencing, called \c{adapters.fasta} and \c{primers.fasta}, say.
-(Adapters will be removed using trimmomatic, and ``The naming of the various sequences within this file determines how they are used'' -- trimmomatic docs.
-In the \c{ExampleInput} directory of this repository is a default Illumina adapters file, and a file containing the primers relevant to our sequence data -- those of Gall {\it et al.} (J. Clin. Microbio. 2012).
-{\bf Do not} assume these are what's needed for your sequence data -- instead ask your sequencing team to provide the adapter and primer sequences they used.)
+\item A \shiv configuration file; one of these with default values is \c{\path{~}/shiver/config.sh}.
+Here it is needed only to tell \shiv how to run the program \c{blast}; you can change your mind about all the pipeline parameters contained in this file later on.
+The config file is discussed further in section \ref{sec:config}.  
+\item An alignment of your choice of existing reference genomes (lots of which are available to download from the \href{http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html}{\www{LANL HIV database}}) called \c{MyRefAlignment.fasta}, say.  
+\item Fasta files containing the adapters and PCR primers used for sequencing, called \c{MyAdapters.fasta} and \c{MyPrimers.fasta}, say.
+Adapters will be removed using Trimmomatic, and ``The naming of the various sequences within this file determines how they are used'' -- Trimmomatic docs.
+In the \c{ExampleInput} directory of this repository is a default Illumina adapters file, and a file containing the PCR primers relevant to our sequence data -- those of Gall {\it et al.} (J. Clin. Microbio. 2012).
+{\bf Do not} assume these are what's needed for your sequence data -- instead ask your sequencing team to provide the adapter and primer sequences they used.
+Adapter sequence is trimmed out of reads, wherever it is found; afterwards PCR primer sequences are trimmed when perfect matches to them are found at the end of a read.
 \end{itemize}
 
 
 Initialisation files will be put into a directory called \c{MyInitDir} if you run
 \begin{Verbatim}[samepage=true]
-$ ~/shiver/shiver_init.sh  MyInitDir  config.sh  RefAlignment.fasta  adapters.fasta \
-  primers.fasta
+$ ~/shiver/shiver_init.sh  MyInitDir  config.sh  MyRefAlignment.fasta  \
+  MyAdapters.fasta  MyPrimers.fasta
 \end{Verbatim}
 (remembering to skip that first \c{\$} character.)
 You shouldn't touch \c{MyInitDir} or the files therein after running this command, or unknown bad things might happen.
 
-After running that initialisation command (once only!) you can process any number of samples.
-Since sample processing generates (many) files in the working directory, to avoid overwriting files you should always work in an empty directory for each sample, as illustrated in the {\it Scripted usage to process batches of samples} section below.
+After running that initialisation command (once only!), you can process any number of samples.
+Sample processing writes and reads in again (many) files in the working directory, so {\bf it's very important work in a separate, empty directory for each sample you process}.
+Otherwise you might overwrite existing files, or the files from processing one sample could interfere with the files from processing another sample.
+There's an example of creating a new directory for each of a series of samples in section \ref{sec:scripting}.
 
-\section{\shiv input}
-The input for each sample is (1) paired-end short reads, and (2) contigs generated by running {\it de novo} assembly on those short reads.
+\section{\texttt{shiver} input}
+The input for each sample is (1) paired-end short reads, and (2) contigs that were generated by running {\it de novo} assembly on those short reads.
 \begin{enumerate}
 \item The forward read names must all end in ``/1'', the reverse read names must all end in ``/2'', and mates in a pair must match in what comes before this.
 e.g. Forward read names might be {\it FirstReadName/1}, {\it SecondReadName/1}, $\ldots$ and reverse read names should then be {\it FirstReadName/2}, {\it SecondReadName/2}, $\ldots$ This is so \shiv knows how to pair the reads together.
-\item Our chosen assembler is IVA; it can be installed from \href{http://sanger-pathogens.github.io/iva/}{\www{here}} or run on a virtual machine \href{http://sanger-pathogens.github.io/pathogens-vm/}{\www{here}}, and the publication is \href{http://bioinformatics.oxfordjournals.org/content/early/2015/02/27/bioinformatics.btv120.abstract}{\www{here}}.
+\item Our favourite assembler is IVA; it can be installed from \href{http://sanger-pathogens.github.io/iva/}{\www{here}} or run on a virtual machine \href{http://sanger-pathogens.github.io/pathogens-vm/}{\www{here}}, and the publication is \href{http://bioinformatics.oxfordjournals.org/content/early/2015/02/27/bioinformatics.btv120.abstract}{\www{here}}.
 Say your forward reads are in \c{reads\char`_1.fastq.gz} and your reverse reads are in \c{reads\char`_2.fastq.gz}; assembling them into contigs is as simple as running
 \begin{Verbatim}[samepage=true]
 $ iva  -f  reads_1.fastq.gz  -r  reads_2.fastq.gz  MyOutputDirectory
@@ -95,38 +114,38 @@ $ ~/shiver/shiver_align_contigs.sh  MyInitDir  config.sh  contigs.fasta  SID
 replacing \c{SID} (`sample ID') by a name used for labelling all output files for this sample.
 This command will produce a file named \c{SID.blast} (detailing blast hits of your contigs to those existing references supplied for the initialisation).
 Assuming at least one contig looks like HIV, \c{SID.blast} will not be empty (see section {\it Including samples without contigs} otherwise), and there will be another file called \c{SID\char`_raw\char`_wRefs.fasta} -- an alignment of the HIV contigs (i.e. those that have blast hits) to your input existing reference genomes.
-As discussed in the \shiv article, this alignment should be inspected, and in the minority of cases where this is required, edited; see the following section.
 
 \shiv decides that a contig needs correcting, if it
 \begin{itemize}
  \item is not wholly spanned by a blast hit, suggesting that the ends are not genuine HIV and should be trimmed off;
  \item has two or more blast hits (ignoring hits wholly inside other hits), suggesting that it is chimeric/spliced -- erroneously connecting disconnected parts of the genome;
  \item has a blast hit in the opposite orientation to the reference, suggesting that that contig (or part of the contig) should be reverse complemented;
- \item contains an unrealistically large gap after alignment, to the existing references, suggesting that it should be split into two separate contigs.
+ \item contains an unrealistically large gap after alignment to the existing references, suggesting that it should be split into two separate contigs.
 \end{itemize}
 Appropriate action is taken in each case, cutting and reverse-complementing as needed.
 If any of these actions were needed for any of the contigs, an additional file \c{SID\char`_cut\char`_wRefs.fasta} will be produced, which contains all contigs after correction aligned to the existing references.
 We expect that \c{SID\char`_cut\char`_wRefs.fasta} (if it exists) is a better alignment than \c{SID\char`_raw\char`_wRefs.fasta}, but it's safer not to take this for granted, for example unusual indels can result in multiple blast hits.
-It's therefore recommended to inspect both alignments, choose which set of contigs you think are more likely to approximate the true consensus, edit the alignment if you spot what you believe to be errors, and discard the other alignment. 
+As discussed in the \shiv article, we recommend visually inspecting \c{SID\char`_raw\char`_wRefs.fasta} and also \c{SID\char`_cut\char`_wRefs.fasta} if it exists, choosing which of these two seems to be the better alignment, and manually editing the alignment if there seem to be problems.
 
-With an alignment of contigs you're happy with, say \c{SID\char`_raw\char`_wRefs.fasta}, run
+With an alignment of contigs you're happy with, say \c{SID\char`_cut\char`_wRefs.fasta}, run
 \begin{Verbatim}[samepage=true]
 $ ~/shiver/shiver_map_reads.sh  MyInitDir  config.sh  contigs.fasta  SID  \
-  SID.blast  SID_raw_wRefs.fasta  reads_1.fastq.gz  reads_2.fastq.gz
+  SID.blast  SID_cut_wRefs.fasta  reads_1.fastq.gz  reads_2.fastq.gz
 \end{Verbatim}
 and you're done.
-You'll probably want to delete the intermediate files produced during processing (beginning with \c{temp} by default), i.e. \c{rm temp*}.
 
 \section{A manual step between the two automatic steps? Blasphemy!}
 The reason for this is discussed in more detail in the \shiv paper.
 Correct alignment has already been attempted automatically in the first step, but unfortunately aligning whole HIV genomes automatically, perfectly, 100\% of the time is a dream: HIV has very high mutation and substitution rates, including frequent insertions and deletions.
-Compounding this problem is the fact that de novo assembly output is sometimes an imperfect representation of the sample, and aligning problematic sequences may give problematic alignments. 
+Compounding this problem is the fact that {\it de novo} assembly output is sometimes an imperfect representation of the sample, and aligning problematic sequences may give problematic alignments. 
 For most samples the contigs and their alignment are fine, and seeing this from the alignment takes one or two seconds of human time.
 When editing is required, it amounts to one of two things: deleting a whole contig if it appears to be wholly junk (i.e. short stretches of poorly aligned sequence separated by large gaps), or deleting the end of a contig if just the end looks wrong (i.e. a stretch of sequence in very poor agreement with the existing references, or a stretch of sequence separated from the rest of the contig by a gap implausibly large for a real deletion).
 Visually checking and editing when needed ensures an alignment of contigs you can trust, allowing the second \shiv command to reliably construct a) a tailored reference that minimises mapping bias, and b) a global alignment of all samples, instantly, without further need for an alignment algorithm: see the end of section {\it Scripted usage to process batches of samples}.  
 \href{https://github.com/olli0601/PANGEAhaircut}{\www{This}} R package by Oliver Ratmann uses machine learning to correct such alignments; however for each sample you must manually check the corrections to ensure they are correct, instead of checking the alignment itself.
 
 \section{What output do I get?}
+
+Output files include:
 \begin{itemize}
 \item \c{SID.bam}, \c{SID\char`_ref.fasta}: the bam file of mapped reads, and the reference to which they were mapped.
 (It's a shame the bam file format does not include the reference, c'est la vie.)
@@ -137,20 +156,41 @@ Visually checking and editing when needed ensures an alignment of contigs you ca
 In place of \c{X} and \c{Y} here you'll see the two coverage thresholds specified in \c{config.sh}: \c{X} is the minimum number of reads to call a base (if there are fewer than \c{X} reads we call \c{?} instead of a base), \c{Y} the minimum number to use upper case for the base (to signal increased confidence).
 The mapping reference is included with the consensus here to give context to any \c{?} characters.
 \item \c{SID\char`_MinCov\char`_X\char`_Y\char`_ForGlobalAln.fasta}, \c{SID\char`_coords.csv}: these files are useful for when multiple samples are processed, so we postpone their explanation to section~\ref{sec:GlobalAln}.  
-\item \c{SID\char`_clean\char`_1.fastq}, \c{SID\char`_clean\char`_2.fastq}: the unmapped reads after removal of adapters, primers, low-quality bases, and those read pairs suspected of being contamination.  
 \item \c{SID\char`_InsertSizeCounts.csv}: the insert-size distribution.
 \end{itemize}
+If the config file variable \c{remap} is left at its default value of \c{true}, some of the files named above will have a second copy with \c{SID} replaced by \c{SID\char`_remap} in the file name.
+These are the result of remapping to the consenses called from the first round of mapping.
+The files \c{SID[something]} and \c{SID\char`_remap[something]} will likely be very similar, but the latter is expected to be slightly more accurate.
 
-
-Files that are not produced by default, but whose production can be specified in \c{config.sh}:
+Some files are not produced by default, but their production can be specified in \c{config.sh}:
 \begin{itemize}
-\item \c{SID\char`_MinCov\char`_X\char`_Y\char`_wContigs.fasta}: an alignment of the consensus, the reference used for mapping, and all HIV contigs for this sample (as they were after any automatic cutting and any manual editing).
-\item \c{SID\char`_ContaminantReads.bam}: a bam file of only the contaminant reads mapped to the HIV reference (to illustrate the importance of removing these reads from the HIV reads prior to mapping).
+\item \c{SID\char`_PreMapping\char`_1.fastq}, \c{SID\char`_PreMapping\char`_2.fastq}.
+These are produced if you change the value of the config file variable \c{KeepPreMappingReads} to \c{true}.
+They are the reads after removal of adapters, PCR primers, low-quality bases, and those read pairs suspected of being contamination based on blasting to the contaminant contigs.
+These are the reads right before the mapping step; not all of these reads will map, for example because the removal of suspected contaminant reads based on the contaminant contigs is not perfectly sensitive (some contaminant reads may not have been assembled into contigs).
+So if what you're after is the fully processed reads with as many contaminant reads removed as possible (e.g. to upload to some public database), you don't want these files, you want the reads from the bam file.
+\item \c{SID\char`_MinCov\char`_X\char`_Y\char`_wContigs.fasta}.
+This is produced if you change the value of the config file variable \c{AlignContigsToConsensus} to \c{true}.
+It is an alignment of the consensus, the reference used for mapping, and all HIV contigs for this sample (as they were after any automatic cutting and any manual editing).
+\item \c{SID\char`_ContaminantReads.bam}.
+This is produced if you change the value of the config file variable \c{MapContaminantReads} to \c{true}.
+It is a bam file of only the contaminant reads mapped to the HIV reference; it shows you the contaminant reads that would have been in your bam file of genuine reads had you turned off the contaminant-contig-based cleaning of reads.
 \end{itemize}
 
-If the config file variable \c{remap} is left at its default value of \c{true}, some of the files named above will have a second copy with \c{SID} replaced by \c{SID\char`_remap} in the file name: these will likely be very similar, but expected to be slightly more accurate -- if they exist, use them instead.
+Lots of intermediate/temporary files are produced during processing; these you probably don't want to keep.
+By default their names all begin \c{temp\char`_} (you can change this in the config file if you really want).
+If you
+\begin{itemize}
+\item ran \shiv from inside an empty directory as strongly advised, and 
+\item are still inside the same directory, and
+\item chose a sample ID (for labelling output) that did not begin \c{temp\char`_}, 
+\end{itemize}
+then the command \c{rm temp\char`_*} will delete all and only the temporary files.
+(Warning: the \c{rm} command irrecoverably deletes files, and the wildcard character \c{*} matches {\it anything}.
+If you accidentally put a space between \c{temp\char`_} and \c{*}, the previous command would delete everything in the current directory.
+If the \c{rm} command makes you nervous, you can delete files by selecting them in a graphical file explorer window and clicking delete (dependent on your operating system).)
 
-\section{The config file}
+\section{The config file} \label{sec:config}
 In \c{config.sh} you can change pipeline parameters from their default values.
 During development of \shiv, \c{config.sh} has often been updated (e.g. new features might require new parameters).
 As this may happen again in the future, to make sure you keep any changes you've made to default values, I recommend the following: make one copy of \c{config.sh} called \c{config\char`_original.sh}, a second copy called \c{config\char`_MyChanges.sh}, leave the former untouched and change whatever you like in the latter.
@@ -165,8 +205,8 @@ $ diff config_original.sh config_MyChanges.sh
 will remind you of the changes you made to default parameter values.
 
 
-\section{Scripted usage to process batches of samples}
-Before we start, note that scripted use of \shiv (like any other command-line program) to process multiple files is easier if you know the basics of playing with filenames from the command line.
+\section{Scripted usage to process batches of samples} \label{sec:scripting}
+Before we start, note that scripted use of \shiv (like any other command-line program) to process multiple files is easier if you know the basics of playing with file names from the command line.
 Consider this toy example:
 \begin{Verbatim}[samepage=true]
 # We have two directories: one with text files, one with csv files.
@@ -193,7 +233,7 @@ CsvDir/foo.csv
 \end{Verbatim}
 
 Now back to \shiv.
-Say your current directory contains three subdirectories: \c{contigs}, \c{MyInitDir} and \c{reads}, containing what the name suggests.
+Say your current directory contains three subdirectories: \c{contigs}, \c{MyInitDir} and \c{reads}, containing what the names suggest.
 Here are your contigs:
 \begin{Verbatim}[samepage=true]
 $ ls contigs/
@@ -209,7 +249,7 @@ sampleC_1_fastq.gz sampleC_2_fastq.gz
 Start by aligning the contigs for all samples:
 \begin{Verbatim}[samepage=true]
 $ for ContigFile in contigs/*.fasta; do  
-  # Extract the SID from the filename: remove the extension and the path
+  # Extract the SID for this sample from the filename by removing the extension and path
   SID=$(basename "${ConfigFile%.fasta}")
   # Make, and change into, an empty directory for processing this contig file
   mkdir AlignmentOutput_"$SID"  
@@ -236,7 +276,8 @@ done
 $ cd ..
 $ for ContigFile in contigs/*.fasta; do  
   # Find the other files for this sample.
-  # NB careful scripting would check that files exist before using them.
+  # NB careful scripting would check that files exist before using them;
+  # here I'm trying to use minimal code for illustration.
   SID=$(basename "${ConfigFile%.fasta}")
   mkdir MappingOutput_"$SID"
   cd MappingOutput_"$SID"
@@ -258,6 +299,9 @@ These are generated by excising unique insertions seen in a sample (i.e. not see
 Constructing a global alignment is then achieved just by putting all those files into one file:
 \begin{Verbatim}[samepage=true]
 $ cat MappingOutput_*/*_ForGlobalAln.fasta > GlobalAln.fasta
+\end{Verbatim}
+and you can include the existing references too, if you like, with
+\begin{Verbatim}[samepage=true]
 $ cat MyInitDir/ExistingRefAlignment.fasta >> GlobalAln.fasta
 \end{Verbatim}
 Now it's over to you for phylogenetics, GWAS etc.
@@ -276,15 +320,15 @@ This would probably be most easily achieved by making a big look-up table before
 For example in the scripted usage above, after \\\c{alignment=../CheckedContigAlignments/"\$SID"\char`_wRefs.fasta}, you could have
 \begin{Verbatim}[samepage=true]
   if [[ ! -f "$alignment" ]]; then
-    # Reassign the $alignment variable to be a file containing
-    # the reference previously chosen for this sample.
+    # Insert code here to re-assign the $alignment variable to be a
+    # file containing the reference previously chosen for this sample.
   fi
 \end{Verbatim}
 
 \section{Sample Reprocessing and Analysis}
 Individual steps from \shiv can be run with stand-alone command line tools, for ease of reapplication elsewhere; these are contained in the \c{tools} subdirectory of the \shiv code directory.
-For example \texttt{CorrectContigs.py} is run with a file of contigs and a file of their \texttt{BLASTN} hits to some set of references, and corrects the contigs by cutting and reverse-complementing where needed.
-%, such as \texttt{AnalysePileup.py} which parses pileup format into simple base frequencies, \texttt{ConstructBestRef.py} which constructs the trailored reference by flattening contigs and filling in gaps with the closest references to those contigs, and 
+For example \c{CorrectContigs.py} is run with a file of contigs and a file of their \c{BLASTN} hits to some set of references, and corrects the contigs by cutting and reverse-complementing where needed.
+%, such as \c{AnalysePileup.py} which parses pileup format into simple base frequencies, \c{ConstructBestRef.py} which constructs the trailored reference by flattening contigs and filling in gaps with the closest references to those contigs, and 
 Also included in \shiv are command-line tools for easy analysis and modification of sample output without rerunning the whole pipeline:
 \begin{itemize}
 
@@ -297,38 +341,45 @@ If you decrease the value of \c{X} you will see more bases and fewer \c{?} chara
 That's good right?
 Yes and no.
 You could also increase your horizontal coverage by replacing all ? characters by a random selection of As, Cs, Gs and Ts, but it's not recommended.
-Decreasing these thresholds increases sensitivity to HIV reads at the cost of specificity (since some reads are bound to be contaminants), and you ought to balance these, not just maximimise the former.
-For example with dated sequences, you could try to get the strongest correlation between real time and the evolutionary distance inferred from a phylogeny -- the $R^2$ of the molecular clock -- since too little real sequence and too much contaminant sequence will both screw up your phylogeny.
-To regenerate a coordinate-translated version of this consensus for the global alignnent (of all consensuses produced by shiver), \c{tools/TranslateSeqForGlobalAln.py} can be run, taking as its two arguments the consensus, and \c{SID\char`_coords.csv} generated by the full run of shiver.
+Decreasing these thresholds increases sensitivity to HIV reads at the cost of specificity (since some reads are bound to be contaminants), and you ought to balance these, not just maximise the former.
+The gold-standard way of figuring out how low you can safely set your coverage threshold without including many contaminant reads would be to sequence a set negative control samples and see what coverage they typically have, purely from contamination.
+(As always, negative controls must be obtained and processed in exactly the same way as the genuine samples to be meaningful, i.e. taking samples from people uninfected by HIV then processing as usual.
+Simply sequencing water, for example, would not capture the fact that blood contains other nucleic acids that can be mistaken for HIV.)
+Absent such information, another way to get a handle on this problem is provided by \c{LinkIdentityToCoverage.py}, described below.
+Yet another way, for dated sequences, might be to maximise the correlation between real time and the evolutionary distance inferred from a phylogeny -- the $R^2$ of the molecular clock -- since too little real sequence and too much contaminant sequence will both screw up your phylogeny.\\
+To regenerate a coordinate-translated version of this consensus for the global alignment (of all consensuses produced by shiver), \c{tools/TranslateSeqForGlobalAln.py} can be run, taking as its two arguments the consensus, and \c{SID\char`_coords.csv} generated by the full run of shiver.
 
 \item Another parameter in the configuration file is the minimum read {\it identity} -- the fraction of bases in the read which are mapped and agree with the reference -- required for a read to be considered mapped, and so retained in the BAM file.
-If you wish to increase this after completion of \shiv, reads with an identity below your new higher threshold can be discarded by running \texttt{RemoveDivergentReads.py} on a BAM file.
-Running \texttt{shiver\char`_reprocess\char`_bam.sh} on the resulting BAM file (or indeed any BAM file) implements just the last steps in \shiv, namely generating pileup, calculating the base frequencies, and calling the consensus.
+If you wish to increase this after completion of \shiv, reads with an identity below your new higher threshold can be discarded by running \c{RemoveDivergentReads.py} on a BAM file.
+Running \c{shiver\char`_reprocess\char`_bam.sh} on the resulting BAM file (or indeed any BAM file) implements just the last steps in \shiv, namely generating pileup, calculating the base frequencies, and calling the consensus.
 
-\item \texttt{FindNumMappedBases.py} calculates the total number of mapped bases in a BAM file (where read length is constant this equals the number of mapped reads multiplied by read length, minus the total length of sequence clipped from reads), optionally binned by read identity.
+\item \c{FindNumMappedBases.py} calculates the total number of mapped bases in a BAM file (where read length is constant this equals the number of mapped reads multiplied by read length, minus the total length of sequence clipped from reads), optionally binned by read identity.
 In the absence of mapped contaminant reads, and all else being equal, mapping to a reference which is closer to the true consensus should map more bases and mapped reads should have higher identities.
 %It was used to produce Fig.~\ref{fig:NumMappedBases}.
 
-\item \texttt{FindClippingHotSpots.py} counts, at each position in the genome, the number and percentage of reads that are clipped from that position to their left or right end.
+\item \c{FindClippingHotSpots.py} counts, at each position in the genome, the number and percentage of reads that are clipped from that position to their left or right end.
 Having many such reads is a warning sign of the kind of biased loss of information discussed in the \shiv paper.
 
-\item \texttt{FindSubSeqsInAlignment.py} finds the location of specified subsequences in an alignment.
+\item \c{FindSubSeqsInAlignment.py} finds the location of specified sub-sequences in an alignment.
 
-\item \texttt{LinkIdentityToCoverage.py} finds, for each different coverage encountered when considering all positions in a BAM file, the mean read identity at such positions.
+\item \c{LinkIdentityToCoverage.py} finds, for each different coverage encountered when considering all positions in a BAM file, the mean read identity at such positions.
 The mean read identity tends to be lower at positions of low coverage due to a background of contaminant reads, which differ from the reference by virtue of being contamination, but which are nevertheless similar enough to be mapped.
 Quantifying the decline in identity at low coverage helps inform what coverage threshold is appropriate for a given data set.
 
-\item \texttt{AlignMoreSeqsToPairWithMissingCoverage.py} allows more sequences to be added to a pairwise alignment in which one sequence contains missing coverage (such as a consensus and its reference), correctly maintaining the distinction between gaps (indicating a deletion) and missing coverage.
+\item \c{AlignMoreSeqsToPairWithMissingCoverage.py} allows more sequences to be added to a pairwise alignment in which one sequence contains missing coverage (such as a consensus and its reference), correctly maintaining the distinction between gaps (indicating a deletion) and missing coverage.
 
-\item \texttt{AlignBaseFreqFiles.py} aligns not two sequences, but two of the csv-format base frequency files output by \shiv.
+\item \c{AlignBaseFreqFiles.py} aligns not two sequences, but two of the csv-format base frequency files output by \shiv.
 Optionally a similarity metric is calculated at each position in the alignment, between 0 (no agreement on which bases/gaps are present) and 1 (perfect agreement on which bases/gaps are present and on their proportions).
 This allows comparison not just of consensus sequences between two samples but also of minority variants.
 
-\item \texttt{ConvertAlnToColourCodes.py} converts each base in a sequence alignment into a colour code indicating agreement with the consensus and indels; \texttt{AlignmentPlotting.R} takes such colour codes and visualises the alignment.
+\item \c{ConvertAlnToColourCodes.py} converts each base in a sequence alignment into a colour code indicating agreement with the consensus and indels; \c{AlignmentPlotting.R} takes such colour codes and visualises the alignment.
 These scripts were used to produce the alignment + coverage + gene diagrams in the \shiv paper.
 
-\item Finally some simple tools for convenience: \texttt{FindSeqsInFasta.py} extracts named sequences from a fasta file, with options including gap stripping, returning only windows of the sequences, and inverting the search; \texttt{PrintSeqLengths.py} prints sequence lengths with or without gaps; \texttt{SplitFasta.py} splits a fasta file into one file per sequence therein.
+\item Finally some simple tools for convenience: \c{FindSeqsInFasta.py} extracts named sequences from a fasta file, with options including gap stripping, returning only windows of the sequences, and inverting the search; \c{PrintSeqLengths.py} prints sequence lengths with or without gaps; \c{SplitFasta.py} splits a fasta file into one file per sequence therein.
 \end{itemize}
+
+
+
 
 
 \bibliographystyle{ieeetr}

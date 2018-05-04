@@ -3,15 +3,11 @@ update manual:
 - add processing of test data to manual (or GitHub repo?) 
 - check it's up-to-date generally before paper publication
 
-check for exit 3 if all cut contigs too small
-
 check for fail points throughout bash, i.e. || { echo 'error'; exit 1; } for every command that doesn't haven't a vanishingly small probability of failure.
 
 Add a maximum gap fraction option to SplitGappyContigs.py (<=50%? histogram)
 
 remove coercion of config file bools: just check they're valid bools
-
-make short contigs file a temp file
 
 fastp program to replace fastaq & Trimmomatic for read trimming?
 

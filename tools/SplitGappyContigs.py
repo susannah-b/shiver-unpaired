@@ -119,14 +119,15 @@ if MissingContigs:
   exit(1)
 
 # It's possible that after splitting contigs and imposing a minimum length
-# threshold, there are no contigs left. Consider this an error.
+# threshold, there are no contigs left. Exit with status 3 - shiver's reserved
+# non-zero exit status to indicate a lack of HIV data.
 NumContigs = len(SeqsForOutput) - NumRefSeqs
 if NumContigs == 0:
   print("After splitting contigs at gaps of length at least",
   args.split_gap_size, "and discarding contigs of length less than " + \
   str(args.min_contig_size) + ", no contigs were left. Quitting.",
   file=sys.stderr)
-  exit(1)
+  exit(3)
 
 SeqIO.write(SeqsForOutput, sys.stdout, 'fasta')
 

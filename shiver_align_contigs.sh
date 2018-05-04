@@ -96,8 +96,16 @@ if [[ -f "$CutContigFile" ]]; then
   CutContigNames=$(awk '/^>/ {print substr($1,2)}' "$CutContigFile")
   "$Code_SplitGappyContigs" "$TempContigAlignment3" $CutContigNames \
   --split-gap-size "$MinGapSizeToSplitGontig" --min-contig-size \
-  "$MinContigFragmentLength" > "$CutContigAlignment" || { echo 'Problem'\
-  'splitting gappy contigs after alignment. Quitting.' >&2 ; exit 1 ; }
+  "$MinContigFragmentLength" > "$CutContigAlignment"
+  SplitGappyContigsStatus=$?
+  if [[ $SplitGappyContigsStatus == 3 ]]; then
+    echo "After contig correction, all (pieces of) contigs for $SID were below"\
+    "the length threshold. Quitting." >&2
+    exit 3
+  elif [[ $SplitGappyContigsStatus != 0 ]]; then
+    echo 'Problem splitting gappy contigs after alignment. Quitting.' >&2
+    exit 1
+  fi
 
   PrintAlnLengthIncrease "$RefAlignment" "$CutContigAlignment" || \
   { echo "Problem checking the alignment length increase after adding the cut"\
@@ -110,8 +118,16 @@ else
   RawContigNames=$(awk '/^>/ {print substr($1,2)}' "$RawContigFile1")
   "$Code_SplitGappyContigs" "$RawContigAlignment" $RawContigNames \
   --split-gap-size "$MinGapSizeToSplitGontig" --min-contig-size \
-  "$MinContigFragmentLength" > "$CutContigAlignment" || { echo 'Problem'\
-  'splitting gappy contigs after alignment. Quitting.' >&2 ; exit 1 ; } 
+  "$MinContigFragmentLength" > "$CutContigAlignment"
+  SplitGappyContigsStatus=$?
+  if [[ $SplitGappyContigsStatus == 3 ]]; then
+    echo "After contig correction, all (pieces of) contigs for $SID were below"\
+    "the length threshold. Quitting." >&2
+    exit 3
+  elif [[ $SplitGappyContigsStatus != 0 ]]; then
+    echo 'Problem splitting gappy contigs after alignment. Quitting.' >&2
+    exit 1
+  fi
 
   equal=$("$Code_CheckFastaFileEquality" "$RawContigAlignment" \
   "$CutContigAlignment") || { echo "Problem running"\

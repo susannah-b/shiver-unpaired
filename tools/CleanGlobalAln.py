@@ -85,49 +85,6 @@ name of file in which we'll store additions to the seq_based_blacklist (due to
 our analysis here of completeness/missingness in each region).''')
 args = parser.parse_args()
 
-# Read the alignment
-try:
-  alignment = AlignIO.read(args.alignment, "fasta")
-except:
-  print('Problem reading', args.alignment + ':', file=sys.stderr)
-  raise
-alignment_length = alignment.get_alignment_length()
-
-def get_beehive_id(seq_id):
-  "Return whatever's before the first underscore if there is one."
-  return seq_id.split('_', 1)[0]
-
-# Read in the seqs, replace "?" and lower case letters by "N", check for
-# duplicate seqs and unexpected bases.
-seq_dict = collections.OrderedDict()
-for seq in alignment:
-  id_ = seq.id
-  id_ = id_.split('_consensus', 1)[0]
-  id_ = id_.split('_MinCov', 1)[0]
-  if id_ in seq_dict:
-    print('Encountered seq', id_, 'a second time in',
-    args.alignment + '. Quitting.', file=sys.stderr)
-    exit(1)
-  SeqAsStr = str(seq.seq)
-  SeqAsStr = sub("[a-z]|\?", "N", SeqAsStr)
-  assert len(SeqAsStr) == alignment_length
-  if any(not base in "ACGTN-" for base in SeqAsStr):
-    print('Seq', id_, 'in', args.alignment, 'contains a base other than A, C,',
-    'G, T, N or -; unexpected. Have you run',
-    'shiver/tools/EstimateAmbiguousBases.py on your alignment first? Quitting.',
-    file=sys.stderr)
-    exit(1)
-  if SeqAsStr.count("N") + SeqAsStr.count("-")  == alignment_length:
-    if args.verbose:
-      print("Skipping sequence", id_, "which is wholly undetermined after",
-      "removing lower-case bases.")
-  else:
-    seq_dict[id_] = SeqAsStr
-
-all_seq_ids = set(seq_dict.keys())
-all_patients_with_seqs = set([get_beehive_id(seq_id) for seq_id in \
-seq_dict])
-
 # Read and check the amplicon regions. 
 regions_dict = collections.OrderedDict()
 regions_dict_not_empty = False
@@ -164,11 +121,6 @@ with open(args.amplicon_regions_file, 'r') as f:
     regions_dict_not_empty = True
 last_region = next(reversed(regions_dict))
 last_start, last_end = regions_dict[last_region]
-if last_end != alignment_length:
-  print('The last region in', args.amplicon_regions_file,
-  'does not end at the alignment length (' + str(alignment_length) + \
-  '). Quitting.', file=sys.stderr)
-  exit(1)
 regions = regions_dict.keys()
 num_regions = len(regions)
 
@@ -197,15 +149,6 @@ with open(args.seq_based_blacklist, 'r') as f:
       str(num_fields) + '. Quitting.', file=sys.stderr)
       exit(1)
 
-    # Warn about, and skip, blacklisted sequences that do not appear in the
-    # global alignment.
-    id_ = fields[0]
-    if not id_ in all_seq_ids:
-      print("Skipping sequence", id_, "from",
-      args.seq_based_blacklist, "which does not appear in", args.alignment + \
-      ".", file=sys.stderr)
-      continue
-
     # Coerce string bools to bools, and record them.
     values = fields[1:-1]
     if any(value != "TRUE" and value != "FALSE" for value in values):
@@ -219,6 +162,7 @@ with open(args.seq_based_blacklist, 'r') as f:
     # If we've seen this seq in the blacklist already, we should blacklist each
     # region if either entry says so, i.e. only keep it if they agree that we
     # should.
+    id_ = fields[0]
     if id_ in seq_blacklist_dict:
       previous_values = seq_blacklist_dict[id_]
       for i, new_value in enumerate(values):
@@ -234,12 +178,57 @@ blacklisted_patients = set([])
 with open(args.patient_based_blacklist, 'r') as f:
   for line in f:
     patient = line.strip()
-    if not patient in all_patients_with_seqs:
-      print("Skipping blacklisted patient", patient, "from",
-      args.patient_based_blacklist, "who does not appear in", args.alignment + \
-      ".", file=sys.stderr)
-    else:
-      blacklisted_patients.add(patient)
+    blacklisted_patients.add(patient)
+
+# Read the alignment
+try:
+  alignment = AlignIO.read(args.alignment, "fasta")
+except:
+  print('Problem reading', args.alignment + ':', file=sys.stderr)
+  raise
+alignment_length = alignment.get_alignment_length()
+
+# Check that the end of the last region is the length of the alignment.
+if last_end != alignment_length:
+  print('The last region in', args.amplicon_regions_file,
+  'does not end at the alignment length (' + str(alignment_length) + \
+  '). Quitting.', file=sys.stderr)
+  exit(1)
+
+def get_beehive_id(seq_id):
+  "Return whatever's before the first underscore if there is one."
+  return seq_id.split('_', 1)[0]
+
+# Read in the seqs, replace "?" and lower case letters by "N", check for
+# duplicate seqs and unexpected bases.
+seq_dict = collections.OrderedDict()
+for seq in alignment:
+  id_ = seq.id
+  id_ = id_.split('_consensus', 1)[0]
+  id_ = id_.split('_MinCov', 1)[0]
+  if id_ in seq_dict:
+    print('Encountered seq', id_, 'a second time in',
+    args.alignment + '. Quitting.', file=sys.stderr)
+    exit(1)
+  SeqAsStr = str(seq.seq)
+  SeqAsStr = sub("[a-z]|\?", "N", SeqAsStr)
+  assert len(SeqAsStr) == alignment_length
+  if any(not base in "ACGTN-" for base in SeqAsStr):
+    print('Seq', id_, 'in', args.alignment, 'contains a base other than A, C,',
+    'G, T, N or -; unexpected. Have you run',
+    'shiver/tools/EstimateAmbiguousBases.py on your alignment first? Quitting.',
+    file=sys.stderr)
+    exit(1)
+  if SeqAsStr.count("N") + SeqAsStr.count("-")  == alignment_length:
+    if args.verbose:
+      print("Skipping sequence", id_, "which is wholly undetermined after",
+      "removing lower-case bases.")
+  else:
+    seq_dict[id_] = SeqAsStr
+
+all_seq_ids = set(seq_dict.keys())
+all_patients_with_seqs = set([get_beehive_id(seq_id) for seq_id in \
+seq_dict])
 
 #completeness_percents = collections.defaultdict(list)
 max_missingness = 0.2

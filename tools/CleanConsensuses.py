@@ -539,7 +539,7 @@ for seq in collection_of_seqs:
               "previously encountered seq from", beehive_id, "because the",
               "former has more known bases.")
           unaln_seqs_by_region[region][beehive_id] = seq_here
-    out_file = os.path.join(args.output, beehive_id + ".fasta")
+    out_file = os.path.join(args.output, seq_id + ".fasta")
     if os.path.isfile(out_file):
       print(out_file, "exists already; quitting to prevent overwriting.",
       file=sys.stderr)

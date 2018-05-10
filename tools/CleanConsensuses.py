@@ -539,17 +539,16 @@ for seq in collection_of_seqs:
               "previously encountered seq from", beehive_id, "because the",
               "former has more known bases.")
           unaln_seqs_by_region[region][beehive_id] = seq_here
-    else:
-      out_file = os.path.join(args.output, beehive_id + ".fasta")
-      if os.path.isfile(out_file):
-        print(out_file, "exists already; quitting to prevent overwriting.",
-        file=sys.stderr)
-        exit(1)
-      individual_alignment[0].seq = Seq.Seq(seq_as_str)
-      individual_alignment[0].id = seq_id
-      individual_alignment[0].description = ""
-      AlignIO.write(individual_alignment, out_file, "fasta")
-      seq_dict.add(seq_id)
+    out_file = os.path.join(args.output, beehive_id + ".fasta")
+    if os.path.isfile(out_file):
+      print(out_file, "exists already; quitting to prevent overwriting.",
+      file=sys.stderr)
+      exit(1)
+    individual_alignment[0].seq = Seq.Seq(seq_as_str)
+    individual_alignment[0].id = seq_id
+    individual_alignment[0].description = ""
+    AlignIO.write(individual_alignment, out_file, "fasta")
+    seq_dict.add(seq_id)
 
   # If we have a global alignment, just record the seq for later processing.
   else:
@@ -666,14 +665,13 @@ if args.split_amplicons:
         description=''))
     SeqIO.write(OutSeqs, per_region_output_file_dict[region], 'fasta')    
 
-else:
-  OutSeqs = []
-  for seq_id, seq in sorted_seqs:
-    if seq.count("N") == alignment_length:
-      print("Skipping sequence", seq_id, "which is wholly undetermined after",
-      "blacklisting.")
-    else:
-      OutSeqs.append(SeqIO.SeqRecord(Seq.Seq(seq), id=seq_id, description=''))
-  SeqIO.write(OutSeqs, args.output, 'fasta')
+OutSeqs = []
+for seq_id, seq in sorted_seqs:
+  if seq.count("N") == alignment_length:
+    print("Skipping sequence", seq_id, "which is wholly undetermined after",
+    "blacklisting.")
+  else:
+    OutSeqs.append(SeqIO.SeqRecord(Seq.Seq(seq), id=seq_id, description=''))
+SeqIO.write(OutSeqs, args.output, 'fasta')
         
 

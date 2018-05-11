@@ -539,7 +539,7 @@ for seq in collection_of_seqs:
               "former has more known bases.")
           unaln_seqs_by_region[region][beehive_id] = seq_here
     if all(base == "N" for base in seq_as_str):
-      if verbose:
+      if args.verbose:
         print("Skipping sequence", seq_id, "which is wholly undetermined after",
         "blacklisting.")
       continue
@@ -672,7 +672,7 @@ if args.split_amplicons:
 OutSeqs = []
 for seq_id, seq in sorted_seqs:
   if all(base == "N" for base in seq):
-    if verbose:
+    if args.verbose:
       print("Skipping sequence", seq_id, "which is wholly undetermined after",
       "blacklisting.")
   else:

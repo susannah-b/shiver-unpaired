@@ -286,8 +286,7 @@ def preprocess_seq(seq, check_for_ambig_bases):
     'unexpected. Have you run shiver/tools/EstimateAmbiguousBases.py on your',
     'alignment first? Quitting.', file=sys.stderr)
     exit(1)
-  wholly_undetermined = seq_as_str.count("N") + seq_as_str.count("-") == \
-  initial_length
+  wholly_undetermined = all(base == "N" or base == "-" for base in seq_as_str)
   return seq_as_str, wholly_undetermined
 
 def preprocess_seq_id(seq_id):
@@ -539,6 +538,11 @@ for seq in collection_of_seqs:
               "previously encountered seq from", beehive_id, "because the",
               "former has more known bases.")
           unaln_seqs_by_region[region][beehive_id] = seq_here
+    if all(base == "N" for base in seq_as_str):
+      if verbose:
+        print("Skipping sequence", seq_id, "which is wholly undetermined after",
+        "blacklisting.")
+      continue
     out_file = os.path.join(args.output, seq_id + ".fasta")
     if os.path.isfile(out_file):
       print(out_file, "exists already; quitting to prevent overwriting.",
@@ -667,9 +671,10 @@ if args.split_amplicons:
 
 OutSeqs = []
 for seq_id, seq in sorted_seqs:
-  if seq.count("N") == alignment_length:
-    print("Skipping sequence", seq_id, "which is wholly undetermined after",
-    "blacklisting.")
+  if all(base == "N" for base in seq):
+    if verbose:
+      print("Skipping sequence", seq_id, "which is wholly undetermined after",
+      "blacklisting.")
   else:
     OutSeqs.append(SeqIO.SeqRecord(Seq.Seq(seq), id=seq_id, description=''))
 SeqIO.write(OutSeqs, args.output, 'fasta')

@@ -31,13 +31,26 @@ i.e. if the first base of the reference present in the alignment is not really
 the reference's first base, because some sequence to the left has been chopped
 off. If you are including multiple alignments, the same offset will be used for
 all of them.''', default=0)
+parser.add_argument('-S', '--skip-string', help='''Use this to specify a string;
+we will skip any sequence we find whose ID contains that string.''')
 
 args = parser.parse_args()
+
+# The skip string shouldn't be in the ref name.
+HaveSkipString = args.skip_string != None
+if HaveSkipString and args.skip_string in args.RefName:
+  print('The string specified with --skip-string should not be found in',
+  RefName + '. Quitting.', file=sys.stderr)
+  exit(1)
 
 def GetSeqToRefComparison(File):
   '''TODO'''
 
   alignment = AlignIO.read(File, 'fasta')
+  AlnLength = alignment.get_alignment_length()
+
+  if HaveSkipString:
+    alignment = [seq for seq in alignment if not args.skip_string in seq.id]
 
   # Check that there are no duplicate seq names
   AllSeqNames = []
@@ -63,7 +76,6 @@ def GetSeqToRefComparison(File):
   # TODO: find the longest deletion in the ref (after lstrip("-")) and use that
   # +1 as the string length. Check that, using this with different files,
   # mergin the results doesn't truncate longer strings.
-  AlnLength = alignment.get_alignment_length()
   RefLength = AlnLength - RefSeq.count("-")
   if RefLength == 0:
     print(args.RefName, 'in', File, 'contains no bases. Quitting.', 
@@ -96,7 +108,7 @@ def GetSeqToRefComparison(File):
       if i == RefPosition and KmerHere != RefBaseHere:
         print("Malfunction of ", sys.argv[0], ': inconsistent determination of',
         ' what the reference has at alignment position ', AlnPos0based + 1,
-        '. Quitting.', sep='', file=sys.stderr)
+        ' for file ', File, '. Quitting.', sep='', file=sys.stderr)
         exit(1)
       if not KmerHere:
         KmerHere = "-"

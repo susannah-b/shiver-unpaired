@@ -29,6 +29,8 @@ parser.add_argument('-?', '--q-mark', action='store_true', help="Remove the "\
 " '?' character (used in shiver consensuses to mean missing coverage) too.")
 parser.add_argument('-TE', '--trim-missing-ends', action='store_true', help='''
 Trims any "?", "N" or "n" characters from the ends of each sequence.''')
+parser.add_argument('-1', '--first-seq-only', action='store_true', \
+help='''Return only the first sequence from the fasta file.''')
 args = parser.parse_args()
 
 UngappedSeqs = []
@@ -42,6 +44,8 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
     SeqAsStr = sub("[Nn?]+$", "", SeqAsStr)
     seq.seq = Seq.Seq(SeqAsStr)
   UngappedSeqs.append(seq)
+  if args.first_seq_only:
+    break
 
 if UngappedSeqs == []:
   print('No sequences found in', args.FastaFile+'. Quitting.', file=sys.stderr)

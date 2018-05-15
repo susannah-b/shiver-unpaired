@@ -48,26 +48,35 @@ parser.add_argument('-UE', '--undetermined-end', action='store_true', help='''
 Report the number of characters at the end of the sequence that are either
 "N", "n" or "?". Except for --undetermined-start and --first-seq-only, other
 options used in conjunction with this one will be ignored.''')
+parser.add_argument('-LG', '--longest-gap', action='store_true', help='''Report
+the length of the longest gap (the longest run of "-" characters). Except for
+--first-seq-only, other options used in conjunction with this one will be
+ignored.''')
 args = parser.parse_args()
 
-# Can't use --include-gaps and --fragments
+check_undetermined = args.undetermined_start or args.undetermined_end
+check_both_undetermined = args.undetermined_start and args.undetermined_end
+
+# Some options can't be used together.
 if args.include_gaps and args.fragments:
   print('The --include-gaps and --fragments options cannot both be used at',
   'once. Quitting.', file=sys.stderr)
   exit(1)
+if args.longest_gap and check_undetermined:
+  print('The --longest-gap option cannot be used with the --undetermined-end',
+  'or --undetermined-start options. Quitting.', file=sys.stderr)
+  exit(1)
 
-def get_match_length(string, pattern):
-  "Returns the length of part of a string that matches a search pattern."
-  hit = re.search(pattern, string)
-  if hit == None:
+def get_max_match_length(string, pattern):
+  "Of all matches of a pattern to a string, we report the largest length."
+  match_lengths = [len(match) for match in re.findall(pattern, string)] 
+  if len(match_lengths) == 0:
     return 0
-  return len(hit.group(0))
+  return max(match_lengths)
+
 
 undetermined_start_regex = "^[nN\?]+"
 undetermined_end_regex = "[nN\?]+$"
-
-check_undetermined = args.undetermined_start or args.undetermined_end
-check_both_undetermined = args.undetermined_start and args.undetermined_end
 
 SeqLengths = []
 for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
@@ -76,12 +85,21 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
   seq_as_str = str(seq.seq)
   if check_undetermined:
     if args.undetermined_start:
-      datum = [seq.id, get_match_length(seq_as_str, undetermined_start_regex)]
+      datum = [seq.id, get_max_match_length(seq_as_str,
+      undetermined_start_regex)]
       if args.undetermined_end:
-        datum.append(get_match_length(seq_as_str, undetermined_end_regex))
+        datum.append(get_max_match_length(seq_as_str, undetermined_end_regex))
     else:
-      datum = [seq.id, get_match_length(seq_as_str, undetermined_end_regex)]
+      datum = [seq.id, get_max_match_length(seq_as_str, undetermined_end_regex)]
     SeqLengths.append(datum)
+    if args.first_seq_only:
+      break
+    continue
+
+  # Check the longest gap if desired.
+  if args.longest_gap:
+    longest_gap_length = get_max_match_length(seq_as_str, "[-]+")
+    SeqLengths.append([seq.id, longest_gap_length])
     if args.first_seq_only:
       break
     continue

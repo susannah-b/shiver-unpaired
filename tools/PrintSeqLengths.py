@@ -12,6 +12,7 @@ import argparse
 import os
 import sys
 import string
+import re
 from Bio import SeqIO
 
 # Define a function to check files exist, as a type for the argparse.
@@ -39,6 +40,14 @@ consists of N fragments, we will print N values followed by a zero (meaning that
 the length of the (N+1)th fragment is zero).''')
 parser.add_argument('--ignore-n', action='store_true', \
 help='exclude the "N" and "n" characters, included by default')
+parser.add_argument('-US', '--undetermined-start', action='store_true', help='''
+Report the number of characters at the start of the sequence that are either
+"N", "n" or "?". Except for --undetermined-end and --first-seq-only, other
+options used in conjunction with this one will be ignored.''')
+parser.add_argument('-UE', '--undetermined-end', action='store_true', help='''
+Report the number of characters at the end of the sequence that are either
+"N", "n" or "?". Except for --undetermined-start and --first-seq-only, other
+options used in conjunction with this one will be ignored.''')
 args = parser.parse_args()
 
 # Can't use --include-gaps and --fragments
@@ -47,8 +56,36 @@ if args.include_gaps and args.fragments:
   'once. Quitting.', file=sys.stderr)
   exit(1)
 
+def get_match_length(string, pattern):
+  "Returns the length of part of a string that matches a search pattern."
+  hit = re.search(pattern, string)
+  if hit == None:
+    return 0
+  return len(hit.group(0))
+
+undetermined_start_regex = "^[nN\?]+"
+undetermined_end_regex = "[nN\?]+$"
+
+check_undetermined = args.undetermined_start or args.undetermined_end
+check_both_undetermined = args.undetermined_start and args.undetermined_end
+
 SeqLengths = []
 for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
+
+  # Check for undetermined starts and ends if desired.
+  seq_as_str = str(seq.seq)
+  if check_undetermined:
+    if args.undetermined_start:
+      datum = [seq.id, get_match_length(seq_as_str, undetermined_start_regex)]
+      if args.undetermined_end:
+        datum.append(get_match_length(seq_as_str, undetermined_end_regex))
+    else:
+      datum = [seq.id, get_match_length(seq_as_str, undetermined_end_regex)]
+    SeqLengths.append(datum)
+    if args.first_seq_only:
+      break
+    continue
+
   if not args.include_gaps:
     seq.seq = seq.seq.ungap("-")
     if not args.fragments:

@@ -1,17 +1,8 @@
-update manual:
-- add to manual contig correction screenshots
-- add processing of test data to manual (or GitHub repo?) 
-- check it's up-to-date generally before paper publication
-
-check for fail points throughout bash, i.e. || { echo 'error'; exit 1; } for every command that doesn't haven't a vanishingly small probability of failure.
+check again for fail points throughout bash, i.e. || { echo 'error'; exit 1; } for every command that doesn't haven't a vanishingly small probability of failure.
 
 Add a maximum gap fraction option to SplitGappyContigs.py (<=50%? histogram)
 
-remove coercion of config file bools: just check they're valid bools
-
 fastp program to replace fastaq & Trimmomatic for read trimming?
-
-change my email address throughout code
 
 contig correction: blastn and megablast merged
 
@@ -20,3 +11,5 @@ contig correction: one blast without max-target-seqs = 1 in order to decided wha
 trim off any overhang past the beginning or end of the alignment (optionally, default yes)
 
 trim off incomplete bit of nef from the alignment? Not reliable for mapping? Reliable for which reads went into which end during de novo asembly?
+
+exit status of 3 if no consensus could be called from round 1 (some reads mapped but they were below the coverage threshold). What happens currently if remap=true?

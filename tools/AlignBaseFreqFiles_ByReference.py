@@ -5,12 +5,28 @@ from __future__ import print_function
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
-ExplanatoryMessage = '''Used with two base frequency files of the format
-produced by shiver, each one resulting from mapping to a different reference,
-and an alignment which contains those two references, this script aligns the two
-frequencies to each other based on the alignment. i.e., at each position in the
-alignment, we report the frequencies with respect to each reference. Output is
-printed to stdout suitable for redirection to a csv file.'''
+ExplanatoryMessage = '''This script aligns two base frequency files
+of the format produced by shiver, each one resulting from mapping to a different
+reference, figuring out the correspondance of positions based on alignment of
+the two references. Note that AlignBaseFreqFiles_ByConsensuses.py does the same
+thing but using an alignment of the two consensuses called from the two base
+frequency files, instead of the two mapping references. Note that the accuracy
+of the output of either of these scripts relies on the accuracy of the input
+alignment. If using this script with mapping references that have indels with
+respect to each other, alignment ambiguity at the site of the indels can cause a
+slight shift/stagger in the correspondence between positions close to the site,
+which will lead to an overestimate of the number of positions where the base
+frequencies disagree on what base is most common. Therefore if your two base
+frequency files were derived by mapping the same reads to two different
+references and your aim is to count sites where base frequencies differ, you
+should use AlignBaseFreqFiles_ByConsensuses.py instead (because the consensuses
+should be nearly identical, and so their alignment should give a more accurate
+correspondence of positions). If your two base frequency files were derived by
+mapping the reads from two different samples and part of the genome is missing
+for one or both samples, this script is likely to be better, because an
+alignment of the references instead of the consensuses does not suffer from the
+ambiguity due to missing sequence. Output of this script is printed to stdout
+suitable for redirection to a csv file.'''
 
 import argparse
 import os

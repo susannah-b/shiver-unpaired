@@ -6,7 +6,7 @@ Sequences from HIV Easily Reconstructed.
 shiver is freely available under the GNU General Public License version 3, described [here](LICENSE).  
 shiver is a tool for mapping paired-end short reads to a custom reference sequence constructed using do novo assembled contigs, in order to minimise the biased loss of information that occurs from mapping to an reference that differs from the sample.
 From the mapped reads, base frequencies are calculated, and a consensus sequence is called.  
-The method and its performance are discussed [here](https://doi.org/10.1093/ve/vey007); please cite this if you find shiver helpful.
+The method, its performance and scientific context are discussed [here](https://doi.org/10.1093/ve/vey007); please cite this if you find shiver helpful.
 If you use shiver, please also cite the publications of its dependencies. Citation details [here](info/CitationDetails.bib).
 
 shiver runs natively on Linux and Mac OS, but not Windows.

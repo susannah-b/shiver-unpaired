@@ -5,13 +5,19 @@ from __future__ import print_function
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
-ExplanatoryMessage = '''This script aligns two shiver-format base frequency
-files to each other, using an alignment of the two associated consensuses. The
-consensuses must have been called from those two base frequency files using a
-custom run of shiver/tools/CallConsensus.py with the argument MinFracToCall set
-to 1, and with the options --use-n-for-missing --keep-gaps-by-missing. The value
-of the MinCoverage argument you used there must be specified here. Output is
-printed to stdout suitable for redirection to a csv file.'''
+ExplanatoryMessage = '''This script aligns two base frequency files
+of the format produced by shiver, each one resulting from mapping to a different
+reference, figuring out the correspondance of positions based on alignment of
+the two consensuses called from the two base frequency files. Note that
+AlignBaseFreqFiles_ByConsensuses.py does the same thing but using an alignment
+of the two mapping references, instead of the two consensuses; read the --help
+for that script for a discussion of the differences between these two scripts.
+Here, the consensuses must have been called from the two base frequency files
+using a custom run of shiver/tools/CallConsensus.py with the argument
+MinFracToCall set to any negative value, and with the options
+--use-n-for-missing --keep-gaps-by-missing. The value of the MinCoverage
+argument you used there must be specified here. Output is printed to stdout
+suitable for redirection to a csv file.'''
 
 import argparse
 import os

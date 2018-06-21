@@ -123,7 +123,7 @@ brew install python
 pip install biopython
 
 # smalt
-brew install homebrew/science/smalt
+brew install smalt
 
 # blast
 brew install blast

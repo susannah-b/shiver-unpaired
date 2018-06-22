@@ -74,10 +74,14 @@ with open(args.alignment_csv, 'r') as f:
     unprocessed_kmers = fields[2:]
     unprocessed_kmer_counts = Counter(unprocessed_kmers)
     kmer_counts = Counter()
+    kmer_len_counts = Counter()
     for unprocessed_kmer, count in unprocessed_kmer_counts.items():
       kmer = sub("[N-]+", "", unprocessed_kmer)
-      if len(kmer) > 0:
+      len_kmer = len(kmer)
+      if len_kmer > 0:
         kmer_counts[kmer] += count
+      if any(base != "N" for base in unprocessed_kmer):
+        kmer_len_counts[len_kmer] += count
 
     # Skip positions where too many kmers were wholly undetermined (nothing but
     # "N" and "-").
@@ -87,7 +91,17 @@ with open(args.alignment_csv, 'r') as f:
       continue
 
     # Append the most common kmer to our consensus seq so far.
-    consensus += kmer_counts.most_common(1)[0][0]
+    most_common_kmer = kmer_counts.most_common(1)[0][0]
+    len_of_most_common_kmer = len(most_common_kmer)
+    true_most_common_len = kmer_len_counts.most_common(1)[0][0]
+    if len(most_common_kmer) != true_most_common_len:
+      print("Warning: at position", ref_pos, "the most common kmer is",
+      most_common_kmer, "which has length", str(len_of_most_common_kmer) + \
+      ", but the most common length amongst all kmers here is",
+      str(true_most_common_len) + ". This is a bit irritating but an",
+      "unavoidable result of simply using the most common kmer at each",
+      "position. Continuing.", file=sys.stderr)
+    consensus += most_common_kmer
 
 out_seq = SeqIO.SeqRecord(seq=Seq.Seq(consensus), id=args.output_seq_name,
 description='')

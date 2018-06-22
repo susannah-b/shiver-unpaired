@@ -23,6 +23,7 @@ Code_MergeBaseFreqsAndCoords="$ToolsDir/MergeBaseFreqsAndCoords.py"
 Code_SplitGappyContigs="$ToolsDir/SplitGappyContigs.py"
 Code_PrintSeqLengths="$ToolsDir/PrintSeqLengths.py"
 Code_AddSNPsToSeqs="$ToolsDir/AddAllPossibleSNPsToSeqs.py"
+Code_KeepBestLinesInDataFile="$ToolsDir/KeepBestLinesInDataFile.py"
 
 # For quitting if files don't exist.
 function CheckFilesExist {

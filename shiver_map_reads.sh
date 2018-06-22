@@ -416,10 +416,10 @@ else
     # For multiple blast hits, keep the one with the highest evalue
     # TODO: test what blast does with fasta headers that have comments in them -
     # does it include them too?
-    sort -t, -k1,1 -k4,4g "$reads1blast1" | sort -t, -k1,1 -u --merge > \
-    "$reads1blast2"
-    sort -t, -k1,1 -k4,4g "$reads2blast1" | sort -t, -k1,1 -u --merge > \
-    "$reads2blast2"
+    "$Code_KeepBestLinesInDataFile" -O "$reads1blast1" "$reads1blast2" &&
+    "$Code_KeepBestLinesInDataFile" -O "$reads2blast1" "$reads2blast2" || 
+    { echo "Problem extracting the best blast hits using"\
+    "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
 
     # Find the read pairs that blast best to something other than the reference.
     "$Code_FindContaminantReadPairs" "$reads1blast2" "$reads2blast2" \

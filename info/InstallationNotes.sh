@@ -100,8 +100,6 @@ echo 'PATH=$PATH:~/bowtie2-2.3.3.1-linux-x86_64/' >> ~/.bashrc; source ~/.bashrc
 
 # Trimmomatic binary downloaded from http://www.usadellab.org/cms/?page=trimmomatic
 
-# mafft installed from http://mafft.cbrc.jp/alignment/software/macstandard.html
-
 # Subsequently, command-line based installation:
 
 # xcode
@@ -123,12 +121,16 @@ brew install python
 pip install biopython
 
 # smalt
-brew install homebrew/science/smalt
+brew install smalt
 
 # blast
 brew install blast
 
 # samtools
 brew install samtools
+
+# mafft
+brew install mafft
+
 
 ####################################################################################################

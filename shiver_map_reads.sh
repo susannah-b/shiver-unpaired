@@ -416,8 +416,8 @@ else
     # For multiple blast hits, keep the one with the highest evalue
     # TODO: test what blast does with fasta headers that have comments in them -
     # does it include them too?
-    "$Code_KeepBestLinesInDataFile" -O "$reads1blast1" "$reads1blast2" &&
-    "$Code_KeepBestLinesInDataFile" -O "$reads2blast1" "$reads2blast2" || 
+    "$Code_KeepBestLinesInDataFile" "$reads1blast1" "$reads1blast2" &&
+    "$Code_KeepBestLinesInDataFile" "$reads2blast1" "$reads2blast2" || 
     { echo "Problem extracting the best blast hits using"\
     "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
 

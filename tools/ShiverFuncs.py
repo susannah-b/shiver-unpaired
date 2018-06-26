@@ -1,3 +1,6 @@
+from __future__ import print_function
+import sys
+
 def CalculateReadIdentity(PysamRead, ReferenceSeq):
   '''Calculate the fractional agreement between a read and the ref sequence'''
 
@@ -38,3 +41,41 @@ def TranslateSeqCoordsToAlnCoords(seq, coords):
   assert not -1 in TranslatedCoords
   assert len(TranslatedCoords) == len(coords)
   return TranslatedCoords
+
+def GetSeqStartAndEndPos(seq):
+  '''Get the position of the first and last non-gap character in the seq.'''
+  FirstBasePos = 0
+  try:
+    while seq[FirstBasePos] == "-":
+      FirstBasePos += 1
+  except IndexError:
+    print('Encountered pure-gap sequence. Quitting', file=sys.stderr)
+    quit(1)
+  LastBasePos = len(seq) - 1
+  while seq[LastBasePos] == "-":
+    LastBasePos -= 1
+  return FirstBasePos, LastBasePos
+
+def RemoveBlankColumns(alignment, BlankChars="-", RemoveUninformative=False):
+  '''Remove 'blank' columns from a seq alignment (consisting solely of "-",
+  optionally including other charcters in the  BlankChars arg), and optionally
+  any column that is 'uninformative' (all non-blank characters are the same).'''
+
+  AlignmentLength = alignment.get_alignment_length()
+  for column in reversed(xrange(AlignmentLength)):
+    RemoveThisCol = True
+    FirstBaseSeen = None
+    for base in alignment[:, column]:
+      if not base in BlankChars:
+        if RemoveUninformative:
+          if FirstBaseSeen == None:
+            FirstBaseSeen = base
+          elif base != FirstBaseSeen:
+            RemoveThisCol = False
+            break
+        else:
+          RemoveThisCol = False
+          break
+    if RemoveThisCol:
+      alignment = alignment[:, :column] + alignment[:, column+1:]
+  return alignment

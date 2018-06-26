@@ -13,6 +13,7 @@ import argparse
 import os
 import sys
 from Bio import AlignIO
+from ShiverFuncs import RemoveBlankColumns
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -21,7 +22,6 @@ def File(MyFile):
   return MyFile
 
 # Set up the arguments for this script
-ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('FastaFile', type=File)
 parser.add_argument('-?', '--q-mark', action='store_true', help='''Also consider
@@ -37,22 +37,7 @@ if args.q_mark:
   BlankChars += '?'
 
 alignment = AlignIO.read(args.FastaFile, "fasta")
-AlignmentLength = alignment.get_alignment_length()
-for column in reversed(xrange(AlignmentLength)):
-  RemoveThisCol = True
-  FirstBaseSeen = None
-  for base in alignment[:, column]:
-    if not base in BlankChars:
-      if args.uninformative:
-        if FirstBaseSeen == None:
-          FirstBaseSeen = base
-        elif base != FirstBaseSeen:
-          RemoveThisCol = False
-          break
-      else:
-        RemoveThisCol = False
-        break
-  if RemoveThisCol:
-    alignment = alignment[:, :column] + alignment[:, column+1:]
+
+alignment = RemoveBlankColumns(alignment, BlankChars, args.uninformative)
 
 AlignIO.write(alignment, sys.stdout, 'fasta')

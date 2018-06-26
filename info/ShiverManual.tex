@@ -127,7 +127,8 @@ In this alignment, nothing has been done to the contigs (hence the name {\it raw
  \item is not wholly spanned by a blast hit, suggesting that the ends are not genuine HIV and should be trimmed off;
  \item has two or more blast hits (ignoring hits wholly inside other hits), suggesting that it is chimeric/spliced -- erroneously connecting disconnected parts of the genome;
  \item has a blast hit in the opposite orientation to the reference, suggesting that that contig (or part of it) should be reverse complemented;
- \item contains an unrealistically large gap after alignment to the existing references, suggesting that it should be split into two separate contigs.
+ \item contains an unrealistically large gap after alignment to the existing references, suggesting that it should be split into two separate contigs;
+ \item overhangs the edge of the alignment of existing references (i.e. in the alignment the beginning of the contig is to the left of the beginning of all references, or the end of the contig is to the right of the end of all references).
 \end{itemize}
 Appropriate action is taken in each case -- trimming, cutting into pieces, and reverse-complementing as needed.
 If any of these actions were needed for any of the contigs, an additional file \c{SID\char`_cut\char`_wRefs.fasta} will be produced, which contains all contigs after correction, aligned to the existing references.

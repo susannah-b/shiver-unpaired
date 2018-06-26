@@ -103,14 +103,14 @@ if [[ -f "$CutContigFile" ]]; then
 
   # Split gappy contigs after alignment.
   CutContigNames=$(awk '/^>/ {print substr($1,2)}' "$CutContigFile")
-  "$Code_SplitGappyContigs" "$TempContigAlignment3" $CutContigNames \
+  "$Code_CutAlignedContigs" "$TempContigAlignment3" $CutContigNames \
   $CutAlignedContigsArgs > "$CutContigAlignment"
-  SplitGappyContigsStatus=$?
-  if [[ $SplitGappyContigsStatus == 3 ]]; then
+  CutAlignedContigsStatus=$?
+  if [[ $CutAlignedContigsStatus == 3 ]]; then
     echo "After contig correction, all (pieces of) contigs for $SID were below"\
     "the length threshold. Quitting." >&2
     exit 3
-  elif [[ $SplitGappyContigsStatus != 0 ]]; then
+  elif [[ $CutAlignedContigsStatus != 0 ]]; then
     echo 'Problem splitting gappy contigs after alignment. Quitting.' >&2
     exit 1
   fi
@@ -124,14 +124,14 @@ else
   # want to split the aligned raw contigs. If so, name it the same as aligned
   # cut contigs for consistency.
   RawContigNames=$(awk '/^>/ {print substr($1,2)}' "$RawContigFile1")
-  "$Code_SplitGappyContigs" "$RawContigAlignment" $RawContigNames \
+  "$Code_CutAlignedContigs" "$RawContigAlignment" $RawContigNames \
   $CutAlignedContigsArgs > "$CutContigAlignment"
-  SplitGappyContigsStatus=$?
-  if [[ $SplitGappyContigsStatus == 3 ]]; then
+  CutAlignedContigsStatus=$?
+  if [[ $CutAlignedContigsStatus == 3 ]]; then
     echo "After contig correction, all (pieces of) contigs for $SID were below"\
     "the length threshold. Quitting." >&2
     exit 3
-  elif [[ $SplitGappyContigsStatus != 0 ]]; then
+  elif [[ $CutAlignedContigsStatus != 0 ]]; then
     echo 'Problem splitting gappy contigs after alignment. Quitting.' >&2
     exit 1
   fi

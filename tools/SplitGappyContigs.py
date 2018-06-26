@@ -24,6 +24,7 @@ from Bio import SeqIO
 from Bio import AlignIO
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
+from ShiverFuncs import GetSeqStartAndEndPos, RemoveBlankColumns
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -40,6 +41,9 @@ The gap size at which a contig will be split into two. (Default: 100.)''')
 parser.add_argument( '-M', '--min-contig-size', default=80, type=int, help='''
 The minimum length of a contig (or a piece of a contig, after contig splitting) 
 for it to be kept in the alignment. (Default: 80.)''')
+parser.add_argument('-O', '--trim-overhangs', action="store_true", help='''With
+this option we trim (by replacing with gaps) bases in one of the sequences to
+correct that starts before or ends after any of the other sequences.''')
 args = parser.parse_args()
 
 ContigNames = args.NameOfSeqToCorrect
@@ -97,18 +101,21 @@ def split_parts(c, min_contig_size, split_gap_size, prefix=''):
       description='')
     pos = pos + len(s)
 
+# Check we find all contigs. Find the start of the first and end of the last
+# non-contig sequence.
 ContigsFound = {contig:False for contig in ContigNames}
-
-# Iterate through all seqs in the alignment, splitting contigs where necessary.
-SeqsForOutput = []
 NumRefSeqs = 0
+AlignmentLength = AlignedSeqs.get_alignment_length()
+FirstRefStart = AlignmentLength
+LastRefEnd = 0
 for seq in AlignedSeqs:
   if seq.id in ContigsFound:
-    SeqsForOutput += list(split_parts(seq, args.min_contig_size,
-    args.split_gap_size))
     ContigsFound[seq.id] = True
   else:
-    SeqsForOutput.append(seq)
+    if args.trim_overhangs:
+      RefStart, RefEnd = GetSeqStartAndEndPos(str(seq.seq))
+      FirstRefStart = min(FirstRefStart, RefStart)
+      LastRefEnd    = max(LastRefEnd, RefEnd)
     NumRefSeqs += 1
 
 # Check if any of the named contigs were not found.
@@ -117,6 +124,22 @@ if MissingContigs:
   print("The following contigs were not found in " + args.alignment + ":",
   " ".join(MissingContigs) + '\nQuitting.', file=sys.stderr)
   exit(1)
+
+
+# Iterate through all seqs in the alignment, splitting contigs where necessary.
+SeqsForOutput = []
+for seq in AlignedSeqs:
+  if seq.id in ContigsFound:
+    if args.trim_overhangs:
+      TrimmedSeq = "-" * FirstRefStart + str(seq.seq)[FirstRefStart:LastRefEnd \
+      + 1] + "-" * (AlignmentLength - LastRefEnd - 1)
+      assert len(TrimmedSeq) == AlignmentLength, \
+      "Internal malfunction of overhang trimming"
+      seq.seq = Seq(TrimmedSeq)
+    SeqsForOutput += list(split_parts(seq, args.min_contig_size,
+    args.split_gap_size))
+  else:
+    SeqsForOutput.append(seq)
 
 # It's possible that after splitting contigs and imposing a minimum length
 # threshold, there are no contigs left. Exit with status 3 - shiver's reserved
@@ -129,5 +152,8 @@ if NumContigs == 0:
   file=sys.stderr)
   exit(3)
 
-SeqIO.write(SeqsForOutput, sys.stdout, 'fasta')
+# Remove pure-gap columns and print the output.
+OutputAlignment = AlignIO.MultipleSeqAlignment(SeqsForOutput)
+OutputAlignment = RemoveBlankColumns(OutputAlignment)
+AlignIO.write(OutputAlignment, sys.stdout, 'fasta')
 

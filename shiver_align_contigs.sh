@@ -83,6 +83,15 @@ PrintAlnLengthIncrease "$RefAlignment" "$RawContigAlignment" || \
 { echo "Problem encountered running $Code_CorrectContigs. Quitting." >&2 ; \
 exit 1; }
 
+# Set up the arguments for when we cut the aligned contigs.
+if [[ "$TrimToKnownGenome" == "true" ]]; then
+  CutAlignedContigsArgs="--split-gap-size $MinGapSizeToSplitGontig \
+  --min-contig-size $MinContigFragmentLength --trim-overhangs"
+else
+  CutAlignedContigsArgs="--split-gap-size $MinGapSizeToSplitGontig \
+  --min-contig-size $MinContigFragmentLength"
+fi
+
 # If the contigs needed correcting, align the corrected contigs. 
 if [[ -f "$CutContigFile" ]]; then
 
@@ -95,8 +104,7 @@ if [[ -f "$CutContigFile" ]]; then
   # Split gappy contigs after alignment.
   CutContigNames=$(awk '/^>/ {print substr($1,2)}' "$CutContigFile")
   "$Code_SplitGappyContigs" "$TempContigAlignment3" $CutContigNames \
-  --split-gap-size "$MinGapSizeToSplitGontig" --min-contig-size \
-  "$MinContigFragmentLength" > "$CutContigAlignment"
+  $CutAlignedContigsArgs > "$CutContigAlignment"
   SplitGappyContigsStatus=$?
   if [[ $SplitGappyContigsStatus == 3 ]]; then
     echo "After contig correction, all (pieces of) contigs for $SID were below"\
@@ -117,8 +125,7 @@ else
   # cut contigs for consistency.
   RawContigNames=$(awk '/^>/ {print substr($1,2)}' "$RawContigFile1")
   "$Code_SplitGappyContigs" "$RawContigAlignment" $RawContigNames \
-  --split-gap-size "$MinGapSizeToSplitGontig" --min-contig-size \
-  "$MinContigFragmentLength" > "$CutContigAlignment"
+  $CutAlignedContigsArgs > "$CutContigAlignment"
   SplitGappyContigsStatus=$?
   if [[ $SplitGappyContigsStatus == 3 ]]; then
     echo "After contig correction, all (pieces of) contigs for $SID were below"\

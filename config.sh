@@ -52,8 +52,9 @@ MinContigFragmentLength=80
 
 # After aligning the contigs to the input existing references, by default we
 # trim off any contig sequence that overhangs the whole reference alignment,
-# i.e. that starts before the beginning of the first reference or ends after the
-# end of the last reference. Set the variable below to false to switch this
+# i.e. in the alignment the beginning of the contig is to the left of the
+# beginning of all references, or the end of the contig is to the right of the
+# end of all references) Set the variable below to false to switch this
 # trimming off.
 TrimToKnownGenome=true
 

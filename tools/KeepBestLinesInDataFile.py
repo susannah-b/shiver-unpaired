@@ -45,6 +45,10 @@ to specify that we should keep the largest value in the sort field for each id.
 parser.add_argument('-O', '--order_by_id', action='store_true', help='''Used to
 specify that the output file should be sorted by id, rather than left in the
 original order.''')
+parser.add_argument('-H', '--header', action='store_true', help='''Used to
+specify that the first line is a header line (which we therefore always include
+in the output, excluding it from the sort-based choice of lines). By default we
+assume there is no header line (as is the case in blast output).''')
 args = parser.parse_args()
 
 if args.sort_field > args.num_fields:
@@ -60,6 +64,10 @@ rows_to_keep = OrderedDict()
 
 with open(args.in_file, 'r') as f:
   for lin_num_min_1, line in enumerate(f):
+
+    if lin_num_min_1 == 0 and args.header:
+      header = line
+      continue
 
     # Split into fields.
     fields = line.split(args.separator)
@@ -91,6 +99,8 @@ with open(args.in_file, 'r') as f:
       rows_to_keep[id_] = (line, sort_value)
 
 with open(args.out_file, "w") as f:
+  if args.header:
+    f.write(header)
   if args.order_by_id:
     for value in sorted(rows_to_keep.values(),
     key=lambda x: x[0].split(",", 1)[0]):

@@ -10,7 +10,11 @@ file: an ID field and a field used for sorting (containing a float). For any ID
 that appears in multiple rows, we keep only one of these rows: by default the
 one with the smallest value of the sorting field. (In the event of an exact tie
 we use the row encountered first.) The specific purpose we have in mind is
-keeping the blast hit with the smallest evalue.'''
+keeping the blast hit with the smallest evalue.
+This script emulates terminal commands like "sort MyData.csv -t, -k1,1 -k2,2 |
+sort -t, -k1,1 -u --merge" (here keeping one occurence of each unique value in
+field one, based on the value of field 2), which in my experience work on linux
+but fail on MacOS (see https://www.biostars.org/p/144569/#325003).'''
 
 import argparse
 import os

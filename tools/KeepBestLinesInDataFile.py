@@ -99,7 +99,7 @@ with open(args.in_file, 'r') as f:
       rows_to_keep[id_] = (line, sort_value)
 
 # Exit if empty.
-if len(OrderedDict()) == 0:
+if len(rows_to_keep) == 0:
   print("Found no data in", args.in_file + ". Quitting.", file=sys.stderr)
   exit(1)
 

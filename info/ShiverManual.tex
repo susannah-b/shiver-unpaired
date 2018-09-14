@@ -60,6 +60,7 @@ If you downloaded it somewhere else, e.g. \c{my/other/directory/shiver/}, simply
 By default, to run a \shiv command, you have to tell the command line where the binary/executable file for that command is found, i.e. including its path, e.g. \c{\path{~}/shiver/shiver\char`_align\char`_contigs.sh}.
 If you don't want to type the path every time -- you want to be able to just type \sac -- you need to add the directory containing the \shiv code (\c{\path{~}/shiver/}) to your \c{PATH} environmental variable.
 Search on Google if you don't know how to do that.
+{\bf Do not} add `\texttt{sh }' before a \shiv command -- this forces your operating system to interpret the code as shell language (it's actually bash) and will result in a strange error.
 
 Throughout this manual, a \c{\$} character at the start of a line just indicates that what follows should be run from command line; you should be able to just copy and paste this into your terminal, then press enter to execute the command.
 Don't include that initial \c{\$} character in what you copy and paste.

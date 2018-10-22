@@ -41,17 +41,17 @@ parser.add_argument('CoordsFile', type=File)
 args = parser.parse_args()
 
 # Read in the seq
-seq = None
+SeqAsString = None
 RefAsString = None
 for InSeq in SeqIO.parse(open(args.ConsensusFile),'fasta'):
-  if seq == None:
+  if SeqAsString == None:
     seq = InSeq
     SeqAsString = str(InSeq.seq)
     continue
   RefAsString = str(InSeq.seq)
   break
 if RefAsString == None:
-  print('Did not find two sequences in', args.ConsensusFile + 'Quitting.', \
+  print('Did not find two sequences in', args.ConsensusFile + '. Quitting.', \
   file=sys.stderr)
   exit(1)
 SeqLength = len(SeqAsString)

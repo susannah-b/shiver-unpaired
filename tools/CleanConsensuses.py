@@ -80,7 +80,7 @@ which the first column is the name of a region, the second column is the
 end position of that region. A header line is not expected. Regions should be
 mutually exclusive and collectively exhaustive, i.e. every position in the
 alignment should be in exactly one region.''')
-parser.add_argument('--output', help='''Use this to specify where the output
+parser.add_argument('output', help='''Use this to specify where the output
 will go. If you are using --global_aln, this should be a single file; if you are
 using --individual_consensus, this should be a directory (in which we will
 create one file per input individual consensus).''')
@@ -220,7 +220,7 @@ if args.split_amplicons:
 
 # Read the seq-based blacklist.
 seq_blacklist_dict = {}
-expected_header_line = 'BAM,keep.at.all,' + ','.join(regions) + ',origin'
+expected_header_line = 'id,keep.at.all,' + ','.join(regions) + ',origin'
 num_fields = expected_header_line.count(',') + 1
 with open(args.seq_based_blacklist, 'r') as f:
   for line_num_min_1, line in enumerate(f):

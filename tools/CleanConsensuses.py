@@ -25,6 +25,7 @@ wholly undetermined (purely N) sequences are removed.'''
 import argparse
 import os
 import sys
+import pandas
 import itertools
 from Bio import AlignIO
 from Bio import Seq  
@@ -44,19 +45,25 @@ def File(_file):
 
 # Set up the arguments for this script
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
-parser.add_argument('--global_aln', type=File, help='''An alignment of all
-consensuses to be cleaned; use either this option or
+input_args = parser.add_argument_group('''Input options - you must specify
+exactly one of these.''')
+input_args.add_argument('--global_aln', type=File, help='''An alignment of all
+consensuses to be cleaned.
 It should contain no ambiguity codes; Ambiguity codes can be estimated using
 shiver/tools/EstimateAmbiguousBases.py. If sequence names contain the string
 "_consensus" and/or "_MinCov", the name is truncated by removing the string and
 every thing after it. After that, each sequence name should be either the ID of
 a patient, or the ID of a patient followed by an underscore then a unique
 string, to distinguish multiple sequences associated with the same patient.''')
-parser.add_argument('--individual_consensus', type=File, nargs='+',
+input_args.add_argument('--individual_consensus', type=File, nargs='+',
 help='''Use this option to specify one or more files containing an alignment of
 a consensus to be cleaned and a reference sequence, with the same reference
-sequence in all of these files. Use either this option or --global_aln. If you
+sequence in all of these files. If you
 use this option you must also use --common_reference.''')
+input_args.add_argument('--base_freqs', type=File, nargs='+',
+help='''Use this option to specify one or more files containing base frequency
+files with HXB2 coordinates, in the format produced by shiver.''')
+
 parser.add_argument('--common_reference', help='''Use this to specify the name
 of the reference sequence that is present in each of the individual consensus
 files, if you are using the --individual_consensus option.''')
@@ -100,27 +107,40 @@ BEEHIVE ID. If this option is used, input sequences are assumed to be labelled
 by Sanger ID and their BEEHIVE ID will be looked up.''')
 args = parser.parse_args()
 
-# Check that we either have a global alignment or individual consensuses
+# Check that we have exactly one of the following: a global alignment,
+# individual consensuses, base freqs.
 have_global_aln = args.global_aln != None
 have_individual_consensus = args.individual_consensus != None
-if have_global_aln and have_individual_consensus:
-  print('Use either --global_aln or --individual_consensus, not both.',
-  'Quitting.', file=sys.stderr)
-  exit(1)
-if (not have_global_aln) and (not have_individual_consensus):
-  print('You must use one of --global_aln or --individual_consensus.',
-  'Quitting.', file=sys.stderr)
+have_base_freqs = args.base_freqs != None
+num_input_types = sum([have_global_aln, have_base_freqs,
+have_individual_consensus])
+if num_input_types != 1:
+  print('Exactly one of the --global_aln, --individual_consensus,',
+  '--base_freqs options should be specified. Quitting.', file=sys.stderr)
   exit(1)
 
-# If we have individual consensus files, (a) the output arg should be a 
-# directory - make it if it doesn't exist already; (b) --common_reference should
-# have been specified.
-if have_individual_consensus:
+# If we have individual consensus files or base freqs, the output arg should be 
+# a directory - make it if it doesn't exist already.
+if have_individual_consensus or have_base_freqs:
   if not os.path.isdir(args.output):
     os.mkdir(args.output)
-  if args.common_reference == None:
-    print('The --individual_consensus option requires the --common_reference',
-    'option to be used too. Quitting.', file=sys.stderr)
+
+# If we have individual consensus files --common_reference should have been
+# specified.
+if have_individual_consensus and args.common_reference != None:
+  print('The --individual_consensus option requires the --common_reference',
+  'option to be used too. Quitting.', file=sys.stderr)
+  exit(1)
+
+# Can't use --split_amplicons or --print_new_seq_blacklist with --base_freqs.
+if have_base_freqs:
+  if args.split_amplicons:
+    print('The --split_amplicons option cannot be used with the --base_freqs',
+    'option. Quitting.', file=sys.stderr)
+    exit(1)
+  if args.print_new_seq_blacklist:
+    print('The --print_new_seq_blacklist option cannot be used with the',
+    '--base_freqs option. Quitting.', file=sys.stderr)
     exit(1)
 
 # Read in the sanger to BEEHIVE ID dict if desired.
@@ -275,7 +295,7 @@ with open(args.patient_based_blacklist, 'r') as f:
     blacklisted_patients.add(patient)
 
 def preprocess_seq(seq, check_for_ambig_bases):
-  '''Replaces lower-case bases and '?' by N, optionally checks for amibuous
+  '''Replaces lower-case bases and '?' by N, optionally checks for ambiguous
   bases, checks whether it's wholly undetermined.'''
   seq_as_str = str(seq.seq)
   initial_length = len(seq_as_str)
@@ -294,6 +314,8 @@ def preprocess_seq_id(seq_id):
   seq_id = seq_id.split('_consensus', 1)[0]
   seq_id = seq_id.split('_MinCov', 1)[0]
   seq_id = seq_id.split('_remap', 1)[0]
+  seq_id = seq_id.split('_BaseFreqs_', 1)[0]
+  seq_id = seq_id.split('.csv', 1)[0]
   return seq_id
 
 def get_beehive_id(seq_id):
@@ -365,10 +387,15 @@ if have_global_aln:
   check_ambig_bases = True
   seq_dict = collections.OrderedDict()
 
-else:
+elif have_individual_consensus:
   collection_of_seqs = args.individual_consensus
   check_ambig_bases = False
   seq_dict = set([]) # Used just to record what seqs we've seen so far.
+
+elif have_base_freqs:
+  collection_of_seqs = args.base_freqs
+  seq_dict = set([])
+
 
 extra_blacklisted_seq_ids = set([])
 first_gapless_reference = None
@@ -431,13 +458,49 @@ for seq in collection_of_seqs:
           'and', individual_consensus_file + '. Quitting.', file=sys.stderr)
           exit(1)
 
-  else:
+  elif have_global_aln:
     # If we're working with the global alignment, the coordinates of the regions
     # are the same for every seq.
     regions_dict_this_aln = regions_dict
 
+  elif have_base_freqs:
+    # Read the file, iterate through the first column - the position with
+    # respect to the reference - and find the row numbers for the start and end 
+    # of each region.
+    try:
+      base_freq_df = pandas.read_csv(seq)
+    except:
+      print('Error: failed to read', seq, "using the pandas.read_csv()",
+      "function. Quitting.", file=sys.stderr)
+      raise
+    base_freq_df_num_rows, base_freq_df_num_cols = base_freq_df.shape
+    regions_dict_this_aln = {}
+    previous_region_end = -1
+    for region_num, (region, (start, end)) in enumerate(regions_dict.items()):
+      start_row_num = previous_region_end + 1
+      for row_num_minus_previous_end, ref_pos in \
+      enumerate(base_freq_df.iloc[previous_region_end + 1:, 0]):
+        end_row_num = None
+        if ref_pos != "-" and int(ref_pos) >= end:
+          end_row_num = row_num_minus_previous_end + previous_region_end + 1
+          previous_region_end = end_row_num
+          break
+      if end_row_num == None and region_num != num_regions - 1:
+        print('Error: internal malfunction of', __file__ + ': failed to find',
+        'the end of region', region, 'in', seq + '. Quitting.',
+        file=sys.stderr)
+        exit(1)
+      if region_num == num_regions - 1:
+        end_row_num = base_freq_df_num_rows - 1
+      regions_dict_this_aln[region] = (start_row_num, end_row_num) # 0-based
+      print("Region", region, "with start-end", start, end, "; line nums",
+      start_row_num + 2, end_row_num + 2)
+
   # Preprocess the seq id and check we haven't seen it before.
-  seq_id = preprocess_seq_id(seq.id)
+  if have_base_freqs:
+    seq_id = preprocess_seq_id(os.path.basename(seq))
+  else:
+    seq_id = preprocess_seq_id(seq.id)
   if seq_id in seq_dict:
     print('Encountered seq', seq_id, 'a second time. Quitting.',
     file=sys.stderr)
@@ -452,31 +515,34 @@ for seq in collection_of_seqs:
       args.sanger_to_beehive_id_dict + '. Quitting.', file=sys.stderr)
       exit(1)
 
-  # Preprocess the seq, and skip if it's wholly undetermined.
-  seq_as_str, wholly_undetermined = preprocess_seq(seq, check_ambig_bases)
-  if wholly_undetermined:
-    if args.verbose:
-      print("Skipping sequence", seq_id, "which is wholly undetermined after",
-      "removing lower-case bases.")
-    continue
+  # Sequence processing, not for base freqs:
+  if not have_base_freqs:
 
-  # Add our own blacklisting of regions, based on the fraction that's not "N",
-  # for regions that have not already been blacklisted.
-  for region_num in xrange(num_regions):
-    seq_in_blacklist = seq_id in seq_blacklist_dict
-    if seq_in_blacklist and not seq_blacklist_dict[seq_id][region_num + 1]:
+    # Preprocess the seq, and skip if it's wholly undetermined.
+    seq_as_str, wholly_undetermined = preprocess_seq(seq, check_ambig_bases)
+    if wholly_undetermined:
+      if args.verbose:
+        print("Skipping sequence", seq_id, "which is wholly undetermined after",
+        "removing lower-case bases.")
       continue
-    region = regions[region_num]
-    start, end = regions_dict_this_aln[region]
-    region_length = end - start + 1
-    seq_here = seq_as_str[start - 1: end]
-    missingness = float(seq_here.count("N")) / region_length
-    if missingness >= max_missingness:
-      if not seq_in_blacklist:
-        seq_blacklist_dict[seq_id] = [True] * (num_regions + 1)
-      seq_blacklist_dict[seq_id][region_num + 1] = False
-      extra_blacklisted_seq_ids.add(seq_id)
-    #completeness_percents[region].append(completeness_percent)
+
+    # Add our own blacklisting of regions, based on the fraction that's not "N",
+    # for regions that have not already been blacklisted.
+    for region_num in xrange(num_regions):
+      seq_in_blacklist = seq_id in seq_blacklist_dict
+      if seq_in_blacklist and not seq_blacklist_dict[seq_id][region_num + 1]:
+        continue
+      region = regions[region_num]
+      start, end = regions_dict_this_aln[region]
+      region_length = end - start + 1
+      seq_here = seq_as_str[start - 1: end]
+      missingness = float(seq_here.count("N")) / region_length
+      if missingness >= max_missingness:
+        if not seq_in_blacklist:
+          seq_blacklist_dict[seq_id] = [True] * (num_regions + 1)
+        seq_blacklist_dict[seq_id][region_num + 1] = False
+        extra_blacklisted_seq_ids.add(seq_id)
+      #completeness_percents[region].append(completeness_percent)
 
   # Delete every seq from a blacklisted patient      
   beehive_id = get_beehive_id(seq_id)
@@ -503,17 +569,27 @@ for seq in collection_of_seqs:
 
     for region_num in xrange(num_regions):
 
-      # Mask blacklisted regions by "N".
-      # Remember start and end are 1-based coords.
+      # Mask blacklisted regions.
       keep_region = seq_blacklist_values[region_num + 1]
       if not keep_region:
         region = regions[region_num]
         start, end = regions_dict_this_aln[region]
-        if args.verbose:
-          print("Sequence ", seq_id, ": masking region ", region + \
-          " (positions ", start, "-", end, ").", sep='')
-        seq_as_str = seq_as_str[:start - 1] + \
-        "N" * (end - start + 1) + seq_as_str[end:]
+        if have_base_freqs:
+          # Mask by replacing all counts (columns four onwards) by 0.
+          # Start and end are 0-based.
+          if args.verbose:
+            start_generic, end_generic = regions_dict[region]
+            print("Base freqs ", seq_id, ": masking region ", region + \
+            " (positions ", start_generic, "-", end_generic, ", file line ",
+            "numbers ", start + 2, "-", end + 2, ").", sep='')
+          base_freq_df.iloc[start : end + 1, 3 : base_freq_df_num_cols] = 0
+        else:
+          # Mask by replacing by "N"s. Start and end are 1-based.
+          if args.verbose:
+            print("Sequence ", seq_id, ": masking region ", region + \
+            " (positions ", start, "-", end, ").", sep='')
+          seq_as_str = seq_as_str[:start - 1] + \
+          "N" * (end - start + 1) + seq_as_str[end:]
 
   # If we have individual consensuses, either record each region of this
   # consensus into a separate list for later aggregation between patients if 
@@ -554,8 +630,18 @@ for seq in collection_of_seqs:
     AlignIO.write(individual_alignment, out_file, "fasta")
     seq_dict.add(seq_id)
 
+  # If we have base freqs, write them. Add a coverage column first, for
+  # convenience.
+  elif have_base_freqs:
+    base_freq_df['coverage (no N)'] = base_freq_df['A count'] + \
+    base_freq_df['C count'] + base_freq_df['G count'] + \
+    base_freq_df['T count'] + base_freq_df['gap count']
+    out_file = os.path.join(args.output, seq_id + ".csv")
+    base_freq_df.to_csv(out_file, index=False)
+    seq_dict.add(seq_id)
+
   # If we have a global alignment, just record the seq for later processing.
-  else:
+  elif have_global_aln:
     seq_dict[seq_id] = seq_as_str
 
 # Warn about blacklisted patients that were not found.
@@ -595,8 +681,8 @@ if args.print_new_seq_blacklist != None:
 #exit(0)
 
 # There's nothing more to do for individual consensus files, except generating
-# region-specific files if desired.
-if have_individual_consensus:
+# region-specific files if desired. Nothing further for base freqs.
+if have_individual_consensus or have_base_freqs:
   if args.split_amplicons:
     for region, output_file in per_region_output_file_dict.items():
       seq_dict_here = unaln_seqs_by_region[region]

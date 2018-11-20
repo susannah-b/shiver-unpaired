@@ -518,9 +518,12 @@ for seq in collection_of_seqs:
   # Sequence processing, not for base freqs:
   if not have_base_freqs:
 
-    # Preprocess the seq, and skip if it's wholly undetermined.
+    # Preprocess the seq. If it's wholly undetermined, wholly blacklist it and
+    # skip.
     seq_as_str, wholly_undetermined = preprocess_seq(seq, check_ambig_bases)
     if wholly_undetermined:
+      seq_blacklist_dict[seq_id] = [False] * (num_regions + 1)
+      extra_blacklisted_seq_ids.add(seq_id)
       if args.verbose:
         print("Skipping sequence", seq_id, "which is wholly undetermined after",
         "removing lower-case bases.")

@@ -493,8 +493,6 @@ for seq in collection_of_seqs:
       if region_num == num_regions - 1:
         end_row_num = base_freq_df_num_rows - 1
       regions_dict_this_aln[region] = (start_row_num, end_row_num) # 0-based
-      print("Region", region, "with start-end", start, end, "; line nums",
-      start_row_num + 2, end_row_num + 2)
 
   # Preprocess the seq id and check we haven't seen it before.
   if have_base_freqs:

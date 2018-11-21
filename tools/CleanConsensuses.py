@@ -105,6 +105,10 @@ parser.add_argument('--sanger_to_beehive_id_dict', type=File, help='''A csv file
 with a header line; the first column is the sanger ID, the second column is the
 BEEHIVE ID. If this option is used, input sequences are assumed to be labelled
 by Sanger ID and their BEEHIVE ID will be looked up.''')
+parser.add_argument('--keep_overhangs', action='store_true', help='''By
+default, we mask any bases before the first region and after the last region.
+With this option, we don't. This option is not currently available for base
+frequency cleaning.''')
 args = parser.parse_args()
 
 # Check that we have exactly one of the following: a global alignment,
@@ -132,7 +136,7 @@ if have_individual_consensus and args.common_reference != None:
   'option to be used too. Quitting.', file=sys.stderr)
   exit(1)
 
-# Can't use --split_amplicons or --print_new_seq_blacklist with --base_freqs.
+# Can't use some options with --base_freqs.
 if have_base_freqs:
   if args.split_amplicons:
     print('The --split_amplicons option cannot be used with the --base_freqs',
@@ -140,6 +144,10 @@ if have_base_freqs:
     exit(1)
   if args.print_new_seq_blacklist:
     print('The --print_new_seq_blacklist option cannot be used with the',
+    '--base_freqs option. Quitting.', file=sys.stderr)
+    exit(1)
+  if args.keep_overhangs:
+    print('The --keep_overhangs option cannot be used with the',
     '--base_freqs option. Quitting.', file=sys.stderr)
     exit(1)
 
@@ -192,6 +200,8 @@ with open(args.amplicon_regions_file, 'r') as f:
       print('Encountered', region, 'a second time in',
       args.amplicon_regions_file + '. Quitting.', file=sys.stderr)
       exit(1)
+
+    # If this isn't the first region, check it's right after the last one.
     if regions_dict_not_empty:
       previous_region = next(reversed(regions_dict))
       previous_start, previous_end = regions_dict[previous_region]
@@ -200,13 +210,11 @@ with open(args.amplicon_regions_file, 'r') as f:
         'the end of the previous region (' + str(previous_end), 'for',
         previous_region + '). Quitting.', file=sys.stderr)
         exit(1)
-    #elif start != 1:
-    #  print('The first region in', args.amplicon_regions_file,
-    #  'does not start at 1. Quitting.', file=sys.stderr)
-    #  exit(1)
+
     regions_dict[region] = (start, end)
     regions_dict_not_empty = True
 last_region = next(reversed(regions_dict))
+first_region = regions_dict.keys()[0]
 last_start, last_end = regions_dict[last_region]
 regions = regions_dict.keys()
 num_regions = len(regions)
@@ -294,18 +302,23 @@ with open(args.patient_based_blacklist, 'r') as f:
     patient = line.strip()
     blacklisted_patients.add(patient)
 
-def preprocess_seq(seq, check_for_ambig_bases):
-  '''Replaces lower-case bases and '?' by N, optionally checks for ambiguous
-  bases, checks whether it's wholly undetermined.'''
+def preprocess_seq(seq, check_for_ambig_bases, keep_overhang, start, end):
+  '''(1) replaces lower-case bases and '?' by N; (2) optionally checks for
+  ambiguous bases; (3) optionally replaces overhangs (anything before the
+  one-based start coordinate or after the one-based end coordinate) by N;
+  (4) checks whether it's wholly undetermined.'''
   seq_as_str = str(seq.seq)
   initial_length = len(seq_as_str)
   seq_as_str = sub("[a-z]|\?", "N", seq_as_str)
-  assert len(seq_as_str) == initial_length
   if check_for_ambig_bases and any(not base in "ACGTN-" for base in seq_as_str):
     print('Seq', seq.id, 'contains a base other than A, C, G, T, N or -;',
     'unexpected. Have you run shiver/tools/EstimateAmbiguousBases.py on your',
     'alignment first? Quitting.', file=sys.stderr)
     exit(1)
+  if not keep_overhang:
+    seq_as_str = "N" * (start - 1) + seq_as_str[start - 1 : end] + \
+    "N" * (initial_length - end)
+  assert len(seq_as_str) == initial_length
   wholly_undetermined = all(base == "N" or base == "-" for base in seq_as_str)
   return seq_as_str, wholly_undetermined
 
@@ -368,13 +381,6 @@ if have_global_aln:
     raise
   alignment_length = alignment.get_alignment_length()
 
-  # Check that the end of the last region is the length of the alignment.
-  #if last_end != alignment_length:
-  #  print('The last region in', args.amplicon_regions_file,
-  #  'does not end at the alignment length (' + str(alignment_length) + \
-  #  '). Quitting.', file=sys.stderr)
-  #  exit(1)
-
   # collection_of_seqs is the thing we'll iterate through for seq processing.
   # For the global alignment, that's the seq objects therein; for individual
   # consensus files, that the set of files.
@@ -386,6 +392,12 @@ if have_global_aln:
   # iterate through them.
   check_ambig_bases = True
   seq_dict = collections.OrderedDict()
+
+  # If the regions span the entire global alignment, there are no overhangs,
+  # so skip trimming them by setting keep overhangs to True.
+  if not args.keep_overhangs and regions_dict[first_region][0] == 1 and \
+  regions_dict[last_region][1] == alignment_length:
+    args.keep_overhangs = True
 
 elif have_individual_consensus:
   collection_of_seqs = args.individual_consensus
@@ -516,9 +528,14 @@ for seq in collection_of_seqs:
   # Sequence processing, not for base freqs:
   if not have_base_freqs:
 
+    # Get the first start & last end, for trimming overhang.
+    first_start_this_aln = regions_dict_this_aln[first_region][0]
+    last_end_this_aln    = regions_dict_this_aln[last_region][1]
+
     # Preprocess the seq. If it's wholly undetermined, wholly blacklist it and
     # skip.
-    seq_as_str, wholly_undetermined = preprocess_seq(seq, check_ambig_bases)
+    seq_as_str, wholly_undetermined = preprocess_seq(seq, check_ambig_bases,
+    args.keep_overhangs, first_start_this_aln, last_end_this_aln)
     if wholly_undetermined:
       seq_blacklist_dict[seq_id] = [False] * (num_regions + 1)
       extra_blacklisted_seq_ids.add(seq_id)

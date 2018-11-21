@@ -131,7 +131,7 @@ if have_individual_consensus or have_base_freqs:
 
 # If we have individual consensus files --common_reference should have been
 # specified.
-if have_individual_consensus and args.common_reference != None:
+if have_individual_consensus and args.common_reference == None:
   print('The --individual_consensus option requires the --common_reference',
   'option to be used too. Quitting.', file=sys.stderr)
   exit(1)

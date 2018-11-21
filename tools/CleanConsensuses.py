@@ -617,7 +617,8 @@ for seq in collection_of_seqs:
     if args.split_amplicons:
       for region, (start, end) in regions_dict_this_aln.items():
         region_length = end - start + 1
-        seq_here = seq_as_str[start - 1: end].replace("-", "")
+        seq_here = seq_as_str[start - 1: end].replace("-", "") # strip gaps
+        seq_here = seq_here.strip("N") # strip Ns at the ends
         if not all(base == "N" for base in seq_here):
           if beehive_id in unaln_seqs_by_region[region]:
             previous_seq_here = unaln_seqs_by_region[region][beehive_id]

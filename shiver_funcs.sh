@@ -375,11 +375,6 @@ function map {
   BamOnlyArg=$5
 
   # Some out files we'll produce
-  InsertSizeCounts="$OutFileStem$InsertSizeCountsSuffix"
-  Consensus="$OutFileStem"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
-  BaseFreqs="$OutFileStem$BaseFreqsSuffix"
-  BaseFreqsWHXB2="$OutFileStem$BaseFreqsWHXB2Suffix"
-  ConsensusWcontigs="$OutFileStem"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fasta'
   PreDedupBam="$OutFileStem$PreDeduplicationBamSuffix.bam"
   FinalOutBam="$OutFileStem.bam"
   DedupStats="$OutFileStem$DeduplicationStatsSuffix"
@@ -391,7 +386,6 @@ function map {
     "be exactly 1 for it to be used as a reference for mapping. Quitting." >&2
     return 1
   fi
-  LocalRefName=$(awk '/^>/ {print substr($1,2)}' "$LocalRef")
 
   # Index the ref
   "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
@@ -443,15 +437,58 @@ function map {
     return 0
   fi
 
+  ProcessBam "$FinalOutBam" "$LocalRef" "$OutFileStem"
+  return "$?"
+
+}
+
+function ProcessBam {
+
+  # Check for the right number of args
+  ExpectedNumArgs=3
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "ProcessBam function called with $# args; expected $ExpectedNumArgs."\
+    "Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  bam=$1
+  LocalRef=$2
+  OutFileStem=$3
+
+  # Some out files we'll produce
+  InsertSizeCounts="$OutFileStem$InsertSizeCountsSuffix"
+  Consensus="$OutFileStem"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
+  BaseFreqs="$OutFileStem$BaseFreqsSuffix"
+  BaseFreqsWHXB2="$OutFileStem$BaseFreqsWHXB2Suffix"
+  ConsensusWcontigs="$OutFileStem"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fasta'
+
+  # These have been done already if this function was called from the map
+  # function, but otherwise may not have been: check the ref file contains only
+  # one seq, index it.
+  NumSeqsInRefFile=$(grep -e '^>' "$LocalRef" | wc -l)
+  if [ "$NumSeqsInRefFile" -ne 1 ]; then
+    echo "Error: there are $NumSeqsInRefFile seqs in $LocalRef; there should"\
+    "be exactly 1 if it is a reference for mapping." >&2
+    return 1
+  fi
+  LocalRefName=$(awk '/^>/ {print substr($1,2)}' "$LocalRef")
+  if [[ ! -f "$LocalRef".fai ]]; then
+    "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
+    { echo 'Problem indexing the refererence with samtools.' >&2 ; 
+    return 1 ; }
+  fi
+
   # Check at least one read was mapped
-  NumMappedReads=$(samtools view "$FinalOutBam" | wc -l)
+  NumMappedReads=$(samtools view "$bam" | wc -l)
   if [[ $NumMappedReads -eq 0 ]]; then
-    echo "$FinalOutBam is empty - no reads were mapped!"
+    echo "$bam is empty - no reads were mapped!"
     return 3
   fi
 
   # Calculate the normalised insert size distribution.
-  "$samtools" view "$FinalOutBam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
+  "$samtools" view "$bam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
   InsertCount=$(wc -l "$InsertSizes1" | awk '{print $1}')
   if [[ $InsertCount -gt 0 ]]; then
     echo "Insert size,Count,Unit-normalised count" > "$InsertSizeCounts"
@@ -459,14 +496,14 @@ function map {
     awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" >> \
     "$InsertSizeCounts"
   else
-    echo "Warning: no read in $FinalOutBam was identified as having"\
+    echo "Warning: no read in $bam was identified as having"\
     "positive insert size. Unexpected. We'll skip making an insert size"\
     "distribution and continue."
   fi
 
   # Generate pileup
   echo 'Now calculating pileup - typically a slow step.'
-  "$samtools" mpileup $mpileupOptions -f "$LocalRef" "$FinalOutBam" > \
+  "$samtools" mpileup $mpileupOptions -f "$LocalRef" "$bam" > \
   "$PileupFile" || { echo 'Failed to generate pileup.' >&2 ; return 1 ; }
 
   # Generate the base frequencies

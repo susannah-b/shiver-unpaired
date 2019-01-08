@@ -490,9 +490,9 @@ for seq in collection_of_seqs:
     previous_region_end = -1
     for region_num, (region, (start, end)) in enumerate(regions_dict.items()):
       start_row_num = previous_region_end + 1
+      end_row_num = None
       for row_num_minus_previous_end, ref_pos in \
       enumerate(base_freq_df.iloc[previous_region_end + 1:, 0]):
-        end_row_num = None
         if ref_pos != "-" and int(ref_pos) >= end:
           end_row_num = row_num_minus_previous_end + previous_region_end + 1
           previous_region_end = end_row_num

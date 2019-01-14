@@ -216,6 +216,7 @@ with open(args.amplicon_regions_file, 'r') as f:
 last_region = next(reversed(regions_dict))
 first_region = regions_dict.keys()[0]
 last_start, last_end = regions_dict[last_region]
+first_start = regions_dict[first_region][0]
 regions = regions_dict.keys()
 num_regions = len(regions)
 
@@ -505,6 +506,20 @@ for seq in collection_of_seqs:
       if region_num == num_regions - 1:
         end_row_num = base_freq_df_num_rows - 1
       regions_dict_this_aln[region] = (start_row_num, end_row_num) # 0-based
+
+    # Set anything before the first start or after the last end to zero.
+    first_start_this_aln = 0
+    last_end_this_aln = base_freq_df_num_rows
+    for ref_pos in base_freq_df.iloc[:, 0]:
+      if ref_pos != "-" and int(ref_pos) >= first_start:
+        break
+      first_start_this_aln += 1
+    for ref_pos in reversed(base_freq_df.iloc[:, 0]):
+      if ref_pos != "-" and int(ref_pos) <= last_end:
+        break
+      last_end_this_aln -= 1
+    base_freq_df.iloc[:first_start_this_aln, 3 : base_freq_df_num_cols] = 0
+    base_freq_df.iloc[last_end_this_aln:, 3 : base_freq_df_num_cols] = 0
 
   # Preprocess the seq id and check we haven't seen it before.
   if have_base_freqs:

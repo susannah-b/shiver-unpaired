@@ -142,12 +142,14 @@ bwaOptions='-v 2'
 samtoolsReadFlags='-f 3 -F 4'
 
 # See http://www.htslib.org/doc/samtools.html for a description of samtools
-# mpileup options. Those used below mean that the minimum of the base quality
-# the 'BAQ' quantity (see http://samtools.sourceforge.net/mpileup.shtml for an
-# explanation) must be at least 5, and only the first 1000000 reads mapped to
-# each point will be considered (NB a limit must be provided; the default is
-# 250).
-mpileupOptions='--min-BQ 5 --max-depth 1000000'
+# mpileup options. Those used below mean that: the base alignment quality ('BAQ')
+# calculation (described at https://dx.doi.org/10.1093%2Fbioinformatics%2Fbtr076)
+# is turned off, as seems to be appropriate for HIV
+# (https://tinyurl.com/noBAQnoCry); the minimum quality for a base to be
+# retained is 5 (for backward/historical consistency), and only the first
+# 1000000 reads mapped to each point will be considered (NB a limit must be
+# provided; the default is 250).
+mpileupOptions='--no-BAQ --min-BQ 5 --max-depth 1000000'
 
 # Parameters for calling the consensus base at each position:
 # The minimum coverage (number of reads) to call a base instead of a '?'

@@ -367,9 +367,22 @@ else
     exit 1
   fi
 
-  # Find the contaminant contigs.
+  # Find contigs without a blast hit: includes both contaminants and contigs
+  # that are too short...
   ContaminantContigNames=$(comm -3 "$AllContigsList" "$HIVContigsListOrig")
   NumContaminantContigs=$(echo $ContaminantContigNames | wc -w)
+
+  # ...and now remove from these contigs those that are too short, leaving only
+  # contaminants.
+  if [ "$NumContaminantContigs" -gt 0 ]; then
+    "$Code_FindSeqsInFasta" "$RawContigsFile" -N $ContaminantContigNames \
+    --min-length "$MinContigLength" > "$RefAndContaminantContigs" ||
+    { echo "Problem extracting contaminant contigs from $RawContigsFile." \
+    "Quitting." >&2; exit 1; }
+    ContaminantContigNames=$(awk '/^>/ {print substr($1,2)}' \
+    "$RefAndContaminantContigs")
+    NumContaminantContigs=$(echo $ContaminantContigNames | wc -w)
+  fi
 
   # If there are no contaminant contigs, we don't need to clean.
   # We create a blank mapping file to more easily keep track of the fact that
@@ -389,9 +402,6 @@ else
   else
 
     # Make a blast database out of the contaminant contigs and the ref.
-    "$Code_FindSeqsInFasta" "$RawContigsFile" -N $ContaminantContigNames > \
-    "$RefAndContaminantContigs" || { echo "Problem extracting contaminant"\
-    "contigs from $RawContigsFile. Quitting." >&2; exit 1; }
     cat "$TheRef" >> "$RefAndContaminantContigs"
     "$BlastDBcommand" -dbtype nucl -in "$RefAndContaminantContigs" \
     -input_type fasta -out "$BlastDB" || \

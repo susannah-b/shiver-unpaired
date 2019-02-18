@@ -109,6 +109,11 @@ parser.add_argument('--keep_overhangs', action='store_true', help='''By
 default, we mask any bases before the first region and after the last region.
 With this option, we don't. This option is not currently available for base
 frequency cleaning.''')
+parser.add_argument('--dont_blacklist_missingness', action='store_true',
+help='''By default, we blacklist any region with too much missingness (greater
+than 20% "N" characters). With this option we don't. We do, however, still
+blacklist the regions and patients marked for blacklisting in the input
+files.''')
 args = parser.parse_args()
 
 # Check that we have exactly one of the following: a global alignment,
@@ -561,21 +566,22 @@ for seq in collection_of_seqs:
 
     # Add our own blacklisting of regions, based on the fraction that's not "N",
     # for regions that have not already been blacklisted.
-    for region_num in xrange(num_regions):
-      seq_in_blacklist = seq_id in seq_blacklist_dict
-      if seq_in_blacklist and not seq_blacklist_dict[seq_id][region_num + 1]:
-        continue
-      region = regions[region_num]
-      start, end = regions_dict_this_aln[region]
-      region_length = end - start + 1
-      seq_here = seq_as_str[start - 1: end]
-      missingness = float(seq_here.count("N")) / region_length
-      if missingness >= max_missingness:
-        if not seq_in_blacklist:
-          seq_blacklist_dict[seq_id] = [True] * (num_regions + 1)
-        seq_blacklist_dict[seq_id][region_num + 1] = False
-        extra_blacklisted_seq_ids.add(seq_id)
-      #completeness_percents[region].append(completeness_percent)
+    if not args.dont_blacklist_missingness:
+      for region_num in xrange(num_regions):
+        seq_in_blacklist = seq_id in seq_blacklist_dict
+        if seq_in_blacklist and not seq_blacklist_dict[seq_id][region_num + 1]:
+          continue
+        region = regions[region_num]
+        start, end = regions_dict_this_aln[region]
+        region_length = end - start + 1
+        seq_here = seq_as_str[start - 1: end]
+        missingness = float(seq_here.count("N")) / region_length
+        if missingness >= max_missingness:
+          if not seq_in_blacklist:
+            seq_blacklist_dict[seq_id] = [True] * (num_regions + 1)
+          seq_blacklist_dict[seq_id][region_num + 1] = False
+          extra_blacklisted_seq_ids.add(seq_id)
+        #completeness_percents[region].append(completeness_percent)
 
   # Delete every seq from a blacklisted patient      
   beehive_id = get_beehive_id(seq_id)

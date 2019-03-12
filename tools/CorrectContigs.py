@@ -123,12 +123,12 @@ with open(args.BlastFile) as f:
       'columns:\n', line, 'Quitting.', sep='', file=sys.stderr)
       exit(1)
     try:
-      evalue, pident, qlen, qstart, qend, sstart, send = float(evalue), \
-      float(pident), int(qlen), int(qstart), int(qend), int(sstart), int(send)
+      qlen, qstart, qend, sstart, send = int(qlen), int(qstart), int(qend), \
+      int(sstart), int(send)
     except ValueError:
-      print('Could not understand columns 3-9 (evalue, pident, qlen, qstart,' ,\
+      print('Could not understand columns 5-9 (qlen, qstart, ' ,\
       'qend, sstart, send) on line\n', line, 'in ', args.BlastFile, ' as',\
-      'floats & ints. Quitting.', sep='', file=sys.stderr)
+      'integers. Quitting.', sep='', file=sys.stderr)
       exit(1)
     if qstart >= qend:
       print('qstart greater than or equal to qend on line\n', line, 'in ', \

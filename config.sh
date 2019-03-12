@@ -58,9 +58,19 @@ MinContigFragmentLength=80
 # trimming off.
 TrimToKnownGenome=true
 
-# Blast's "Word size for wordfinder algorithm" when blasting contigs against
-# references.
-BlastWordSize=17
+# Options to give blast when blasting the contigs; run your blastn command with
+# -help to investigate possibilities.
+# Note that increasing the max target seqs to a value greater than 1, or at the
+# extreme removing this option altogether (i.e. no maximum), means that shiver
+# will consider how each contig blasts to multiple references. Since the 
+# contig is duplicated into two contigs whenever one hit is not perfectly 
+# contained within another (to allow correction of contigs that splice different
+# parts of the genome together), this tends to produce redundant duplication.
+# However in cases where one part of a contig fails to blast to the reference
+# picked out by -max_target_seqs 1, but that part does blast to a different
+# reference, permitting multiple references would prevent that contig part from
+# being discarded. For my work on HIV I found -max_target_seqs 1 to work well.
+ContigBlastArgs="-max_target_seqs 1 -word_size 17"
 
 # If you have a more recent mafft installation that includes the --addfragments
 # option, we will use both --addfragments and --add to align the contigs to the

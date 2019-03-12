@@ -39,6 +39,9 @@ help='The fasta file of contigs.')
 parser.add_argument('-O', '--out-file', help='''The file to which corrected
 contigs will be written. Specifying "-" will print output to stdout. If
 correction is not required, this file will not be created.''')
+parser.add_argument('-B', '--blast-output', help='''Use this to specify an
+output file into which the blast hits will be written after we have discarded
+the ones not being used (those contained wholly inside another one).''')
 parser.add_argument('--overwrite', action='store_true',
 help='If the out file exists already, overwrite it instead of stopping.')
 parser.add_argument('-F', '--min-hit-frac', type=float, help='''Only relevant if
@@ -226,6 +229,13 @@ for contig, hits in HitDict.items():
       "is in the reverse direction). Quitting.", file=sys.stderr)
       exit(1)
     CorrectionsNeeded = True
+
+# Write the blast output if desired.
+if args.blast_output != None:
+  with open(args.blast_output, "w") as f:
+    for contig, hits in HitDict.items():
+      for hit in hits:
+        f.write(",".join(map(str, hit)) + "\n")
 
 # If no corrections are needed, quit successfully.
 if not CorrectionsNeeded:

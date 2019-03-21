@@ -51,6 +51,7 @@ CheckConfig "$ConfigFile" false true false || \
 
 # Out files we'll make
 BlastFile="$SID$BlastSuffix"
+MergedBlastFile="$SID$MergedBlastSuffix"
 RawContigAlignment="$SID"'_raw_wRefs.fasta'
 CutContigAlignment="$SID"'_cut_wRefs.fasta'
 
@@ -79,7 +80,8 @@ PrintAlnLengthIncrease "$RefAlignment" "$RawContigAlignment" || \
 "contigs to the existing references. Quitting." >&2 ; exit 1 ; }
 
 # Run the contig cutting & flipping code
-"$Code_CorrectContigs" "$BlastFile" -C "$ContigFile" -O "$CutContigFile" || \
+"$Code_CorrectContigs" "$BlastFile" "$ContigMinBlastOverlapToMerge" \
+-C "$ContigFile" -O "$CutContigFile" -B "$MergedBlastFile" || \
 { echo "Problem encountered running $Code_CorrectContigs. Quitting." >&2 ; \
 exit 1; }
 

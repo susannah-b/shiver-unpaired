@@ -58,19 +58,25 @@ MinContigFragmentLength=80
 # trimming off.
 TrimToKnownGenome=true
 
+# Different blast 'tasks' (modes) to try when blasting the contigs. We will run
+# each of the different tasks specified here (separated by whitespace) and merge
+# the results. With this default, we try only -task megablast; if
+# 'megablast blastn' were specified instead, we would also try -task blastn (and
+# merge results).
+BlastTasks='megablast'
+
 # Options to give blast when blasting the contigs; run your blastn command with
 # -help to investigate possibilities.
-# Note that increasing the max target seqs to a value greater than 1, or at the
-# extreme removing this option altogether (i.e. no maximum), means that shiver
-# will consider how each contig blasts to multiple references. Since the 
-# contig is duplicated into two contigs whenever one hit is not perfectly 
-# contained within another (to allow correction of contigs that splice different
-# parts of the genome together), this tends to produce redundant duplication.
-# However in cases where one part of a contig fails to blast to the reference
-# picked out by -max_target_seqs 1, but that part does blast to a different
-# reference, permitting multiple references would prevent that contig part from
-# being discarded. For my work on HIV I found -max_target_seqs 1 to work well.
 ContigBlastArgs="-max_target_seqs 1 -word_size 17"
+
+# When two blast hits for the same contig have a fractional overlap (defined as
+# the length of the part of the contig spanned by both hits divided by the
+# length of the shorter of the two hits) equal to or greater than this value,
+# we will merge them into a single hit. When the fractional overlap is less than
+# this value, the two hits will be kept separate, resulting in the contig being
+# split into two parts (one corresponding to each hit) to be aligned separately.
+# A value of 1 or greater means partially overlapping hits are never merged.
+ContigMinBlastOverlapToMerge='2'
 
 # If you have a more recent mafft installation that includes the --addfragments
 # option, we will use both --addfragments and --add to align the contigs to the
@@ -95,7 +101,7 @@ NumThreadsTrimmomatic=1
 # Shall we trim exact matches to PCR primers from the end of reads using fastaq?
 TrimReadsForPrimers=true
 # Shall we also trim matches to the PCR primers that differ by a single base
-# change?
+# change? (This slows down the trimming step a lot.)
 TrimPrimerWithOneSNP=false
 
 # Shall we clean (remove read pairs that look like contaminants)?
@@ -235,6 +241,7 @@ BaseFreqsWHXB2Suffix='_BaseFreqs_WithHXB2.csv'
 InsertSizeCountsSuffix='_InsertSizeCounts.csv'
 CoordsDictSuffix='_coords.csv'
 BlastSuffix='.blast'
+MergedBlastSuffix='_MergedHits.blast'
 ReadsPreMapping1Suffix='_PreMapping_1.fastq'
 ReadsPreMapping2Suffix='_PreMapping_2.fastq'
 GlobalAlnSuffix='_ForGlobalAln.fasta'

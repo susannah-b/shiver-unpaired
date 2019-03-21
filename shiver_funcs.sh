@@ -666,12 +666,18 @@ function GetHIVcontigs {
     return 3
   fi
 
+  # Iterate over the different blast tasks to try.
   # Blast the contigs. Keep only hits for which (length * fractional identity)
   # is longer than the minimum contig length.
-  "$BlastNcommand" -query "$LongContigs" -db "$BlastDatabase" $ContigBlastArgs \
-  -outfmt '10 qseqid sseqid evalue pident qlen qstart qend sstart send' \
-  | awk -F, '($4/100 * ($7-$6+1))>='"$MinContigLength" > "$BlastFile" || 
-  { echo "Problem blasting $LongContigs." >&2 ; return 1 ; }
+  echo -n '' > "$BlastFile"
+  for task in $BlastTasks; do 
+    "$BlastNcommand" -query "$LongContigs" -db "$BlastDatabase" -task "$task" \
+    $ContigBlastArgs -outfmt \
+    '10 qseqid sseqid evalue pident qlen qstart qend sstart send' \
+    | awk -F, '($4/100 * ($7-$6+1))>='"$MinContigLength" >> "$BlastFile" || 
+    { echo "Problem running $BlastNcommand on $LongContigs using -task $task." \
+    >&2 ; return 1 ; }
+  done
 
   # If there are no blast hits, nothing needs doing. Exit.
   NumBlastHits=$(wc -l "$BlastFile" | awk '{print $1}')

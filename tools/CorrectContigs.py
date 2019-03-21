@@ -34,6 +34,14 @@ def File(MyFile):
 # Set up the arguments for this script
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('BlastFile', type=File)
+parser.add_argument('OverlapFracToMerge', type=float, help='''When two blast
+hits for the same contig have a fractional overlap (defined as the length of the
+part of the contig spanned by both hits divided by the length of the shorter of
+the two hits) equal to or greater than this value, we will merge them into a
+single hit. When the fractional overlap is less than this value, the two hits
+will be kept separate, resulting in the contig being split into two parts (one
+corresponding to each hit). A value of 1 or greater means partially overlapping
+hits are never merged.''')
 parser.add_argument('-C', '--contigs', type=File, \
 help='The fasta file of contigs.')
 parser.add_argument('-O', '--out-file', help='''The file to which corrected
@@ -100,6 +108,14 @@ if not (0 < args.min_hit_frac < 1):
   'Quitting.', file=sys.stderr)
   exit(1)
 
+# OverlapFracToMerge should be positive. If it's greater than or equal to 1,
+# that means no merging.
+if args.OverlapFracToMerge <= 0:
+  print('The OverlapFracToMerge value should be greater than 0. Quitting.',
+  file=sys.stderr)
+  exit(1)
+DoHitMerging = args.OverlapFracToMerge < 1
+
 # columns of the blast output are:
 # qseqid means Query Seq-id
 # sseqid means Subject Seq-id
@@ -158,6 +174,95 @@ if len(HitDict) == 0:
   print(args.BlastFile, 'contains no hits. Quitting.', file=sys.stderr)
   exit(1)
 
+def MergeStronglyOverlappingHits(hits, MinOverlap):
+  '''Merge all pairs of hits whose overlap is >= the threshold.'''
+
+  if len(hits) == 1:
+    return hits
+
+  # All hits should have the same qseqid and qlen (the 0th and 4th elements of
+  # each hit list).
+  assert all(hit[0] == hits[0][0] for hit in hits[1:])
+  assert all(hit[4] == hits[0][4] for hit in hits[1:])
+
+  # Iterate through all pairs of hits, indexed by i and j, and see if they
+  # should be merged. If so, merge and restart the iteration (so that all
+  # subsequent comparisons work with our new merged hit). Once all pairs
+  # have been considered and no (further) merging is needed, we're finished.
+  finished = False
+  while not finished:
+    HaveMergedThisRound = False
+    for i in range(len(hits) - 1):
+
+      # This is to jump out of the i-j double loop asap after triggering the
+      # second break statement later on.
+      if HaveMergedThisRound:
+        break
+
+      # Unpack the hit.
+      qseqid_i, sseqid_i, evalue_i, pident_i, qlen_i, qstart_i, qend_i, \
+      sstart_i, send_i = hits[i]
+      ForwardHit_i = sstart_i <= send_i
+
+      for j in range(i + 1, len(hits)):
+        qseqid_j, sseqid_j, evalue_j, pident_j, qlen_j, qstart_j, qend_j, \
+        sstart_j, send_j = hits[j]
+        ForwardHit_j = sstart_j <= send_j
+
+        #print("considering", qseqid_i, sseqid_i, qstart_i, qend_i, "and",
+        #qseqid_j, sseqid_j, qstart_j, qend_j, ForwardHit_i, ForwardHit_j)
+
+        # Only consider merging if both hits are in the same direction (be that
+        # forwards or backwards).
+        if ForwardHit_i == ForwardHit_j:
+
+          # Skip if the hits don't overlap enough.
+          overlap = min(qend_i, qend_j) - max(qstart_i, qstart_j) + 1
+          MinHitLength = min(abs(qend_i - qstart_i), abs(qend_j - qstart_j)) + 1
+          overlap = float(overlap) / MinHitLength
+          #print("overlap:", overlap)
+          if overlap < args.OverlapFracToMerge:
+            continue
+
+          # If we've reached here, we should merge the two hits.
+          qseqid = qseqid_i
+          if sseqid_j == sseqid_i:
+            sseqid = sseqid_j
+          else:
+            sseqid = "multiple"
+          evalue = "NA"
+          pident = "NA"
+          qlen = qlen_i
+          qstart = min(qstart_i, qstart_j)
+          qend = max(qend_i, qend_j)
+          if ForwardHit_i:
+            sstart = min(sstart_i, sstart_j)
+            send = max(send_i, send_j)
+          else:
+            sstart = max(sstart_i, sstart_j)
+            send = min(send_i, send_j)
+          MergedHit = [qseqid, sseqid, evalue, pident, qlen, qstart, qend, \
+          sstart, send]
+
+          # Delete the two hits we're merging, and add the merged one. This does
+          # not interfere with the iteration through i and j, because we will
+          # progress to the next i and then immediately break. 
+          del hits[j]
+          del hits[i]
+          hits.append(MergedHit)
+
+          HaveMergedThisRound = True
+          break
+
+        # end of "if hits are in the same direction" scope
+      # end of j loop
+    # end of i loop
+
+    if not HaveMergedThisRound:
+      finished = True
+
+  return hits
+
 CorrectionsNeeded = False
 for contig, hits in HitDict.items():
 
@@ -188,6 +293,9 @@ for contig, hits in HitDict.items():
     for i in sorted(SubHitIndices, reverse=True):
       del HitDict[contig][i]
     hits = HitDict[contig]
+
+    if DoHitMerging:
+      hits = MergeStronglyOverlappingHits(hits, args.OverlapFracToMerge)
 
     # If we're only checking (not correcting) and there are multiple hits or
     # a reverse hit or a too small hit, quit.

@@ -94,12 +94,11 @@ for row in xrange(len(MutableSeqList)):
           MatchToBaseElsewhere = True
           break
       if not MatchToBaseElsewhere:
-        print('Error: position', pos + 1, 'for seq', ID, 'in', args.alignment,
+        BaseToUse = "N"
+        print('Warning: position', pos + 1, 'for seq', ID, 'in', args.alignment,
         "is", base + ", which is the ambiguity code for", " or ".join(bases) + \
         ", however none of these bases were observed in other sequences at",
-        "this position. This code will not attempt to estimate",
-        "what the ambiguity code should be. Quitting.", file=sys.stderr)
-        exit(1)
+        "this position. Replacing this base by N.", file=sys.stderr)
 
       # Set the new base
       if IsLower:

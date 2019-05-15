@@ -361,8 +361,8 @@ else
   "$HIVContigsListOrig" | wc -l | awk '{print $1}')
   if [ "$NumUnknownContigsInBlastHits" -ne 0 ]; then
     echo 'Error: the following contigs are named in' "$ContigBlastFile"\
-    'but are not in' "$RawContigsFile"':'
-    comm -1 -3 "$AllContigsList" "$HIVContigsListOrig"
+    'but are not in' "$RawContigsFile"':' >&2
+    comm -1 -3 "$AllContigsList" "$HIVContigsListOrig" >&2
     echo 'Quitting.' >&2
     exit 1
   fi

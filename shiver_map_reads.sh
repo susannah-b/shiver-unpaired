@@ -369,13 +369,13 @@ else
 
   # Find contigs without a blast hit: includes both contaminants and contigs
   # that are too short...
-  ContaminantContigNames=$(comm -3 "$AllContigsList" "$HIVContigsListOrig")
-  NumContaminantContigs=$(echo $ContaminantContigNames | wc -w)
+  comm -3 "$AllContigsList" "$HIVContigsListOrig" > "$DiscardedContigNames"
+  NumContaminantContigs=$(wc -l $DiscardedContigNames | awk '{print $1}')
 
   # ...and now remove from these contigs those that are too short, leaving only
   # contaminants.
   if [ "$NumContaminantContigs" -gt 0 ]; then
-    "$Code_FindSeqsInFasta" "$RawContigsFile" -N $ContaminantContigNames \
+    "$Code_FindSeqsInFasta" "$RawContigsFile" -F "$DiscardedContigNames" \
     --min-length "$MinContigLength" > "$RefAndContaminantContigs" ||
     { echo "Problem extracting contaminant contigs from $RawContigsFile." \
     "Quitting." >&2; exit 1; }

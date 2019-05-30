@@ -45,6 +45,16 @@ parser.add_argument('ConsensusFile', type=File)
 parser.add_argument('CoordsFile', type=File)
 args = parser.parse_args()
 
+# Exit if _remap is in the file name
+if "_remap" in os.path.basename(args.ConsensusFile):
+  print(__file__, 'was run on consensus file', args.ConsensusFile + \
+  '; that file name contains the string "_remap". See the "IMPORTANT NOTE"',
+  'part of the --help message for', __file__ + ". If", args.ConsensusFile,
+  "really is the consensus produced by shiver's first-round mapping, rename it",
+  "(just temporarily if desired) to bypass this saftey check. Quitting.",
+  file=sys.stderr)
+  exit(1)
+
 # Read in the seq
 SeqAsString = None
 RefAsString = None

@@ -6,7 +6,7 @@ from __future__ import print_function
 ##
 ## Overview:
 ExplanatoryMessage = '''Called with a fasta file containing a consensus and its
-reference for mapping, and a coordinate file produced by fully processing a
+reference for mapping (SEE IMPORTANT NOTE BELOW), and a coordinate file produced by fully processing a
 sample with shiver, this script does the following: (1) excises insertions of
 the consensus with respect to its reference, (2) excises insertions of the
 reference (constructed out of the sample's contigs) with respect to the set of
@@ -14,7 +14,12 @@ existing references given as input to shiver, (3) adds gaps into the consensus
 so that it is in the same coordinates system as the alignment of existing
 references given as input to shiver, (4) prints the result to stdout, suitable
 for redirection into a fasta file. Combining this output from multiple samples
-into a single file gives an alignment.'''
+into a single file gives an alignment.
+IMPORTANT NOTE: this can only be used on shiver's first-round mapping result,
+for which the mapping reference was constructed out of aligned contigs and real
+references. It cannot be used with the second-round mapping result, for which
+the mapping reference was the consensus from the first round of mapping. See
+chapter 'The Global Alignment' in the shiver manual for more detail.'''
 # NB, for brevity, 'pos' = position, 'aln' = alignment, 'seq' = sequence
 GapChar = '-'
 
@@ -88,7 +93,7 @@ def CheckAndUpdatePos(pos, PrevPos, PosType):
     print('In', args.CoordsFile +', position', pos, 'in the', PosType, \
     'follows on from position', str(PrevPos) +'. Quitting.', file=sys.stderr)
     exit(1)
-  if PosType == SeqLength and pos > SeqLength:
+  if PosType == "reference" and pos > SeqLength:
     print('Encountered sequence position', pos, 'in', args.CoordsFile + \
     ', which is after the end of the sequence in', args.ConsensusFile, '('+ \
     str(SeqLength) +'bp long). Quitting.', file=sys.stderr)

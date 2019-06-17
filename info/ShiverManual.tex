@@ -423,8 +423,11 @@ Having many such reads is a warning sign of the kind of biased loss of informati
 \item \c{FindSubSeqsInAlignment.py} finds the location of specified sub-sequences in an alignment.
 
 \item \c{LinkIdentityToCoverage.py} finds, for each different coverage encountered when considering all positions in a BAM file, the mean read identity at such positions.
-The mean read identity tends to be lower at positions of low coverage due to a background of contaminant reads, which differ from the reference by virtue of being contamination, but which are nevertheless similar enough to be mapped.
-Quantifying the decline in identity at low coverage helps inform what coverage threshold is appropriate for a given data set.
+Let us make two assumptions: (i) when contaminant reads survive the steps of \shiv to be present in the resulting BAM file, the coverage of these reads is not linked to the coverage of genuine reads (i.e. having twice as many genuine reads does not double the number of contaminant reads), and (ii) contaminant reads are more different from the mapping reference than geunine reads\footnote{
+This requires that there aren't parts of the genome with more contaminant reads than genuine reads -- because remapping to the consensus would then make the new reference look like the contaminant reads -- except at positions below the coverage threshold, where no consensus is called and so the reads do not affect the reference for remapping.}.
+These assumptions imply that at positions of lower coverage the background of contaminant reads makes up a larger fraction of what's there, and so the mean read identity will tend to be lower.
+In the data I have worked with, \c{LinkIdentityToCoverage.py} has shown that below a particular coverage value, mean read identity decreases, whereas above that value it is stable.
+This is what I have used for the coverage threshold, namely 30 for the Gall {\it et al.} protocol~\cite{Gall01122012} with MiSeq and 300 with HiSeq, and 5 for the Bonsall, Golubchik {\it et al.} protocol~\cite{Bonsall397083}.
 
 \item \c{AlignMoreSeqsToPairWithMissingCoverage.py} allows more sequences to be added to a pairwise alignment in which one sequence contains missing coverage (such as a consensus and its reference), correctly maintaining the distinction between gaps (indicating a deletion) and missing coverage.
 

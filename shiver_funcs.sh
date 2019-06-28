@@ -483,7 +483,7 @@ function ProcessBam {
   # Check at least one read was mapped
   NumMappedReads=$("$samtools" view "$bam" | wc -l)
   if [[ $NumMappedReads -eq 0 ]]; then
-    echo "$bam is empty - no reads were mapped!"
+    echo "$bam is empty - no reads were mapped!" >&2
     return 3
   fi
 

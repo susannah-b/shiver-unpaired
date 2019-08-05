@@ -457,28 +457,20 @@ else
     # contaminant contigs than the reference.
     else
 
-      # Sort the raw reads by name. Check every read has a mate.
+      # Check every read has a mate.
       # TODO: move the 'unpaired' check right to the beginning?
-      cat "$reads1" | paste - - - - | sort -k1,1 -t$'\t' | tr "\t" "\n" > \
-      "$reads1sorted"
-      cat "$reads2" | paste - - - - | sort -k1,1 -t$'\t' | tr "\t" "\n" > \
-      "$reads2sorted"
       if ! cmp <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
-      "$reads1sorted" | sort) \
+      "$reads1" | sort) \
       <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
-      "$reads2sorted" | sort); then
+      "$reads2" | sort); then
         echo 'At least one read in' "$reads1" 'or' "$reads2" 'is unpaired.' \
         'Quitting.' >&2 ; exit 1 ;
       fi
 
       # Extract the non-contaminant read pairs
-      mv "$BadReadsBaseName"_1.txt "$BadReadsBaseName"_1_unsorted.txt
-      mv "$BadReadsBaseName"_2.txt "$BadReadsBaseName"_2_unsorted.txt
-      sort "$BadReadsBaseName"_1_unsorted.txt > "$BadReadsBaseName"_1.txt
-      sort "$BadReadsBaseName"_2_unsorted.txt > "$BadReadsBaseName"_2.txt
-      "$Code_FindReadsInFastq" -v "$reads1sorted" "$BadReadsBaseName"_1.txt > \
+      "$Code_FindReadsInFastq" -v -s "$reads1" "$BadReadsBaseName"_1.txt > \
       "$cleaned1reads" &&
-      "$Code_FindReadsInFastq" -v "$reads2sorted" "$BadReadsBaseName"_2.txt > \
+      "$Code_FindReadsInFastq" -v -s "$reads2" "$BadReadsBaseName"_2.txt > \
       "$cleaned2reads" || \
       { echo 'Problem extracting the non-contaminant reads using' \
       "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
@@ -490,9 +482,9 @@ else
       # Map the contaminant reads to the reference, to measure how useful the
       # cleaning procedure was.
       if [[ "$MapContaminantReads" == "true" ]]; then
-        "$Code_FindReadsInFastq" "$reads1sorted" "$BadReadsBaseName"_1.txt > \
+        "$Code_FindReadsInFastq" -s "$reads1" "$BadReadsBaseName"_1.txt > \
         "$BadReadsBaseName"_1.fastq &&
-        "$Code_FindReadsInFastq" "$reads2sorted" "$BadReadsBaseName"_2.txt > \
+        "$Code_FindReadsInFastq" -s "$reads2" "$BadReadsBaseName"_2.txt > \
         "$BadReadsBaseName"_2.fastq || \
         { echo 'Problem extracting the contaminant reads using' \
         "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }

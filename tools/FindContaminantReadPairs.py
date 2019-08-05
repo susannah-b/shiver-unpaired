@@ -116,10 +116,13 @@ for ReadName, [read1Hit, read1Evalue] in HitsFor1reads.items():
 # Write the output
 OutFile_1reads = OutFileBasename+'_1.txt'
 OutFile_2reads = OutFileBasename+'_2.txt'
+HaveSomeReads = len(ContaminantReadPairs) > 0
 with open(OutFile_1reads, 'w') as f:
-  f.write('\n'.join([ReadName+'/1' for ReadName in ContaminantReadPairs]) + "\n")
+  if HaveSomeReads:
+    f.write('\n'.join([ReadName+'/1' for ReadName in ContaminantReadPairs]) + "\n")
 with open(OutFile_2reads, 'w') as f:
-  f.write('\n'.join([ReadName+'/2' for ReadName in ContaminantReadPairs]) + "\n")
+  if HaveSomeReads:
+    f.write('\n'.join([ReadName+'/2' for ReadName in ContaminantReadPairs]) + "\n")
 
 # Antiquated code, from when non-contaminant read pairs were printed:
 '''

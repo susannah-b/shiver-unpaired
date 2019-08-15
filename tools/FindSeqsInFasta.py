@@ -6,7 +6,12 @@ from __future__ import print_function
 ##
 ## Overview:
 ExplanatoryMessage = '''This script retrieves searched-for sequences from a
-fasta file. Output is printed to stdout in fasta format, with options to invert the search, extract a window of alignment, and strip gaps (call with --help for details).'''
+fasta file. Output is printed to stdout in fasta format, with options to invert
+the search, extract a window of alignment, and strip gaps (call with --help for
+details). Use EITHER the --seq-names option to specify the names of the
+sequences you're looking for at the command line, OR the --seq-name-file option
+to specify a file that contains the names of the sequences you're looking for.
+'''
 
 import argparse
 import os
@@ -43,8 +48,10 @@ def CoordPair(MyCoordPair):
 ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('FastaFile', type=File)
-parser.add_argument('-N', '--seq-names', nargs='+')
-parser.add_argument('-F', '--seq-name-file', type=File)
+parser.add_argument('-N', '--seq-names', nargs='+', help='''Used to specify the
+names of the sequences you're looking for, separated by whitespace.''')
+parser.add_argument('-F', '--seq-name-file', type=File, help="""A file in which
+each line contains the name of sequence you're looking for.""")
 parser.add_argument('-v', '--invert-search', action='store_true', \
 help='return all sequences except those searched for')
 parser.add_argument('-W', '--window', type=CoordPair,\
@@ -72,6 +79,9 @@ less than this value. Note that if this length criterion is the only search
 criterion you require, i.e. you don't want to search by sequence name, you can
 set the compulsory SequenceName argument to the empty string "" and use the
 --match-start option.''')
+parser.add_argument('-D', '--allow-duplicates', action='store_true', help='''
+Used to specify that there may be duplicate names in the input sequences; for
+each named searched for, return all matches.''')
 
 args = parser.parse_args()
 
@@ -124,16 +134,17 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
   else:
     ThisSeqWasSearchedFor = seq.id in SeqNames
   if ThisSeqWasSearchedFor and (not args.invert_search):
-    if seq.id in SeqsWeWant_names:
+    if seq.id in SeqsWeWant_names and not args.allow_duplicates:
       print('Sequence', seq.id, 'occurs multiple times in', args.FastaFile+\
       '\nQuitting.', file=sys.stderr)
       exit(1)
     SeqsWeWant.append(seq)
     SeqsWeWant_names.append(seq.id)
-    if not args.match_start and len(SeqsWeWant) == NumSeqsToSearchFor:
+    if not args.match_start and not args.allow_duplicates and \
+    len(SeqsWeWant) == NumSeqsToSearchFor:
       break
   elif args.invert_search and (not ThisSeqWasSearchedFor):
-    if seq.id in SeqsWeWant_names:
+    if seq.id in SeqsWeWant_names and not args.allow_duplicates:
       print('Sequence', seq.id, 'occurs multiple times in', args.FastaFile+\
       '\nQuitting.', file=sys.stderr)
       exit(1)

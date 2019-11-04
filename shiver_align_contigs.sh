@@ -49,6 +49,18 @@ CheckFilesExist "$ContigFile" "$RefAlignment"
 CheckConfig "$ConfigFile" false true false || \
 { echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
+# Print how this script was called, and what the config file parameter values
+# were.
+echo '###############################################'
+echo "Info:" $(basename "$0") "was called thus:"
+echo $0 $@
+echo "With these config file parameter values:"
+awk '{if (substr($0, 1, 23) == "# Suffixes we'\''ll append") {exit};
+if (substr($0, 1, 1) == "#") {next} else if (NF == 0) {next} else print}' \
+"$ConfigFile"
+echo '###############################################'
+echo
+
 # Out files we'll make
 BlastFile="$SID$BlastSuffix"
 MergedBlastFile="$SID$MergedBlastSuffix"

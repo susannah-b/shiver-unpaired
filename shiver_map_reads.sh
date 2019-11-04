@@ -77,8 +77,17 @@ else
   PrimersToUse="$primers"
 fi
 
-echo $(basename "$0") 'was called thus:'
-echo "$0" $@
+# Print how this script was called, and what the config file parameter values
+# were.
+echo '###############################################'
+echo "Info:" $(basename "$0") "was called thus:"
+echo $0 $@
+echo "With these config file parameter values:"
+awk '{if (substr($0, 1, 23) == "# Suffixes we'\''ll append") {exit};
+if (substr($0, 1, 1) == "#") {next} else if (NF == 0) {next} else print}' \
+"$ConfigFile"
+echo '###############################################'
+echo
 
 # Some files we'll create
 TheRef="$SID$OutputRefSuffix"

@@ -5,8 +5,18 @@ from __future__ import print_function
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
-ExplanatoryMessage = '''
-'''
+ExplanatoryMessage = '''This script calculates the mean read identity
+(fractional agreement with the mapping reference) over all positions in a bam
+file, after grouping those positions with the same coverage (number of mapped
+reads at that position). When there is a tendency for contaminant reads to make
+up a bigger proportion of the reads at low coverage positions, there should also
+be a tendency for mean read identity to decrease at low coverage. The value of
+the coverage at which this happens is therefore informative of a possible
+coverage threshold for calling a consensus base. The user is advised to run this
+script separately on each bam file for which the relationship between coverage
+and proportion of contaminant reads is expected to be roughly the same (for
+example, over a data set sequenced in the same way), and then merge the results
+with ~/shiver/tools/LinkIdentityToCoverage_CombineBams.py.'''
 
 import os
 import sys
@@ -23,7 +33,6 @@ def File(MyFile):
   return MyFile
 
 # Set up the arguments for this script
-ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
 parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('BamFile', type=File)
 parser.add_argument('RefFile', type=File)
@@ -31,6 +40,12 @@ parser.add_argument('-S', '--start', type=int, help='Used to specify a ' +\
 'position in the reference before which we will ignore reads.')
 parser.add_argument('-E', '--end',   type=int, help='Used to specify a ' +\
 'position in the reference after which we will ignore reads.')
+parser.add_argument('--double-count-overlaps', action="store_true", help="""For
+paired reads, by default when we encounter the second in the pair we ignore
+mapped positions that were contained in the first (i.e. counting the overlap
+only once, which is what samtools mpileup does unless you specify
+--ignore-overlaps and/or --min-BQ 0). With this option, we will count the
+overlap twice.""")
 args = parser.parse_args()
 
 SeqList = list(SeqIO.parse(open(args.RefFile), 'fasta'))
@@ -88,10 +103,28 @@ if HaveEnd:
 # a count of 1, and its identity value, to every position to which it is mapped.
 CoveragesByPos = [0 for pos in range(RefLength)]
 IdentityTotalsByPos = [0 for pos in range(RefLength)]
+PositionsByRead = {}
 for read in BamFile.fetch(RefName):
 
-  identity = CalculateReadIdentity(read, RefSeq)
+  if read.is_unmapped or read.is_supplementary:
+    continue
+
   MappedPositions = read.get_reference_positions(full_length=False)
+
+  # If this read is paired and we've seen its mate already, ignore mapped
+  # positions in this read that were contained in the mate. If we haven't seen
+  # the mate already, record this read's positions.
+  if (not args.double_count_overlaps) and read.is_paired:
+    if read.query_name in PositionsByRead:
+      MatePositions = PositionsByRead[read.query_name]
+      MappedPositions = [pos for pos in MappedPositions if not pos in \
+      MatePositions]
+      if not MappedPositions:
+        continue
+    else:
+      PositionsByRead[read.query_name] = MappedPositions
+
+  identity = CalculateReadIdentity(read, RefSeq)
 
   CheckPositionsInWindow = False
   if HaveWindow:
@@ -112,6 +145,7 @@ for read in BamFile.fetch(RefName):
     for pos in MappedPositions:
       CoveragesByPos[pos] += 1
       IdentityTotalsByPos[pos] += identity  
+
 
 
 # Combine identity totals for positions that have the same coverage, and count

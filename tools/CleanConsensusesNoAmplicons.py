@@ -42,15 +42,17 @@ removing the string and every thing after it. After that, each sequence name
 should be either the ID of a patient, or the ID of a patient followed by an
 underscore then a unique string, to distinguish multiple sequences associated
 with the same patient.''')
-parser.add_argument('date_sampled_csv', type=File, help='''A csv-format file
-containing a column "PATIENT" and a column "Date.sampled". For patients with
-sequences from multiple dates, we'll choose the date closest to
-"Date.sampled".''')
 parser.add_argument('seq_based_blacklist', type=File, help='''A plain-text file
 listing sequences to be blacklisted.''')
 parser.add_argument('output_file')
+parser.add_argument('--date_sampled_csv', type=File, help='''A csv-format file
+containing a column "PATIENT" and a column "Date.sampled". For patients with
+sequences from multiple dates, we'll choose the date closest to
+"Date.sampled". If this file is not provided, we include all dates.''')
 parser.add_argument('-V', '--verbose', action='store_true')
 args = parser.parse_args()
+
+have_dates = args.date_sampled_csv != None
 
 def preprocess_seq(seq):
   '''(1) replaces '?' by N; (2) converts to upper case; (3) checks for ambiguous
@@ -138,6 +140,8 @@ seq_dict = collections.defaultdict(dict)
 blacklisted_seqs_found = set([])
 for seq in alignment:
 
+  seq.id = preprocess_seq_id(seq.id)
+
   # Check expected seq id format
   if seq.id.count("_") == 0:
     print('Error: expected seq ids to be the patient id, then "_", then the',
@@ -169,25 +173,27 @@ for seq in alignment:
 # Warn about blacklisted seqs that were not found.
 blacklisted_seqs_not_found = seq_blacklist - blacklisted_seqs_found
 if len(blacklisted_seqs_not_found) != 0:
-  print('Warning: the following blacklisted seqs, specified in',
-  args.seq_based_blacklist + ', were not encountered:',
-  ' '.join(blacklisted_seqs_not_found), file=sys.stderr)
+  print('Warning: of', len(seq_blacklist), 'blacklisted seqs specified in',
+  args.seq_based_blacklist + ', the following', len(blacklisted_seqs_not_found),
+  'were not encountered:', ' '.join(blacklisted_seqs_not_found),
+  file=sys.stderr)
 
-date_sampled_df = pandas.read_csv(args.date_sampled_csv, na_filter=False)
-try:
-  pats_in_date_sampled_df = date_sampled_df["PATIENT"]
-except KeyError:
-  print('Error: no column called "PATIENT" found in', args.date_sampled_csv + \
-  ". Quitting.", file=sys.stderr)
-  exit(1)
-try:
-  dates_in_date_sampled_df = date_sampled_df["Date.sampled"]
-except KeyError:
-  print('Error: no column called "Date.sampled" found in',
-  args.date_sampled_csv + ". Quitting.", file=sys.stderr)
-  exit(1)
-#pats_in_date_sampled_df = list(pats_in_date_sampled_df)
-#dates_in_date_sampled_df = list(dates_in_date_sampled_df)
+if have_dates:
+  date_sampled_df = pandas.read_csv(args.date_sampled_csv, na_filter=False)
+  try:
+    pats_in_date_sampled_df = date_sampled_df["PATIENT"]
+  except KeyError:
+    print('Error: no column called "PATIENT" found in', args.date_sampled_csv + \
+    ". Quitting.", file=sys.stderr)
+    exit(1)
+  try:
+    dates_in_date_sampled_df = date_sampled_df["Date.sampled"]
+  except KeyError:
+    print('Error: no column called "Date.sampled" found in',
+    args.date_sampled_csv + ". Quitting.", file=sys.stderr)
+    exit(1)
+  #pats_in_date_sampled_df = list(pats_in_date_sampled_df)
+  #dates_in_date_sampled_df = list(dates_in_date_sampled_df)
 
 # Iterate through patients and the set of seqs for each patient.
 final_seqs_dict = {}
@@ -232,9 +238,16 @@ for beehive_id, sub_seq_dict in seq_dict.iteritems():
         best_seq += best_base
     merged_seqs_dict[date] = best_seq
 
-  # Now choose one date that we will use.
+  # If we're including all dates for each pat, do so now...
+  if not have_dates:
+    for date, seq in merged_seqs_dict.items():
+      seq_id_to_use = beehive_id + "_" + date
+      assert not seq_id_to_use in final_seqs_dict
+      final_seqs_dict[seq_id_to_use] = seq
+    continue
+  # ... otherwise we go on to choose one date per pat.
 
-  # If there is only one, no choice:
+  # If there is only one date, no choice:
   if len(merged_seqs_dict) == 1:
     date, seq = merged_seqs_dict.items()[0]
     seq_id_to_use = beehive_id + "_" + date

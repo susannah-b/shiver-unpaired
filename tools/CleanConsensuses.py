@@ -67,10 +67,9 @@ files with HXB2 coordinates, in the format produced by shiver.''')
 parser.add_argument('--common_reference', help='''Use this to specify the name
 of the reference sequence that is present in each of the individual consensus
 files, if you are using the --individual_consensus option.''')
-parser.add_argument('patient_based_blacklist', type=File, help='''A plain text
-file in which each line is the name of a patient to be blacklisted, i.e. the
-sequence(s) for that patient should be removed. A header line is not expected.
-''')
+parser.add_argument('patient_based_blacklist', type=File, help='''A csv-format
+file containing a column "patient" with the names of any patients to be
+blacklisted.''')
 parser.add_argument('seq_based_blacklist', type=File, help='''A csv-format file
 specifying particular sequences and particular regions in sequences to be
 blacklisted. A header is expected with the following column names: BAM (values
@@ -302,11 +301,8 @@ with open(args.seq_based_blacklist, 'r') as f:
 
     seq_blacklist_dict[id_] = values
 
-blacklisted_patients = set([])
-with open(args.patient_based_blacklist, 'r') as f:
-  for line in f:
-    patient = line.strip()
-    blacklisted_patients.add(patient)
+patient_based_blacklist_df = pandas.read_csv(args.patient_based_blacklist)
+blacklisted_patients = set(patient_based_blacklist_df["patient"])
 
 def preprocess_seq(seq, check_for_ambig_bases, keep_overhang, start, end):
   '''(1) replaces lower-case bases and '?' by N; (2) optionally checks for

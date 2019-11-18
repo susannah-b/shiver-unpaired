@@ -41,7 +41,7 @@ def File(MyFile):
     raise argparse.ArgumentTypeError(MyFile+' does not exist or is not a file.')
   return MyFile
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description=ExplanatoryMessage)
 parser.add_argument('OutFileStem', help="We'll produce .pdf and .csv "
 "extensions from this file stem")
 parser.add_argument('DataFile', type=File, nargs='*', help='''One or more csv

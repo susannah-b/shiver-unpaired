@@ -46,15 +46,28 @@ function AlignContigsToRefs {
   OldMafftArg=$7
   ContigNames=$(awk '/^>/ {print substr($1,2)}' "$ContigFile")
 
-  "$Aligner" $AlignerOptions --add "$ContigFile" "$ThisRefAlignment" > \
-  "$TempContigAlignment1" || \
-  { echo 'Problem aligning' "$ContigFile"'.' >&2 ; return 1 ; }
+  # Do the inital alignment. Call the $Aligner arg with the desired Python 
+  # executable if it's shiver's aligner, not if it's mafft.
+  if [[ "$Aligner" == "$mafft" ]]; then
+    "$Aligner" $AlignerOptions --add "$ContigFile" "$ThisRefAlignment" > \
+    "$TempContigAlignment1" || \
+    { echo "Problem aligning $ContigFile using $mafft." >&2 ; return 1 ; }
+  elif [[ "$Aligner" == "$Code_AlignToConsensus" ]]; then
+    "$python2" "$Aligner" $AlignerOptions --add "$ContigFile" \
+    "$ThisRefAlignment" > "$TempContigAlignment1" || \
+    { echo "Problem aligning $ContigFile using $Code_AlignToConsensus." >&2 ; return 1 ; }
+  else
+    echo "Function AlignContigsToRefs called with unexpected value $Aligner"\
+    "for the first 'Aligner' argument." >&2
+    return 1
+  fi
+
   if [[ $MafftTestingStrategy == "MinAlnLength" ]]; then
-    PenaltyForAdd=$("$Code_PrintSeqLengths" --first-seq-only --include-gaps \
+    PenaltyForAdd=$("$python2" "$Code_PrintSeqLengths" --first-seq-only --include-gaps \
     "$TempContigAlignment1" | awk '{print $2}') || { echo "Problem running"\
     "$Code_PrintSeqLengths." >&2 ; return 1 ; }
   elif [[ $MafftTestingStrategy == "MinMaxGappiness" ]]; then
-    PenaltyForAdd=$("$Code_ConstructRef" "$TempContigAlignment1" 'DummyOut' \
+    PenaltyForAdd=$("$python2" "$Code_ConstructRef" "$TempContigAlignment1" 'DummyOut' \
     $ContigNames --summarise-contigs-1 | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo 'Problem'\
     "analysing $TempContigAlignment1 (i.e. the output from aligning $ContigFile"\
     "and $ThisRefAlignment) with $Code_ConstructRef." >&2 ; return 1 ; }
@@ -77,11 +90,11 @@ function AlignContigsToRefs {
 
       # ...however if addfragments did work, use the best alignment.
       if [[ $MafftTestingStrategy == "MinAlnLength" ]]; then
-        PenaltyForAddFrag=$("$Code_PrintSeqLengths" --first-seq-only --include-gaps \
+        PenaltyForAddFrag=$("$python2" "$Code_PrintSeqLengths" --first-seq-only --include-gaps \
         "$TempContigAlignment1" | awk '{print $2}') || { echo "Problem running"\
         "$Code_PrintSeqLengths." >&2 ; return 1 ; }
       elif [[ $MafftTestingStrategy == "MinMaxGappiness" ]]; then
-        PenaltyForAddFrag=$("$Code_ConstructRef" "$TempContigAlignment2" 'DummyOut' \
+        PenaltyForAddFrag=$("$python2" "$Code_ConstructRef" "$TempContigAlignment2" 'DummyOut' \
         $ContigNames --summarise-contigs-1 | sort -nrk2,2 | head -1 | awk '{print $2}') || { echo \
         "Problem analysing $TempContigAlignment2 (i.e. the output from aligning "\
         "$ContigFile and $ThisRefAlignment) with $Code_ConstructRef." \
@@ -139,9 +152,9 @@ function PrintAlnLengthIncrease {
   NewAln=$2
 
   # Print the increase in the alignment length as a result of adding the contigs
-  OldAlnLength=$("$Code_PrintSeqLengths" --first-seq-only --include-gaps \
+  OldAlnLength=$("$python2" "$Code_PrintSeqLengths" --first-seq-only --include-gaps \
   "$OldAln" | awk '{print $2}') &&
-  NewAlnLength=$("$Code_PrintSeqLengths" --first-seq-only --include-gaps \
+  NewAlnLength=$("$python2" "$Code_PrintSeqLengths" --first-seq-only --include-gaps \
   "$NewAln" | awk '{print $2}') ||
   { echo "Problem running $Code_PrintSeqLengths." >&2 ; return 1 ; }
   AlnLengthIncrease=$((NewAlnLength - OldAlnLength))
@@ -507,7 +520,7 @@ function ProcessBam {
   "$PileupFile" || { echo 'Failed to generate pileup.' >&2 ; return 1 ; }
 
   # Generate the base frequencies
-  "$Code_AnalysePileup" "$PileupFile" "$LocalRef" > "$BaseFreqs" || \
+  "$python2" "$Code_AnalysePileup" "$PileupFile" "$LocalRef" > "$BaseFreqs" || \
   { echo 'Problem analysing the pileup.' >&2 ; return 1 ; }
 
   # Generate a version of the base freqs file with HXB2 coordinates, if desired.
@@ -534,14 +547,14 @@ function ProcessBam {
 
       "$mafft" $MafftArgsForPairwise "$RefWHXB2unaln" > "$RefWHXB2aln" ||
       { echo "Problem running $mafft $MafftArgsForPairwise" >&2 ; return 1 ; }
-      "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" --pairwise-aln \
+      "$python2" "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" --pairwise-aln \
       "$RefWHXB2aln" > "$BaseFreqsWHXB2" ||
       { echo "Problem running $Code_MergeBaseFreqsAndCoords" >&2 ; return 1 ; }
     fi
   fi
 
   # Call the consensuses
-  "$Code_CallConsensus" "$BaseFreqs" "$MinCov1" "$MinCov2" "$MinBaseFrac" \
+  "$python2" "$Code_CallConsensus" "$BaseFreqs" "$MinCov1" "$MinCov2" "$MinBaseFrac" \
   --consensus-seq-name "$OutFileStem"'_consensus' --ref-seq-name "$LocalRefName" > \
   "$Consensus" || \
   { echo 'Problem calling the consensus.' >&2 ; return 1 ; }
@@ -654,7 +667,7 @@ function GetHIVcontigs {
   fi
 
   # Create a new file of contigs keeping only those that are long enough.
-  "$Code_FindSeqsInFasta" "$ContigFile" -N "" --match-start --min-length \
+  "$python2" "$Code_FindSeqsInFasta" "$ContigFile" -N "" --match-start --min-length \
   "$MinContigLength" > "$LongContigs" || { echo "Problem removing short"\
   "contigs from $ContigFile." >&2 ; return 1 ; }
 
@@ -690,7 +703,7 @@ function GetHIVcontigs {
 
   # Extract those contigs that have a blast hit.
   awk -F, '{print $1}' "$BlastFile" | sort | uniq > "$HIVContigsListOrig"
-  "$Code_FindSeqsInFasta" "$LongContigs" -F "$HIVContigsListOrig" > \
+  "$python2" "$Code_FindSeqsInFasta" "$LongContigs" -F "$HIVContigsListOrig" > \
   "$HIVcontigsFile" || { echo 'Problem extracting the HIV contigs using the'\
   'blast results.' >&2 ; return 1 ; }
 

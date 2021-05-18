@@ -119,9 +119,13 @@ brew install python
 
 # biopython
 pip install biopython
+# If that doesn't work, a command like the one below might succeed,
+# assuming 1.76 is the latest version of biopython:
+# python2 -m pip install biopython==1.76
 
-# smalt
+# smalt: one of the two commands below should work
 brew install smalt
+brew install brewsci/bio/smalt
 
 # blast
 brew install blast

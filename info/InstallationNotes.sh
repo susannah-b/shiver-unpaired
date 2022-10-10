@@ -106,16 +106,19 @@ echo 'PATH=$PATH:~/bowtie2-2.3.3.1-linux-x86_64/' >> ~/.bashrc; source ~/.bashrc
 xcode-select --install
 
 # home brew: 
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# python3 (for pip3)
+# Newer MacOS versions do not contain python2, which shiver requires.
+# It can be installed from here: https://www.python.org/downloads/release/python-2718/
+# Or alternatively by this command:
+brew install python
+
+# My MacOS had python3 installed already, at least after installing xcode, so the command
+# below was unnessecary 
 brew install python3
 
 # fastaq
 pip3 install pyfastaq
-
-# python (for pip)
-brew install python
 
 # biopython
 pip install biopython

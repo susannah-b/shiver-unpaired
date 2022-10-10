@@ -113,22 +113,21 @@ xcode-select --install
 # Or alternatively by this command:
 brew install python
 
-# My MacOS had python3 installed already, at least after installing xcode, so the command
+# My MacOS had python3 installed already (at least after installing xcode) so the command
 # below was unnessecary 
 brew install python3
 
 # fastaq
 pip3 install pyfastaq
 
-# biopython
-pip install biopython
-# If that doesn't work, a command like the one below might succeed,
-# assuming 1.76 is the latest version of biopython:
-# python2 -m pip install biopython==1.76
+# biopython needs to be installed into your python2.
+# version 1.76 is the latest version for which that was supported.
+python2 -m pip install biopython==1.76
 
-# smalt: one of the two commands below should work
+# smalt: one of the two commands below might work...
 brew install smalt
 brew install brewsci/bio/smalt
+# ...if not, see installation instructions at https://www.sanger.ac.uk/tool/smalt-0/
 
 # blast
 brew install blast

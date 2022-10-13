@@ -110,8 +110,6 @@ xcode-select --install
 
 # Newer MacOS versions do not contain python2, which shiver requires.
 # It can be installed from here: https://www.python.org/downloads/release/python-2718/
-# Or alternatively by this command:
-brew install python
 
 # My MacOS had python3 installed already (at least after installing xcode) so the command
 # below was unnessecary 

@@ -87,9 +87,9 @@ with open(FastqFile, 'r') as f:
     # See if this is a read we want: a named read if invert = False,
     # or an unnamed read if invert = True.
     if options.not_sorted:
-      ThisReadInList = line[1:].rstrip() in ReadNames
+      ThisReadInList = line[1:].split(None, 1)[0] in ReadNames
     else:
-      ThisReadInList = line[1:].rstrip() == ReadNames[NumNamedReadsFound]
+      ThisReadInList = line[1:].split(None, 1)[0] == ReadNames[NumNamedReadsFound]
     if ThisReadInList:
       NumNamedReadsFound += 1
       ThisIsAReadWeWant = not invert

@@ -2,6 +2,8 @@
 
 set -u
 set -o pipefail
+# Exit upon error
+set -e
 
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 ToolsDir="$ThisDir"/tools
@@ -13,6 +15,7 @@ Code_ConstructRef="$ToolsDir/ConstructBestRef.py"
 Code_CorrectContigs="$ToolsDir/CorrectContigs.py"
 Code_FillConsensusGaps="$ToolsDir/FillConsensusGaps.py"
 Code_FindContaminantReadPairs="$ToolsDir/FindContaminantReadPairs.py"
+Code_FindContaminantReadsUnpaired="$ToolsDir/FindContaminantReadsUnpaired.py"
 Code_FindReadsInFastq="$ToolsDir/FindNamedReadsInSortedFastq.py"
 Code_FindSeqsInFasta="$ToolsDir/FindSeqsInFasta.py"
 Code_MergeAlignments="$ToolsDir/MergeAlignments.py"
@@ -24,6 +27,8 @@ Code_CutAlignedContigs="$ToolsDir/CutAlignedContigs.py"
 Code_PrintSeqLengths="$ToolsDir/PrintSeqLengths.py"
 Code_AddSNPsToSeqs="$ToolsDir/AddAllPossibleSNPsToSeqs.py"
 Code_KeepBestLinesInDataFile="$ToolsDir/KeepBestLinesInDataFile.py"
+
+
 
 # For quitting if files don't exist.
 function CheckFilesExist {
@@ -167,8 +172,8 @@ function PrintAlnLengthIncrease {
 }
 
 
-function CheckReadNames {
-
+function CheckReadNamesPaired {
+  echo "************************PAIRED DATA STEP************************"
   ReadFile=$1
   # The second argument is 1 for forward reads or 2 for reverse reads.
   OneOrTwo=$2
@@ -224,6 +229,33 @@ function CheckReadNames {
 
 }
 
+function CheckReadNamesUnpaired {
+
+  ReadFile=$1
+
+  # Check none of the lines with read IDs contain tabs
+  NumNameLinesWithTabs=$(awk '{if ((NR-1)%4==0 && gsub("\t","\t",$0) > 0)
+  print}' "$ReadFile" | wc -l)
+  if [[ $NumNameLinesWithTabs -ne 0 ]]; then
+    echo "The following lines in $ReadFile contain tabs:"
+    awk '{if ((NR-1)%4==0 && gsub("\t","\t",$0) > 0) print}' "$ReadFile"
+    echo 'To remove contaminant reads, we require there to be no tabs in the' \
+    'sequence ID lines of fastq files.' >&2
+    return 1
+  fi
+
+  # Check all read names are unique
+  NumDuplicatedReadNames=$(awk '{if ((NR-1)%4==0) print substr($1,1)}'\
+  "$ReadFile" | sort | uniq -d | wc -l)
+  if [[ $NumDuplicatedReadNames -ne 0 ]]; then
+    echo "The following read names are duplicated in $ReadFile:" >&2
+    awk '{if ((NR-1)%4==0) print substr($1,1)}' "$ReadFile" | sort | uniq -d >&2
+    echo "Reads should be uniquely named." >&2
+    return 1
+  fi
+
+}
+
 
 function sam_to_bam {
 
@@ -251,8 +283,8 @@ function sam_to_bam {
   { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
 }
 
-function map_with_smalt {
-
+function map_with_smalt_paired {
+  echo "************************PAIRED DATA STEP************************"
   # Check for the right number of args
   ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -291,8 +323,47 @@ function map_with_smalt {
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
-function map_with_bwa_mem {
+function map_with_smalt_unpaired {
 
+  # Check for the right number of args
+  ExpectedNumArgs=3
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "map_with_smalt function called with $# args; expected"\
+    "$ExpectedNumArgs. Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  ReadsToMap=$1
+  LocalRef=$2
+  OutFileAsBam=$3
+
+  # Index the ref
+  "$smalt" index $smaltIndexOptions "$smaltIndex" "$LocalRef" ||
+  { echo 'Problem indexing the refererence with smalt.' >&2 ;
+  return 1 ; }
+
+  # Do the mapping!
+  echo "Now mapping using smalt with options \"$smaltMapOptions\". Typically a"\
+  "slow step."
+  "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
+  "$ReadsToMap" || \
+  { echo 'Smalt mapping failed.' >&2 ; return 1 ; }
+
+  # Make the reference's .fai index if needed.
+  LocalRefFAIindex="$LocalRef".fai
+  if [[ ! -f "$LocalRefFAIindex" ]]; then
+    "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
+    { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+    return 1 ; }
+  fi
+
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
+}
+
+function map_with_bwa_mem_paired {
+  echo "************************PAIRED DATA STEP************************"
   # Check for the right number of args
   ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -330,8 +401,46 @@ function map_with_bwa_mem {
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
-function map_with_bowtie {
+function map_with_bwa_mem_unpaired {
 
+  # Check for the right number of args
+  ExpectedNumArgs=3
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "map_with_bwa_mem function called with $# args; expected"\
+    "$ExpectedNumArgs. Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  ReadsToMap=$1
+  LocalRef=$2
+  OutFileAsBam=$3
+
+  # Index the ref
+  "$bwa" index "$LocalRef" ||
+  { echo 'Problem indexing the refererence with bwa.' >&2 ;
+  return 1 ; }
+
+  # Do the mapping!
+  echo "Now mapping using bwa mem with options \"$bwaOptions\". Typically a"\
+  "slow step."
+  "$bwa" mem "$LocalRef" "$ReadsToMap" $bwaOptions > \
+  "$MapOutAsSam" || { echo 'bwa mem mapping failed.' >&2 ; return 1 ; }
+
+  # Make the reference's .fai index if needed.
+  LocalRefFAIindex="$LocalRef".fai
+  if [[ ! -f "$LocalRefFAIindex" ]]; then
+    "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
+    { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+    return 1 ; }
+  fi
+
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
+}
+
+function map_with_bowtie_paired {
+  echo "************************PAIRED DATA STEP************************"
   # Check for the right number of args
   ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -370,8 +479,47 @@ function map_with_bowtie {
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
-function map {
+function map_with_bowtie_unpaired {
 
+  # Check for the right number of args
+  ExpectedNumArgs=3
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "map_with_bowtie function called with $# args; expected"\
+    "$ExpectedNumArgs. Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  ReadsToMap1=$1
+  LocalRef=$2
+  OutFileAsBam=$3
+
+  # Index the ref
+  "$bowtie2_build" "$LocalRef" "$bowtieIndex" ||
+  { echo 'Problem indexing the refererence with bowtie2.' >&2 ;
+  return 1 ; }
+
+  # Do the mapping!
+  echo "Now mapping using bowtie2 with options \"$bowtieOptions\". Typically a"\
+  "slow step."
+  "$bowtie2" -x "$bowtieIndex" -U "$ReadsToMap1" -S \
+  "$MapOutAsSam" $bowtieOptions || \
+  { echo 'bowtie2 mapping failed.' >&2 ; return 1 ; }
+
+  # Make the reference's .fai index if needed.
+  LocalRefFAIindex="$LocalRef".fai
+  if [[ ! -f "$LocalRefFAIindex" ]]; then
+    "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
+    { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+    return 1 ; }
+  fi
+
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
+}
+
+function map_paired {
+  echo "************************PAIRED DATA STEP************************"
   # Check for the right number of args
   ExpectedNumArgs=5
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -416,15 +564,99 @@ function map {
 
   # Map with the chosen mapper.
   if [[ "$mapper" == "smalt" ]]; then
-    map_with_smalt "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+    map_with_smalt_paired "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
     "$FinalConversionStepOut" ||
     { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
   elif [[ "$mapper" == "bowtie" ]]; then
-    map_with_bowtie "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+    map_with_bowtie_paired "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
     "$FinalConversionStepOut" ||
     { echo 'Problem mapping with bowtie.' >&2 ; return 1 ; }
   elif [[ "$mapper" == "bwa" ]]; then
-    map_with_bwa_mem "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+    map_with_bwa_mem_paired "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+    "$FinalConversionStepOut" ||
+    { echo 'Problem mapping with bwa mem.' >&2 ; return 1 ; }
+  else
+    echo "Unrecognised value $mapper for the 'mapper' config file variable;"\
+    "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
+    return 1
+  fi
+
+  # Deduplicate if desired
+  if [[ "$deduplicate" == true ]]; then
+    $DeduplicationCommand REMOVE_DUPLICATES=True I="$FinalConversionStepOut" \
+    O="$FinalOutBam" M="$DedupStats" &&
+    ls "$FinalOutBam" > /dev/null ||
+    { echo "Problem running $DeduplicationCommand" >&2 ; return 1 ; }
+  fi
+
+  # Index the bam
+  "$samtools" index "$FinalOutBam" ||
+  { echo "Problem running $samtools index" >&2 ; return 1 ; }
+
+  # Stop here if desired
+  if [[ "$BamOnlyArg" == true ]]; then
+    return 0
+  fi
+
+  ProcessBam "$FinalOutBam" "$LocalRef" "$OutFileStem"
+  return "$?"
+
+}
+
+function map_unpaired {
+
+  # Check for the right number of args
+  ExpectedNumArgs=4
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "map function called with $# args; expected $ExpectedNumArgs."\
+    "Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  ReadsToMap=$1
+  LocalRef=$2
+  OutFileStem=$3
+  BamOnlyArg=$4
+
+  # Some out files we'll produce
+  PreDedupBam="$OutFileStem$PreDeduplicationBamSuffix.bam"
+  FinalOutBam="$OutFileStem.bam"
+  DedupStats="$OutFileStem$DeduplicationStatsSuffix"
+
+  # Check there's one seq in the ref file.
+  NumSeqsInRefFile=$(grep -e '^>' "$LocalRef" | wc -l)
+  if [ "$NumSeqsInRefFile" -eq 0 ]; then
+    echo "Error: there are $NumSeqsInRefFile seqs in $LocalRef; there should"\
+    "be exactly 1 for it to be used as a reference for mapping. Quitting." >&2
+    return 1
+  fi
+
+  # Index the ref
+  "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
+  { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
+  return 1 ; }
+
+  # Set the file name of the bam according to whether we will be deduplicating
+  # it or not.
+  if [[ "$deduplicate" == true ]]; then
+    FinalConversionStepOut="$PreDedupBam"
+  else
+    FinalConversionStepOut="$FinalOutBam"
+  fi
+
+
+  # Map with the chosen mapper.
+  if [[ "$mapper" == "smalt" ]]; then
+    map_with_smalt_unpaired "$ReadsToMap" "$LocalRef" \
+    "$FinalConversionStepOut" ||
+    { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
+  elif [[ "$mapper" == "bowtie" ]]; then
+    map_with_bowtie_unpaired "$ReadsToMap" "$LocalRef" \
+    "$FinalConversionStepOut" ||
+    { echo 'Problem mapping with bowtie.' >&2 ; return 1 ; }
+  elif [[ "$mapper" == "bwa" ]]; then
+    map_with_bwa_mem_unpaired "$ReadsToMap" "$LocalRef" \
     "$FinalConversionStepOut" ||
     { echo 'Problem mapping with bwa mem.' >&2 ; return 1 ; }
   else
@@ -965,3 +1197,160 @@ function CheckNonEmptyReads {
 
 }
 
+
+# Replaces equivalent code in shiver_map_reads.sh for older versions, but separated as two functions to accomodate paired and
+# unpaired reads
+
+function Blast_Contaminants_Paired {
+  echo "************************PAIRED DATA STEP************************"
+  # Blast the reads.
+  echo 'Now blasting the reads - typically a slow step.'
+  "$BlastNcommand" -query "$reads1asFasta" -db "$BlastDB" -out \
+  "$reads1blast1" -max_target_seqs 1 -outfmt \
+  '10 qacc sacc sseqid evalue pident qstart qend sstart send' &&
+  "$BlastNcommand" -query "$reads2asFasta" -db "$BlastDB" -out \
+  "$reads2blast1" -max_target_seqs 1 -outfmt \
+  '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
+  { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
+
+  # For multiple blast hits, keep the one with the highest evalue
+  # TODO: test what blast does with fasta headers that have comments in them -
+  # does it include them too?
+  "$python2" "$Code_KeepBestLinesInDataFile" "$reads1blast1" "$reads1blast2" &&
+  "$python2" "$Code_KeepBestLinesInDataFile" "$reads2blast1" "$reads2blast2" || 
+  { echo "Problem extracting the best blast hits using"\
+  "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
+
+  # Find the read pairs that blast best to something other than the reference.
+  "$python2" "$Code_FindContaminantReadPairs" "$reads1blast2" "$reads2blast2" \
+  "$RefName" "$BadReadsBaseName" && ls "$BadReadsBaseName"_1.txt \
+  "$BadReadsBaseName"_2.txt > /dev/null 2>&1 || \
+  { echo 'Problem finding contaminant read pairs using' \
+  "$Code_FindContaminantReadPairs. Quitting." >&2 ; exit 1 ; }
+
+  # If none of the read pairs blast better to contaminant contigs than the
+  # reference, we just duplicate the original short read files.
+  NumContaminantReadPairs=$(wc -l "$BadReadsBaseName"_1.txt | \
+  awk '{print $1}')
+  if [ "$NumContaminantReadPairs" -eq 0 ]; then
+    echo 'There are no contaminant read pairs.'
+    echo -n > "$MappedContaminantReads"
+    if $HaveModifiedReads; then
+      mv "$reads1" "$cleaned1reads"
+      mv "$reads2" "$cleaned2reads"
+    else
+      cleaned1reads="$reads1"
+      cleaned2reads="$reads2"
+    fi
+
+  # We enter this scope if there are some read pairs that blast better to
+  # contaminant contigs than the reference.
+  else
+
+    # Check every read has a mate.
+    # TODO: move the 'unpaired' check right to the beginning?
+    if ! cmp <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
+    "$reads1" | sort) \
+    <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
+    "$reads2" | sort); then
+      echo 'At least one read in' "$reads1" 'or' "$reads2" 'is unpaired.' \
+      'Quitting.' >&2 ; exit 1 ;
+    fi
+
+    # Extract the non-contaminant read pairs
+    "$python2" "$Code_FindReadsInFastq" -v -s "$reads1" "$BadReadsBaseName"_1.txt > \
+    "$cleaned1reads" &&
+    "$python2" "$Code_FindReadsInFastq" -v -s "$reads2" "$BadReadsBaseName"_2.txt > \
+    "$cleaned2reads" || \
+    { echo 'Problem extracting the non-contaminant reads using' \
+    "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
+
+    # Check some reads are left after cleaning
+    CheckNonEmptyReads "$cleaned1reads" ||
+    { echo 'No reads left after cleaning. Quitting.' >&2; exit 3; }
+
+    # Map the contaminant reads to the reference, to measure how useful the
+    # cleaning procedure was.
+    if [[ "$MapContaminantReads" == "true" ]]; then
+      "$python2" "$Code_FindReadsInFastq" -s "$reads1" "$BadReadsBaseName"_1.txt > \
+      "$BadReadsBaseName"_1.fastq &&
+      "$python2" "$Code_FindReadsInFastq" -s "$reads2" "$BadReadsBaseName"_2.txt > \
+      "$BadReadsBaseName"_2.fastq || \
+      { echo 'Problem extracting the contaminant reads using' \
+      "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
+      BamOnly=true
+      map_paired "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq "$TheRef" \
+      "$MappedContaminantReads" "$BamOnly" || { echo "Problem mapping the" \
+      "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }
+    fi
+
+    HaveModifiedReads=true
+  fi
+
+}
+
+function Blast_Contaminants_Unpaired {
+
+  # Blast the reads.
+  echo 'Now blasting the reads - typically a slow step.'
+  "$BlastNcommand" -query "$readsasFasta" -db "$BlastDB" -out \
+  "$readsblast1" -max_target_seqs 1 -outfmt \
+  '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
+  { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
+
+  # For multiple blast hits, keep the one with the highest evalue
+  "$python2" "$Code_KeepBestLinesInDataFile" "$readsblast1" "$readsblast2" || 
+  { echo "Problem extracting the best blast hits using"\
+  "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
+
+  # Find the read pairs that blast best to something other than the reference.
+  "$python2" "$Code_FindContaminantReadsUnpaired" "$readsblast2" \
+  "$RefName" "$BadReadsBaseName" && ls "$BadReadsBaseName".txt \
+  > /dev/null 2>&1 || \
+  { echo 'Problem finding contaminant reads using' \
+  "$Code_FindContaminantReadsUnpaired. Quitting." >&2 ; exit 1 ; }
+
+  # If none of the read pairs blast better to contaminant contigs than the
+  # reference, we just duplicate the original short read files.
+  NumContaminantReadPairs=$(wc -l "$BadReadsBaseName".txt | \
+  awk '{print $1}')
+  if [ "$NumContaminantReadPairs" -eq 0 ]; then
+    echo 'There are no contaminant read pairs.'
+    echo -n > "$MappedContaminantReads"
+    if $HaveModifiedReads; then
+      mv "$reads" "$cleanedreads"
+    else
+      cleanedreads="$reads"
+    fi
+
+  # We enter this scope if there are some read pairs that blast better to
+  # contaminant contigs than the reference.
+  else
+
+    # Extract the non-contaminant read pairs
+    "$python2" "$Code_FindReadsInFastq" -v -s "$reads" "$BadReadsBaseName".txt > \
+    "$cleanedreads" || \
+    { echo 'Problem extracting the non-contaminant reads using' \
+    "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
+
+    # Check some reads are left after cleaning
+    CheckNonEmptyReads "$cleanedreads" ||
+    { echo 'No reads left after cleaning. Quitting.' >&2; exit 3; }
+
+    # Map the contaminant reads to the reference, to measure how useful the
+    # cleaning procedure was.
+    if [[ "$MapContaminantReads" == "true" ]]; then
+      "$python2" "$Code_FindReadsInFastq" -s "$reads" "$BadReadsBaseName".txt > \
+      "$BadReadsBaseName".fastq || \
+      { echo 'Problem extracting the contaminant reads using' \
+      "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
+      BamOnly=true
+      map_unpaired "$BadReadsBaseName".fastq "$TheRef" \
+      "$MappedContaminantReads" "$BamOnly" || { echo "Problem mapping the" \
+      "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }
+    fi
+
+    HaveModifiedReads=true
+  fi
+
+}

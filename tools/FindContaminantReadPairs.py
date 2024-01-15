@@ -18,6 +18,8 @@ from __future__ import print_function
 ## may be identified as contamination -- we want to find the reads that
 ## correspond to those contigs, in order to remove them.)
 
+# This version of FindContaminantReads is used for processing paired data. For
+# unpaired, see FindContaminantReadsUnpaired.py.
 
 ################################################################################
 # USER INPUT

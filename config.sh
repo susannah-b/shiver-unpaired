@@ -30,7 +30,7 @@ fastaq='fastaq'
 # java -jar path/to/where/it/lives/trimmomatic-0.36.jar
 # If someone else installed it for you (e.g. on MRC CLIMB) there may be an alias
 # which means you just type 'trimmomatic' to run it:
-trimmomatic="trimmomatic"
+trimmomatic="java -jar $HOME/Trimmomatic-0.39/trimmomatic-0.39.jar"
 # If you leave 'GiveHXB2coords', below, as 'true', we'll do pairwise alignment
 # of the mapping reference with HXB2. You may as well use mafft options to make
 # it more accurate (though slower).
@@ -255,6 +255,7 @@ BlastSuffix='.blast'
 MergedBlastSuffix='_MergedHits.blast'
 ReadsPreMapping1Suffix='_PreMapping_1.fastq'
 ReadsPreMapping2Suffix='_PreMapping_2.fastq'
+ReadsPreMappingSuffix='_PreMapping.fastq'
 GlobalAlnSuffix='_ForGlobalAln.fasta'
 BestContigToRefAlignmentSuffix='_ContigsAndBestRef.fasta' # only for fully auto.
 ################################################################################
@@ -283,10 +284,13 @@ RefFromAlignment='temp_RefFromAlignment.fasta'
 AllSeqsInAln='temp_AllSeqsInAln.txt'
 reads1asFasta='temp_reads1.fasta'
 reads2asFasta='temp_reads2.fasta'
+readsasFasta='temp_reads.fasta'
 reads1blast1='temp_reads1_1.blast'
 reads2blast1='temp_reads2_1.blast'
+readsblast1='temp_reads_1.blast'
 reads1blast2='temp_reads1_2.blast'
 reads2blast2='temp_reads2_2.blast'
+readsblast2='temp_reads_2.blast'
 reads1sorted='temp_1_sorted.fastq'
 reads2sorted='temp_2_sorted.fastq'
 MapOutAsSam='temp_MapOut.sam'
@@ -299,6 +303,7 @@ PileupFile='temp_MapOut.pileup'
 RefWithGaps='temp_RefWithGaps.fasta'
 reads1trim1='temp_reads1trim1.fastq'
 reads1trim2='temp_reads1trim2.fastq'
+readstrim='temp_readstrim.fastq'
 reads2trim1='temp_reads2trim1.fastq'
 reads2trim2='temp_reads2trim2.fastq'
 reads1trimmings='temp_trimmings1.fastq'

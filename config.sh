@@ -129,6 +129,7 @@ mapper="smalt"
 # pair is still mapped, but flagged as improperly paired.
 smaltIndexOptions="-k 15 -s 3"
 smaltMapOptions="-x -y 0.7 -j 0 -i 2000"
+smaltMapOptionsUnpaired="-x -y 0.7"
 
 # Check the bowtie2 documentation for a full explanation of options,
 # including those not used by default here.

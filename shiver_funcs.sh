@@ -15,7 +15,6 @@ Code_ConstructRef="$ToolsDir/ConstructBestRef.py"
 Code_CorrectContigs="$ToolsDir/CorrectContigs.py"
 Code_FillConsensusGaps="$ToolsDir/FillConsensusGaps.py"
 Code_FindContaminantReadPairs="$ToolsDir/FindContaminantReadPairs.py"
-Code_FindContaminantReadsUnpaired="$ToolsDir/FindContaminantReadsUnpaired.py"
 Code_FindReadsInFastq="$ToolsDir/FindNamedReadsInSortedFastq.py"
 Code_FindSeqsInFasta="$ToolsDir/FindSeqsInFasta.py"
 Code_MergeAlignments="$ToolsDir/MergeAlignments.py"
@@ -344,9 +343,9 @@ function map_with_smalt_unpaired {
   return 1 ; }
 
   # Do the mapping!
-  echo "Now mapping using smalt with options \"$smaltMapOptions\". Typically a"\
+  echo "Now mapping using smalt with options \"$smaltMapOptionsUnpaired\". Typically a"\
   "slow step."
-  "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
+  "$smalt" map $smaltMapOptionsUnpaired -o "$MapOutAsSam" "$smaltIndex" \
   "$ReadsToMap" || \
   { echo 'Smalt mapping failed.' >&2 ; return 1 ; }
 
@@ -643,6 +642,8 @@ function map_unpaired {
     FinalConversionStepOut="$PreDedupBam"
   else
     FinalConversionStepOut="$FinalOutBam"
+    # testing
+    echo "not deduplicate"
   fi
 
 
@@ -1197,160 +1198,3 @@ function CheckNonEmptyReads {
 
 }
 
-
-# Replaces equivalent code in shiver_map_reads.sh for older versions, but separated as two functions to accomodate paired and
-# unpaired reads
-
-function Blast_Contaminants_Paired {
-  echo "************************PAIRED DATA STEP************************"
-  # Blast the reads.
-  echo 'Now blasting the reads - typically a slow step.'
-  "$BlastNcommand" -query "$reads1asFasta" -db "$BlastDB" -out \
-  "$reads1blast1" -max_target_seqs 1 -outfmt \
-  '10 qacc sacc sseqid evalue pident qstart qend sstart send' &&
-  "$BlastNcommand" -query "$reads2asFasta" -db "$BlastDB" -out \
-  "$reads2blast1" -max_target_seqs 1 -outfmt \
-  '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
-  { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
-
-  # For multiple blast hits, keep the one with the highest evalue
-  # TODO: test what blast does with fasta headers that have comments in them -
-  # does it include them too?
-  "$python2" "$Code_KeepBestLinesInDataFile" "$reads1blast1" "$reads1blast2" &&
-  "$python2" "$Code_KeepBestLinesInDataFile" "$reads2blast1" "$reads2blast2" || 
-  { echo "Problem extracting the best blast hits using"\
-  "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
-
-  # Find the read pairs that blast best to something other than the reference.
-  "$python2" "$Code_FindContaminantReadPairs" "$reads1blast2" "$reads2blast2" \
-  "$RefName" "$BadReadsBaseName" && ls "$BadReadsBaseName"_1.txt \
-  "$BadReadsBaseName"_2.txt > /dev/null 2>&1 || \
-  { echo 'Problem finding contaminant read pairs using' \
-  "$Code_FindContaminantReadPairs. Quitting." >&2 ; exit 1 ; }
-
-  # If none of the read pairs blast better to contaminant contigs than the
-  # reference, we just duplicate the original short read files.
-  NumContaminantReadPairs=$(wc -l "$BadReadsBaseName"_1.txt | \
-  awk '{print $1}')
-  if [ "$NumContaminantReadPairs" -eq 0 ]; then
-    echo 'There are no contaminant read pairs.'
-    echo -n > "$MappedContaminantReads"
-    if $HaveModifiedReads; then
-      mv "$reads1" "$cleaned1reads"
-      mv "$reads2" "$cleaned2reads"
-    else
-      cleaned1reads="$reads1"
-      cleaned2reads="$reads2"
-    fi
-
-  # We enter this scope if there are some read pairs that blast better to
-  # contaminant contigs than the reference.
-  else
-
-    # Check every read has a mate.
-    # TODO: move the 'unpaired' check right to the beginning?
-    if ! cmp <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
-    "$reads1" | sort) \
-    <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
-    "$reads2" | sort); then
-      echo 'At least one read in' "$reads1" 'or' "$reads2" 'is unpaired.' \
-      'Quitting.' >&2 ; exit 1 ;
-    fi
-
-    # Extract the non-contaminant read pairs
-    "$python2" "$Code_FindReadsInFastq" -v -s "$reads1" "$BadReadsBaseName"_1.txt > \
-    "$cleaned1reads" &&
-    "$python2" "$Code_FindReadsInFastq" -v -s "$reads2" "$BadReadsBaseName"_2.txt > \
-    "$cleaned2reads" || \
-    { echo 'Problem extracting the non-contaminant reads using' \
-    "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
-
-    # Check some reads are left after cleaning
-    CheckNonEmptyReads "$cleaned1reads" ||
-    { echo 'No reads left after cleaning. Quitting.' >&2; exit 3; }
-
-    # Map the contaminant reads to the reference, to measure how useful the
-    # cleaning procedure was.
-    if [[ "$MapContaminantReads" == "true" ]]; then
-      "$python2" "$Code_FindReadsInFastq" -s "$reads1" "$BadReadsBaseName"_1.txt > \
-      "$BadReadsBaseName"_1.fastq &&
-      "$python2" "$Code_FindReadsInFastq" -s "$reads2" "$BadReadsBaseName"_2.txt > \
-      "$BadReadsBaseName"_2.fastq || \
-      { echo 'Problem extracting the contaminant reads using' \
-      "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
-      BamOnly=true
-      map_paired "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq "$TheRef" \
-      "$MappedContaminantReads" "$BamOnly" || { echo "Problem mapping the" \
-      "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }
-    fi
-
-    HaveModifiedReads=true
-  fi
-
-}
-
-function Blast_Contaminants_Unpaired {
-
-  # Blast the reads.
-  echo 'Now blasting the reads - typically a slow step.'
-  "$BlastNcommand" -query "$readsasFasta" -db "$BlastDB" -out \
-  "$readsblast1" -max_target_seqs 1 -outfmt \
-  '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
-  { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
-
-  # For multiple blast hits, keep the one with the highest evalue
-  "$python2" "$Code_KeepBestLinesInDataFile" "$readsblast1" "$readsblast2" || 
-  { echo "Problem extracting the best blast hits using"\
-  "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
-
-  # Find the read pairs that blast best to something other than the reference.
-  "$python2" "$Code_FindContaminantReadsUnpaired" "$readsblast2" \
-  "$RefName" "$BadReadsBaseName" && ls "$BadReadsBaseName".txt \
-  > /dev/null 2>&1 || \
-  { echo 'Problem finding contaminant reads using' \
-  "$Code_FindContaminantReadsUnpaired. Quitting." >&2 ; exit 1 ; }
-
-  # If none of the read pairs blast better to contaminant contigs than the
-  # reference, we just duplicate the original short read files.
-  NumContaminantReadPairs=$(wc -l "$BadReadsBaseName".txt | \
-  awk '{print $1}')
-  if [ "$NumContaminantReadPairs" -eq 0 ]; then
-    echo 'There are no contaminant read pairs.'
-    echo -n > "$MappedContaminantReads"
-    if $HaveModifiedReads; then
-      mv "$reads" "$cleanedreads"
-    else
-      cleanedreads="$reads"
-    fi
-
-  # We enter this scope if there are some read pairs that blast better to
-  # contaminant contigs than the reference.
-  else
-
-    # Extract the non-contaminant read pairs
-    "$python2" "$Code_FindReadsInFastq" -v -s "$reads" "$BadReadsBaseName".txt > \
-    "$cleanedreads" || \
-    { echo 'Problem extracting the non-contaminant reads using' \
-    "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
-
-    # Check some reads are left after cleaning
-    CheckNonEmptyReads "$cleanedreads" ||
-    { echo 'No reads left after cleaning. Quitting.' >&2; exit 3; }
-
-    # Map the contaminant reads to the reference, to measure how useful the
-    # cleaning procedure was.
-    if [[ "$MapContaminantReads" == "true" ]]; then
-      "$python2" "$Code_FindReadsInFastq" -s "$reads" "$BadReadsBaseName".txt > \
-      "$BadReadsBaseName".fastq || \
-      { echo 'Problem extracting the contaminant reads using' \
-      "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
-      BamOnly=true
-      map_unpaired "$BadReadsBaseName".fastq "$TheRef" \
-      "$MappedContaminantReads" "$BamOnly" || { echo "Problem mapping the" \
-      "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }
-    fi
-
-    HaveModifiedReads=true
-  fi
-
-}

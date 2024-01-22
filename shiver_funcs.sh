@@ -172,7 +172,6 @@ function PrintAlnLengthIncrease {
 
 
 function CheckReadNamesPaired {
-  echo "************************PAIRED DATA STEP************************"
   ReadFile=$1
   # The second argument is 1 for forward reads or 2 for reverse reads.
   OneOrTwo=$2
@@ -282,8 +281,30 @@ function sam_to_bam {
   { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
 }
 
+function sam_to_bam_unpaired {
+
+  # Check for the right number of args
+  ExpectedNumArgs=3
+  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
+    echo "sam_to_bam function called with $# args; expected $ExpectedNumArgs."\
+    "Quitting." >&2
+    return 1
+  fi
+
+  # Assign the args
+  InSam=$1
+  LocalRefFAIindex=$2
+  OutBam=$3
+
+  # Thanks to Nick Croucher for these steps.
+  "$samtools" view -bS $samtoolsReadFlags_Unpaired -t "$LocalRefFAIindex" -o \
+  "$MapOutConversion1".bam "$InSam" &&
+  "$samtools" sort "$MapOutConversion1".bam -o "$OutBam" -T \
+  "$SamtoolsSortFile" ||
+  { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
+}
+
 function map_with_smalt_paired {
-  echo "************************PAIRED DATA STEP************************"
   # Check for the right number of args
   ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -357,12 +378,11 @@ function map_with_smalt_unpaired {
     return 1 ; }
   fi
 
-  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  sam_to_bam_unpaired "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
 function map_with_bwa_mem_paired {
-  echo "************************PAIRED DATA STEP************************"
   # Check for the right number of args
   ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -434,12 +454,11 @@ function map_with_bwa_mem_unpaired {
     return 1 ; }
   fi
 
-  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  sam_to_bam_unpaired "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
 function map_with_bowtie_paired {
-  echo "************************PAIRED DATA STEP************************"
   # Check for the right number of args
   ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -513,12 +532,11 @@ function map_with_bowtie_unpaired {
     return 1 ; }
   fi
 
-  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  sam_to_bam_unpaired "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
 function map_paired {
-  echo "************************PAIRED DATA STEP************************"
   # Check for the right number of args
   ExpectedNumArgs=5
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -642,8 +660,6 @@ function map_unpaired {
     FinalConversionStepOut="$PreDedupBam"
   else
     FinalConversionStepOut="$FinalOutBam"
-    # testing
-    echo "not deduplicate"
   fi
 
 
@@ -1197,4 +1213,3 @@ function CheckNonEmptyReads {
   fi
 
 }
-

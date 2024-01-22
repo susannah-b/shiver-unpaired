@@ -129,7 +129,7 @@ mapper="smalt"
 # pair is still mapped, but flagged as improperly paired.
 smaltIndexOptions="-k 15 -s 3"
 smaltMapOptions="-x -y 0.7 -j 0 -i 2000"
-smaltMapOptionsUnpaired="-x -y 0.7"
+smaltMapOptionsUnpaired="-y 0.7"
 
 # Check the bowtie2 documentation for a full explanation of options,
 # including those not used by default here.
@@ -161,6 +161,7 @@ bwaOptions='-v 2'
 # The flags used below mean unmapped reads are excluded (-F 4) and only properly
 # aligned pairs are kept (-f 3).
 samtoolsReadFlags='-f 3 -F 4'
+samtoolsReadFlags_Unpaired='-F 4'
 
 # See http://www.htslib.org/doc/samtools.html for a description of samtools
 # mpileup options. Those used below mean that: the base alignment quality ('BAQ')

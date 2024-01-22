@@ -17,8 +17,8 @@ choice might be the contig file name minus its path and extension);
 (6) either the alignment of contigs to refs produced by the
 shiver_align_contigs.sh command, or a fasta file containing a single reference
 to be used for mapping;
-(7) for paired reads, this is the forward reads. For unpaired reads, this is the single reads file;
-(8) for paired reads, this is the reverse reads. For unpaired reads, omit this argument
+(7) the forward reads when mapping paired reads, or the single reads file for unpaired;
+(8) the reverse reads for paired reads, or for unpaired reads omit this argument
 ')
 
 ################################################################################
@@ -65,7 +65,6 @@ primers="$InitDir"/'primers.fasta'
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.sh'
 if [[ "$Paired" == "true" ]]; then
-  echo "************************PAIRED DATA STEP************************"
   CheckFilesExist "$ConfigFile" "$reads1" "$reads2" "$RawContigsFile" \
   "$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
   "$primers"
@@ -100,7 +99,7 @@ fi
 # were.
 echo '###############################################'
 echo "Info:" $(basename "$0") "was called thus:"
-echo $0 $@
+echo "$0" $@
 echo "With these config file parameter values:"
 awk '{if (substr($0, 1, 23) == "# Suffixes we'\''ll append") {exit};
 if (substr($0, 1, 1) == "#") {next} else if (NF == 0) {next} else print}' \
@@ -124,7 +123,6 @@ BaseFreqsWGlobal="$SID$BaseFreqsWGlobalSuffix"
 
 # Check we have some reads
 if [[ "$Paired" == "true" ]]; then
-  echo "************************PAIRED DATA STEP************************"
   CheckNonEmptyReads "$reads1" || { echo 'Quitting.' >&2; exit 3; }
 else
   CheckNonEmptyReads "$reads" || { echo 'Quitting.' >&2; exit 3; }
@@ -336,7 +334,6 @@ else
 fi
 
 if [[ "$Paired" == "true" ]]; then
-  echo "************************PAIRED DATA STEP************************"
   # Check all 1 read seq ids end in /1, and 2 reads in /2. Check there are
   # no tabs in the seq id lines.
   CheckReadNamesPaired "$reads1" 1 && CheckReadNamesPaired "$reads2" 2 || \
@@ -365,7 +362,6 @@ if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then
   # Trim adapters and low-quality bases
   echo 'Now trimming reads - typically a slow step.'
   if [[ "$Paired" == "true" ]]; then
-    echo "************************PAIRED DATA STEP************************"
     $trimmomatic PE -quiet -threads $NumThreadsTrimmomatic \
     "$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
     "$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
@@ -379,21 +375,10 @@ if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then
     TrimReadsForAdaptersAndQual=false
     echo "shiver was set to trim adapters and low quality bases for unpaired data, which is incompatible. "\
     "Skipping step."
-# Trimmomatic command for unpaired data - caused errors so removed but left as comment for reference
-#    $trimmomatic SE -quiet -threads $NumThreadsTrimmomatic \
-#    "$reads" "$readstrim" \
-#    ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
-#    $BaseQualityParams || \
-#    $trimmomatic SE -threads $NumThreadsTrimmomatic \
-#    "$reads" "$readstrim" \
-#    ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
-#    $BaseQualityParams || { echo 'Problem running trimmomatic. Quitting.' >&2 ; \
-#    exit 1 ; }
   fi
 
   HaveModifiedReads=true
   if [[ "$Paired" == "true" ]]; then
-    echo "************************PAIRED DATA STEP************************"
     reads1="$reads1trim1"
     reads2="$reads2trim1"
   fi
@@ -417,7 +402,6 @@ fi
 # Check some reads are left after trimming
 if $HaveModifiedReads; then
   if [[ "$Paired" == "true" ]]; then
-    echo "************************PAIRED DATA STEP************************"
     CheckNonEmptyReads "$reads1" ||
     { echo 'No reads left after trimming. Quitting.' >&2; exit 3; }
   else
@@ -456,7 +440,6 @@ if [[ "$CleanReads" != "true" ]]; then
 
   if $HaveModifiedReads; then
     if [[ "$Paired" == "true" ]]; then
-      echo "************************PAIRED DATA STEP************************"
       mv "$reads1" "$cleaned1reads"
       mv "$reads2" "$cleaned2reads"
     else
@@ -464,7 +447,6 @@ if [[ "$CleanReads" != "true" ]]; then
     fi      
   else
     if [[ "$Paired" == "true" ]]; then
-      echo "************************PAIRED DATA STEP************************"
       cleaned1reads="$reads1"
       cleaned2reads="$reads2"
     else
@@ -512,7 +494,6 @@ else
     echo -n > "$MappedContaminantReads"
     if $HaveModifiedReads; then
       if [[ "$Paired" == "true" ]]; then
-        echo "************************PAIRED DATA STEP************************"
         mv "$reads1" "$cleaned1reads"
         mv "$reads2" "$cleaned2reads"
       else
@@ -520,7 +501,6 @@ else
       fi
     else
       if [[ "$Paired" == "true" ]]; then
-        echo "************************PAIRED DATA STEP************************"
         cleaned1reads="$reads1"
         cleaned2reads="$reads2"
       else
@@ -539,7 +519,6 @@ else
 
     # Convert fastq to fasta.
     if [[ "$Paired" == "true" ]]; then
-      echo "************************PAIRED DATA STEP************************"
       "$fastaq" to_fasta "$reads1" "$reads1asFasta" &&
       "$fastaq" to_fasta "$reads2" "$reads2asFasta" || \
       { echo 'Problem converting the reads from fastq to fasta. Quitting.' >&2 ; \
@@ -553,7 +532,6 @@ else
     # For Paired reads:
     # Blast reads and determine if they blast to something other than the reference
     if [[ "$Paired" == "true" ]]; then
-      echo "************************PAIRED DATA STEP************************"
       # Blast the reads.
       echo 'Now blasting the reads - typically a slow step.'
       "$BlastNcommand" -query "$reads1asFasta" -db "$BlastDB" -out \
@@ -747,7 +725,6 @@ fi
 # Prepend modified read filenames by temp_ if desired.
 if [[ "$KeepPreMappingReads" == "false" ]] && $HaveModifiedReads; then
   if [[ "$Paired" == "true" ]]; then
-    echo "************************PAIRED DATA STEP************************"
     mv "$cleaned1reads" "temp_$cleaned1reads"
     mv "$cleaned2reads" "temp_$cleaned2reads"
     cleaned1reads="temp_$cleaned1reads"
@@ -766,7 +743,6 @@ OldMafft=false
 # Do the mapping
 BamOnly=false
 if [[ "$Paired" == "true" ]]; then
-  echo "************************PAIRED DATA STEP************************"
   map_paired "$cleaned1reads" "$cleaned2reads" "$TheRef" "$SID" "$BamOnly"
 else 
   map_unpaired "$cleanedreads" "$TheRef" "$SID" "$BamOnly"
@@ -814,7 +790,6 @@ if [[ "$remap" == "true" ]]; then
   # Map!
   BamOnly=false
   if [[ "$Paired" == "true" ]]; then
-    echo "************************PAIRED DATA STEP************************"
     map_paired "$cleaned1reads" "$cleaned2reads" "$NewRef" "$NewSID" "$BamOnly" ||
     { echo 'Problem remapping to the consensus from the first round of mapping.'\
     'Quitting.' >&2 ; exit 1 ; }

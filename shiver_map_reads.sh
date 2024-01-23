@@ -44,7 +44,8 @@ elif [ "$#" -eq "$UnpairedReadsArgs" ]; then
   Paired=false
 else 
   echo $UsageInstructions
-  echo "$#" 'arguments specified;' "$PairedReadsArgs" 'or' "$UnpairedReadsArgs" 'expected. Quitting' >&2
+  echo "$#" 'arguments specified; for paired reads' "$PairedReadsArgs" 'are expected, or' \
+  "$UnpairedReadsArgs" 'for unpaired. Quitting' >&2
   exit 1
 fi
 

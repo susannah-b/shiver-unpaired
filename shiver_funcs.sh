@@ -27,8 +27,6 @@ Code_PrintSeqLengths="$ToolsDir/PrintSeqLengths.py"
 Code_AddSNPsToSeqs="$ToolsDir/AddAllPossibleSNPsToSeqs.py"
 Code_KeepBestLinesInDataFile="$ToolsDir/KeepBestLinesInDataFile.py"
 
-
-
 # For quitting if files don't exist.
 function CheckFilesExist {
   for argument in "$@"; do
@@ -230,6 +228,22 @@ function CheckReadNamesPaired {
 function CheckReadNamesUnpaired {
 
   ReadFile=$1
+
+  #testing
+  echo "OverrideEndCheck =$OverrideEndCheck"
+
+  if [[ "$OverrideEndCheck" = false ]]; then
+    # Check no reads end in /1 or /2.
+    suffix=$(awk '{if ((NR-1)%4==0) print substr($1,length($1)-1,
+    length($1))}' "$ReadFile" | sort | uniq)
+    if [[ "$suffix" == "/1" || "$suffix" == "/2" ]]; then
+      echo "Error: found at least one read in $ReadFile which ends in"\
+      "/1 or /2, which is indicative of paired data. To analyse paired"\
+      "data specify both reads files in the shiver_map_reads.sh command."\
+      "To override this, set OverrideEndCheck to false in the config file." >&2
+      return 1
+    fi
+  fi
 
   # Check none of the lines with read IDs contain tabs
   NumNameLinesWithTabs=$(awk '{if ((NR-1)%4==0 && gsub("\t","\t",$0) > 0)

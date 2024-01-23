@@ -91,6 +91,10 @@ ContigMinBlastOverlapToMerge='2'
 # use the alignment with the smaller maximum ("MinMaxGappiness").
 MafftTestingStrategy="MinAlnLength"
 
+# Option to override the check for read names ending in /1 or /2 when analysing
+# unpaired data.
+OverrideEndCheck=false
+
 # Shall we trim adapaters and low quality bases from reads, using trimmomatic?
 TrimReadsForAdaptersAndQual=true
 # The trimmomatic manual explains at length the parameters controlling read

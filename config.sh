@@ -91,10 +91,6 @@ ContigMinBlastOverlapToMerge='2'
 # use the alignment with the smaller maximum ("MinMaxGappiness").
 MafftTestingStrategy="MinAlnLength"
 
-# Option to override the check for read names ending in /1 or /2 when analysing
-# unpaired data.
-OverrideEndCheck=false
-
 # Shall we trim adapaters and low quality bases from reads, using trimmomatic?
 TrimReadsForAdaptersAndQual=true
 # The trimmomatic manual explains at length the parameters controlling read
@@ -165,7 +161,7 @@ bwaOptions='-v 2'
 # The flags used below mean unmapped reads are excluded (-F 4) and only properly
 # aligned pairs are kept (-f 3).
 samtoolsReadFlags='-f 3 -F 4'
-samtoolsReadFlags_Unpaired='-F 4'
+samtoolsReadFlagsUnpaired='-F 4'
 
 # See http://www.htslib.org/doc/samtools.html for a description of samtools
 # mpileup options. Those used below mean that: the base alignment quality ('BAQ')
@@ -261,7 +257,6 @@ BlastSuffix='.blast'
 MergedBlastSuffix='_MergedHits.blast'
 ReadsPreMapping1Suffix='_PreMapping_1.fastq'
 ReadsPreMapping2Suffix='_PreMapping_2.fastq'
-ReadsPreMappingSuffix='_PreMapping.fastq'
 GlobalAlnSuffix='_ForGlobalAln.fasta'
 BestContigToRefAlignmentSuffix='_ContigsAndBestRef.fasta' # only for fully auto.
 ################################################################################
@@ -290,13 +285,10 @@ RefFromAlignment='temp_RefFromAlignment.fasta'
 AllSeqsInAln='temp_AllSeqsInAln.txt'
 reads1asFasta='temp_reads1.fasta'
 reads2asFasta='temp_reads2.fasta'
-readsasFasta='temp_reads.fasta'
 reads1blast1='temp_reads1_1.blast'
 reads2blast1='temp_reads2_1.blast'
-readsblast1='temp_reads_1.blast'
 reads1blast2='temp_reads1_2.blast'
 reads2blast2='temp_reads2_2.blast'
-readsblast2='temp_reads_2.blast'
 reads1sorted='temp_1_sorted.fastq'
 reads2sorted='temp_2_sorted.fastq'
 MapOutAsSam='temp_MapOut.sam'
@@ -309,7 +301,6 @@ PileupFile='temp_MapOut.pileup'
 RefWithGaps='temp_RefWithGaps.fasta'
 reads1trim1='temp_reads1trim1.fastq'
 reads1trim2='temp_reads1trim2.fastq'
-readstrim='temp_readstrim.fastq'
 reads2trim1='temp_reads2trim1.fastq'
 reads2trim2='temp_reads2trim2.fastq'
 reads1trimmings='temp_trimmings1.fastq'

@@ -24,6 +24,26 @@ to be used for mapping;
 ################################################################################
 # PRELIMINARIES
 
+# Check for the right number of arguments for paired or unpaired reads.
+PairedReadsArgs=8
+UnpairedReadsArgs=7
+if [ "#" != "$PairedReadsArgs" ] || [ "#" != "$UnpairedReadsArgs" ]; then
+  echo $UsageInstructions
+  echo "$#" 'arguments specified; for paired reads' "$PairedReadsArgs" 'are expected, or' \
+  "$UnpairedReadsArgs" 'for unpaired. Quitting' >&2
+  exit 1
+fi
+
+# Assign paired or unpaired reads to variables
+PairedReadsArgs=8
+UnpairedReadsArgs=7
+if [ "$#" -eq "$PairedReadsArgs" ]; then
+  reads2="$8"
+  Paired=true
+elif [ "$#" -eq "$UnpairedReadsArgs" ]; then
+  Paired=false
+fi
+
 # Assign shared arguments between paired and unpaired reads
 InitDir="$1"
 ConfigFile="$2"
@@ -31,24 +51,7 @@ RawContigsFile="$3"
 SID="$4"
 ContigBlastFile="$5"
 FastaFile="$6"
-
-# Check for the right number of arguments for paired or unpaired reads. Assign them to variables
-PairedReadsArgs=8
-UnpairedReadsArgs=7
-if [ "$#" -eq "$PairedReadsArgs" ]; then
-  reads1="$7"
-  reads2="$8"
-  Paired=true
-elif [ "$#" -eq "$UnpairedReadsArgs" ]; then
-  reads="$7"
-  Paired=false
-else 
-  echo $UsageInstructions
-  echo "$#" 'arguments specified; for paired reads' "$PairedReadsArgs" 'are expected, or' \
-  "$UnpairedReadsArgs" 'for unpaired. Quitting' >&2
-  exit 1
-fi
-
+reads1="$7"
 
 # Check InitDir exists. Remove a trailing slash, if present.
 if [ ! -d "$InitDir" ]; then
@@ -70,7 +73,7 @@ if [[ "$Paired" == "true" ]]; then
   "$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
   "$primers"
 else
-  CheckFilesExist "$ConfigFile" "$reads" "$RawContigsFile" \
+  CheckFilesExist "$ConfigFile" "$reads1" "$RawContigsFile" \
   "$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
   "$primers"  
 fi
@@ -96,11 +99,24 @@ else
   PrimersToUse="$primers"
 fi
 
+# Check for unpaired data if trimming
+if [[ "$TrimReadsForPrimers" = "true" ]] && [[ "$Paired" == "false" ]]; then
+  echo "shiver was set to trim primers for unpaired data, which is incompatible. "\
+  "Quitting."
+  exit 1
+fi
+
+if [[ "$TrimReadsForAdaptersAndQual" = "true" ]] && [[ "$Paired" == "false" ]]; then
+  echo "shiver was set to trim adapters and low quality bases for unpaired data, which is incompatible. "\
+  "Quitting."
+  exit 1
+fi
+
 # Print how this script was called, and what the config file parameter values
 # were.
 echo '###############################################'
 echo "Info:" $(basename "$0") "was called thus:"
-echo "$0" $@
+echo "$0" "$@"
 echo "With these config file parameter values:"
 awk '{if (substr($0, 1, 23) == "# Suffixes we'\''ll append") {exit};
 if (substr($0, 1, 1) == "#") {next} else if (NF == 0) {next} else print}' \
@@ -116,18 +132,13 @@ consensusWcontigs="$SID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2"'_wContigs.fa
 MappedContaminantReads="$SID$MappedContaminantReadsSuffix"
 cleaned1reads="$SID$ReadsPreMapping1Suffix"
 cleaned2reads="$SID$ReadsPreMapping2Suffix"
-cleanedreads="$SID$ReadsPreMappingSuffix"
 CoordsDict="$SID$CoordsDictSuffix"
 BaseFreqs="$SID$BaseFreqsSuffix"
 BaseFreqsWGlobal="$SID$BaseFreqsWGlobalSuffix"
 ################################################################################
 
 # Check we have some reads
-if [[ "$Paired" == "true" ]]; then
-  CheckNonEmptyReads "$reads1" || { echo 'Quitting.' >&2; exit 3; }
-else
-  CheckNonEmptyReads "$reads" || { echo 'Quitting.' >&2; exit 3; }
-fi
+CheckNonEmptyReads "$reads1" || { echo 'Quitting.' >&2; exit 3; }
 
 ################################################################################
 # CONSTRUCT A REFERENCE, OR USE THE ONE SUPPLIED
@@ -269,18 +280,17 @@ fi
 # TRIM & CLEAN READS
 
 # Copy the reads to the working directory.
-# For paired reads:
-if [[ "$Paired" == "true" ]]; then
-  if [[ $(dirname "$reads1") != "." ]]; then
-    NewReads1=$(basename "$reads1")
-    if [[ -f "$NewReads1" ]]; then
-      echo "A file called $NewReads1 exists in the working directory, $PWD,"\
-      "already; we will not overwrite it with $reads1. Quitting." >&2; exit 1;
-    fi
-    cp -i "$reads1" . || { echo "Failed to copy $reads1 to the working"\
-    "directory. Quitting." >&2; exit 1; }
-    reads1="$NewReads1"
+if [[ $(dirname "$reads1") != "." ]]; then
+  NewReads1=$(basename "$reads1")
+  if [[ -f "$NewReads1" ]]; then
+    echo "A file called $NewReads1 exists in the working directory, $PWD,"\
+    "already; we will not overwrite it with $reads1. Quitting." >&2; exit 1;
   fi
+  cp -i "$reads1" . || { echo "Failed to copy $reads1 to the working"\
+  "directory. Quitting." >&2; exit 1; }
+  reads1="$NewReads1"
+fi
+if [[ "$Paired" == "true" ]]; then
   if [[ $(dirname "$reads2") != "." ]]; then
     NewReads2=$(basename "$reads2")
     if [[ -f "$NewReads2" ]]; then
@@ -291,31 +301,18 @@ if [[ "$Paired" == "true" ]]; then
     "directory. Quitting." >&2; exit 1; }
     reads2="$NewReads2"
   fi
-else
-  # For unpaired reads:
-  if [[ $(dirname "$reads") != "." ]]; then
-    NewReads=$(basename "$reads")
-    if [[ -f "$NewReads" ]]; then
-      echo "A file called $NewReads exists in the working directory, $PWD,"\
-      "already; we will not overwrite it with $reads. Quitting." >&2; exit 1;
-    fi
-    cp -i "$reads" . || { echo "Failed to copy $reads to the working"\
-    "directory. Quitting." >&2; exit 1; }
-    reads="$NewReads"
-  fi
 fi
 
 
 # Unzip the reads if they end in .gz.
-# For paired reads:
+if [[ "$reads1" == *.gz ]]; then
+  gunzip -f "$reads1" &&
+  NewReads1="${reads1%.gz}" &&
+  ls $NewReads1 > /dev/null || { echo "Problem unzipping $reads1. Quitting.">&2;
+  exit 1; }
+  reads1="$NewReads1"
+fi
 if [[ "$Paired" == "true" ]]; then
-  if [[ "$reads1" == *.gz ]]; then
-    gunzip -f "$reads1" &&
-    NewReads1="${reads1%.gz}" &&
-    ls $NewReads1 > /dev/null || { echo "Problem unzipping $reads1. Quitting.">&2;
-    exit 1; }
-    reads1="$NewReads1"
-  fi
   if [[ "$reads2" == *.gz ]]; then
     gunzip -f "$reads2" &&
     NewReads2="${reads2%.gz}" &&
@@ -323,66 +320,40 @@ if [[ "$Paired" == "true" ]]; then
     exit 1; }
     reads2="$NewReads2"
   fi
-else
-  # For unpaired reads:
-  if [[ "$reads" == *.gz ]]; then
-    gunzip -f "$reads" &&
-    NewReads="${reads%.gz}" &&
-    ls $NewReads > /dev/null || { echo "Problem unzipping $reads. Quitting.">&2;
-    exit 1; }
-    reads="$NewReads"
-  fi
 fi
 
 if [[ "$Paired" == "true" ]]; then
   # Check all 1 read seq ids end in /1, and 2 reads in /2. Check there are
   # no tabs in the seq id lines.
-  CheckReadNamesPaired "$reads1" 1 && CheckReadNamesPaired "$reads2" 2 || \
+  CheckReadNames "$reads1" 1 && CheckReadNames "$reads2" 2 || \
   { echo 'Problem with read names. Quitting.' >&2 ; exit 1 ; }
 else
-  # Check there are no tabs in the seq id lines and that all names are unique.
-  CheckReadNamesUnpaired "$reads"
+  # Check there no read seq ids that end in /1 or /2. Check there are no tabs 
+  # in the seq id lines and that all names are unique.
+  CheckReadNames "$reads1" 0 || \
+  { echo 'Problem with read names. Quitting.' >&2 ; exit 1 ; }
 fi
 
 HaveModifiedReads=false
 
 # Read trimming:
 
-# Check for unpaired data
-# NOTE: primer trimming is included in the default map_reads script. This check turns that off
-# to bypass the trimming step later. Could instead change the default based on being paired/unpaired
-if [[ "$TrimReadsForPrimers" = "true" ]] && [[ "$Paired" == "false" ]]; then
-  TrimReadsForPrimers=false
-  echo "shiver was set to trim primers for unpaired data, which is incompatible. "\
-  "Skipping step."
-fi
-
-
 if [[ "$TrimReadsForAdaptersAndQual" == "true" ]]; then
-
   # Trim adapters and low-quality bases
   echo 'Now trimming reads - typically a slow step.'
-  if [[ "$Paired" == "true" ]]; then
-    $trimmomatic PE -quiet -threads $NumThreadsTrimmomatic \
-    "$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
-    "$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
-    $BaseQualityParams || \
-    $trimmomatic PE -threads $NumThreadsTrimmomatic \
-    "$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
-    "$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
-    $BaseQualityParams || { echo 'Problem running trimmomatic. Quitting.' >&2 ; \
-    exit 1 ; }
-  else
-    TrimReadsForAdaptersAndQual=false
-    echo "shiver was set to trim adapters and low quality bases for unpaired data, which is incompatible. "\
-    "Skipping step."
-  fi
+  $trimmomatic PE -quiet -threads $NumThreadsTrimmomatic \
+  "$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
+  "$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
+  $BaseQualityParams || \
+  $trimmomatic PE -threads $NumThreadsTrimmomatic \
+  "$reads1" "$reads2" "$reads1trim1" "$reads1trimmings" "$reads2trim1" \
+  "$reads2trimmings" ILLUMINACLIP:"$adapters":"$IlluminaClipParams" \
+  $BaseQualityParams || { echo 'Problem running trimmomatic. Quitting.' >&2 ; \
+  exit 1 ; }
 
   HaveModifiedReads=true
-  if [[ "$Paired" == "true" ]]; then
-    reads1="$reads1trim1"
-    reads2="$reads2trim1"
-  fi
+  reads1="$reads1trim1"
+  reads2="$reads2trim1"
 fi
 
 if [[ "$TrimReadsForPrimers" == "true" ]]; then
@@ -402,13 +373,8 @@ fi
 
 # Check some reads are left after trimming
 if $HaveModifiedReads; then
-  if [[ "$Paired" == "true" ]]; then
-    CheckNonEmptyReads "$reads1" ||
-    { echo 'No reads left after trimming. Quitting.' >&2; exit 3; }
-  else
-    CheckNonEmptyReads "$reads" ||
-    { echo 'No reads left after trimming. Quitting.' >&2; exit 3; }
-  fi
+  CheckNonEmptyReads "$reads1" ||
+  { echo 'No reads left after trimming. Quitting.' >&2; exit 3; }
 fi
 
 # If RawContigsFile is empty we cannot do read cleaning, so switch it from true
@@ -440,18 +406,14 @@ if [[ "$CleanReads" != "true" ]]; then
   # output worth saving separately.
 
   if $HaveModifiedReads; then
+    mv "$reads1" "$cleaned1reads"
     if [[ "$Paired" == "true" ]]; then
-      mv "$reads1" "$cleaned1reads"
       mv "$reads2" "$cleaned2reads"
-    else
-      mv "$reads" "$cleanedreads"
     fi      
   else
+    cleaned1reads="$reads1"
     if [[ "$Paired" == "true" ]]; then
-      cleaned1reads="$reads1"
       cleaned2reads="$reads2"
-    else
-      cleanedreads="$reads"
     fi
   fi
 
@@ -494,18 +456,14 @@ else
     echo 'There are no contaminant contigs: read cleaning unnecessary.'
     echo -n > "$MappedContaminantReads"
     if $HaveModifiedReads; then
+      mv "$reads1" "$cleaned1reads"
       if [[ "$Paired" == "true" ]]; then
-        mv "$reads1" "$cleaned1reads"
         mv "$reads2" "$cleaned2reads"
-      else
-        mv "$reads" "$cleanedreads"
       fi
     else
+      cleaned1reads="$reads1"
       if [[ "$Paired" == "true" ]]; then
-        cleaned1reads="$reads1"
         cleaned2reads="$reads2"
-      else
-        cleanedreads="$reads"
       fi
     fi
 
@@ -519,126 +477,54 @@ else
     { echo 'Problem creating a blast database. Quitting.' >&2 ; exit 1 ; }
 
     # Convert fastq to fasta.
-    if [[ "$Paired" == "true" ]]; then
-      "$fastaq" to_fasta "$reads1" "$reads1asFasta" &&
-      "$fastaq" to_fasta "$reads2" "$reads2asFasta" || \
+    "$fastaq" to_fasta "$reads1" "$reads1asFasta" || \
       { echo 'Problem converting the reads from fastq to fasta. Quitting.' >&2 ; \
       exit 1 ; }
-    else
-      $"fastaq" to_fasta "$reads" "$readsasFasta" || \
+    if [[ "$Paired" == "true" ]]; then
+      "$fastaq" to_fasta "$reads2" "$reads2asFasta" || \
       { echo 'Problem converting the reads from fastq to fasta. Quitting.' >&2 ; \
       exit 1 ; }
     fi
 
     # For Paired reads:
     # Blast reads and determine if they blast to something other than the reference
+    # Blast the reads.
+    echo 'Now blasting the reads - typically a slow step.'
+    "$BlastNcommand" -query "$reads1asFasta" -db "$BlastDB" -out \
+    "$reads1blast1" -max_target_seqs 1 -outfmt \
+    '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
+    { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
     if [[ "$Paired" == "true" ]]; then
-      # Blast the reads.
-      echo 'Now blasting the reads - typically a slow step.'
-      "$BlastNcommand" -query "$reads1asFasta" -db "$BlastDB" -out \
-      "$reads1blast1" -max_target_seqs 1 -outfmt \
-      '10 qacc sacc sseqid evalue pident qstart qend sstart send' &&
       "$BlastNcommand" -query "$reads2asFasta" -db "$BlastDB" -out \
       "$reads2blast1" -max_target_seqs 1 -outfmt \
       '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
       { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
+    fi
 
-      # For multiple blast hits, keep the one with the highest evalue
-      # TODO: test what blast does with fasta headers that have comments in them -
-      # does it include them too?
-      "$python2" "$Code_KeepBestLinesInDataFile" "$reads1blast1" "$reads1blast2" &&
+    # For multiple blast hits, keep the one with the highest evalue
+    # TODO: test what blast does with fasta headers that have comments in them -
+    # does it include them too?
+    "$python2" "$Code_KeepBestLinesInDataFile" "$reads1blast1" "$reads1blast2" || 
+    { echo "Problem extracting the best blast hits using"\
+    "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
+    if [[ "$Paired" == "true" ]]; then
       "$python2" "$Code_KeepBestLinesInDataFile" "$reads2blast1" "$reads2blast2" || 
       { echo "Problem extracting the best blast hits using"\
       "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
+    fi
 
-      # Find the read pairs that blast best to something other than the reference.
+    if [[ "$Paired" == "true" ]]; then
+      # Paired reads: Find the read pairs that blast best to something other than the reference.
       "$python2" "$Code_FindContaminantReadPairs" "$reads1blast2" "$reads2blast2" \
       "$RefName" "$BadReadsBaseName" && ls "$BadReadsBaseName"_1.txt \
       "$BadReadsBaseName"_2.txt > /dev/null 2>&1 || \
       { echo 'Problem finding contaminant read pairs using' \
       "$Code_FindContaminantReadPairs. Quitting." >&2 ; exit 1 ; }
-
-      # If none of the read pairs blast better to contaminant contigs than the
-      # reference, we just duplicate the original short read files.
-      NumContaminantReadPairs=$(wc -l "$BadReadsBaseName"_1.txt | \
-      awk '{print $1}')
-      if [ "$NumContaminantReadPairs" -eq 0 ]; then
-        echo 'There are no contaminant read pairs.'
-        echo -n > "$MappedContaminantReads"
-        if $HaveModifiedReads; then
-          mv "$reads1" "$cleaned1reads"
-          mv "$reads2" "$cleaned2reads"
-        else
-          cleaned1reads="$reads1"
-          cleaned2reads="$reads2"
-        fi
-
-      # We enter this scope if there are some read pairs that blast better to
-      # contaminant contigs than the reference.
-      else
-
-        # Check every read has a mate.
-        # TODO: move the 'unpaired' check right to the beginning?
-        if ! cmp <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
-        "$reads1" | sort) \
-        <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
-        "$reads2" | sort); then
-          echo 'At least one read in' "$reads1" 'or' "$reads2" 'is unpaired.' \
-          'Quitting.' >&2 ; exit 1 ;
-        fi
-
-        # Extract the non-contaminant read pairs
-        "$python2" "$Code_FindReadsInFastq" -v -s "$reads1" "$BadReadsBaseName"_1.txt > \
-        "$cleaned1reads" &&
-        "$python2" "$Code_FindReadsInFastq" -v -s "$reads2" "$BadReadsBaseName"_2.txt > \
-        "$cleaned2reads" || \
-        { echo 'Problem extracting the non-contaminant reads using' \
-        "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
-
-        # Check some reads are left after cleaning
-        CheckNonEmptyReads "$cleaned1reads" ||
-        { echo 'No reads left after cleaning. Quitting.' >&2; exit 3; }
-
-        # Map the contaminant reads to the reference, to measure how useful the
-        # cleaning procedure was.
-        if [[ "$MapContaminantReads" == "true" ]]; then
-          "$python2" "$Code_FindReadsInFastq" -s "$reads1" "$BadReadsBaseName"_1.txt > \
-          "$BadReadsBaseName"_1.fastq &&
-          "$python2" "$Code_FindReadsInFastq" -s "$reads2" "$BadReadsBaseName"_2.txt > \
-          "$BadReadsBaseName"_2.fastq || \
-          { echo 'Problem extracting the contaminant reads using' \
-          "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
-          BamOnly=true
-          map_paired "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq "$TheRef" \
-          "$MappedContaminantReads" "$BamOnly" || { echo "Problem mapping the" \
-          "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }
-        fi
-
-        HaveModifiedReads=true
-      fi
-
-
-    # For Unpaired reads:
-    # Blast reads and determine if they blast to something other than the reference
     else
-      # Blast the reads.
-      echo 'Now blasting the reads - typically a slow step.'
-      "$BlastNcommand" -query "$readsasFasta" -db "$BlastDB" -out \
-      "$readsblast1" -max_target_seqs 1 -outfmt \
-      '10 qacc sacc sseqid evalue pident qstart qend sstart send' || \
-      { echo 'Problem blasting' "$ContigFile"'. Quitting.' >&2 ; exit 1 ; }
-
-      # For multiple blast hits, keep the one with the highest evalue
-      "$python2" "$Code_KeepBestLinesInDataFile" "$readsblast1" "$readsblast2" || 
-      { echo "Problem extracting the best blast hits using"\
-      "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
-
-      # Find the read pairs that blast to something other than the reference
-      # NOTE: Not sure about error checking for this section. Might also be simpler/better with awk
-
+      # Unpaired reads: Find the reads which blast best to something other than the reference
       # Check that the file exists
-      if [ ! -f "$readsblast2" ]; then
-        echo "Error: '$readsblast2' does not exist or is not a file. Quitting." >&2
+      if [ ! -f "$reads1blast2" ]; then
+        echo "Error: '$reads1blast2' does not exist or is not a file. Quitting." >&2
         exit 1
       fi
 
@@ -655,7 +541,7 @@ else
         evalue="${columns[$column_evalue-1]}"
 
         if [ -z "${qacc+x}" ] || [ -z "${sacc+x}" ] || [ -z "${evalue+x}" ]; then
-          echo "Error: A column in '$readsblast2' is missing or empty. Quitting." >&2
+          echo "Error: A column in '$reads1blast2' is missing or empty. Quitting." >&2
           exit 1
         fi
 
@@ -663,62 +549,101 @@ else
         if [ "$sacc" != "$RefName" ]; then
           ContaminantReads+=("$qacc")
         fi
-      done < "$readsblast2"
+      done < "$reads1blast2"
 
       # Write the output
-      OutFile_reads="$BadReadsBaseName.txt"
+      OutFile_reads="$BadReadsBaseName"_1.txt
       HaveSomeReads="${#ContaminantReads[@]}"
       if [ "$HaveSomeReads" -gt 0 ]; then
         printf "%s\n" "${ContaminantReads[@]}" > "$OutFile_reads"
       else
         # Empty file created in the case of no contaminants
-        touch "$BadReadsBaseName".txt
+        touch "$BadReadsBaseName"_1.txt
       fi
+    fi
 
-      # If none of the read pairs blast better to contaminant contigs than the
-      # reference, we just duplicate the original short read files.
-      NumContaminantReads=$(wc -l "$BadReadsBaseName".txt | \
-      awk '{print $1}')
-      if [ "$NumContaminantReads" -eq 0 ]; then
+    # If none of the read pairs blast better to contaminant contigs than the
+    # reference, we just duplicate the original short read files.
+    # NOTE: some repetition in paired/unpaired clauses here but I kept it that way to make
+    # a simpler overall if/else structure. Tried to make this section and the surrounding
+    # (lines ~490-650) as logical as possible but I'm open to changes
+    NumContaminantReads=$(wc -l "$BadReadsBaseName"_1.txt | \
+    awk '{print $1}')
+    if [ "$NumContaminantReads" -eq 0 ]; then
+      if [[ "$Paired" == "true" ]]; then
+        echo 'There are no contaminant read pairs.'
+        echo -n > "$MappedContaminantReads"
+        if $HaveModifiedReads; then
+          mv "$reads1" "$cleaned1reads"
+          mv "$reads2" "$cleaned2reads"
+        else
+          cleaned1reads="$reads1"
+          cleaned2reads="$reads2"
+        fi
+      else # Unpaired reads
         echo 'There are no contaminant reads.'
         echo -n > "$MappedContaminantReads"
         if $HaveModifiedReads; then
-          mv "$reads" "$cleanedreads"
+          mv "$reads1" "$cleaned1reads"
         else
-          cleanedreads="$reads"
+          cleaned1reads="$reads1"
         fi
+      fi
 
-      # We enter this scope if there are some read pairs that blast better to
-      # contaminant contigs than the reference.
-      else
+    # We enter this scope if there are some read pairs that blast better to
+    # contaminant contigs than the reference.
+    else
+      if [[ "$Paired" == "true" ]]; then
+        # Check every read has a mate.
+        # TODO: move the 'unpaired' check right to the beginning?
+        if ! cmp <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
+        "$reads1" | sort) \
+        <(awk '{if ((NR-1)%4==0) print substr($1,2,length($1)-3)}' \
+        "$reads2" | sort); then
+          echo 'At least one read in' "$reads1" 'or' "$reads2" 'is unpaired.' \
+          'Quitting.' >&2 ; exit 1 ;
+        fi
+      fi
 
-        # Extract the non-contaminant reads
-        "$python2" "$Code_FindReadsInFastq" -v -s "$reads" "$BadReadsBaseName".txt > \
-        "$cleanedreads" || \
+      # Extract the non-contaminant read pairs
+      "$python2" "$Code_FindReadsInFastq" -v -s "$reads1" "$BadReadsBaseName"_1.txt > \
+      "$cleaned1reads" || \
+      { echo 'Problem extracting the non-contaminant reads using' \
+      "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
+      if [[ "$Paired" == "true" ]]; then
+        "$python2" "$Code_FindReadsInFastq" -v -s "$reads2" "$BadReadsBaseName"_2.txt > \
+        "$cleaned2reads" || \
         { echo 'Problem extracting the non-contaminant reads using' \
         "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
+      fi
 
-        # Check some reads are left after cleaning
-        CheckNonEmptyReads "$cleanedreads" ||
-        { echo 'No reads left after cleaning. Quitting.' >&2; exit 3; }
+      # Check some reads are left after cleaning
+      CheckNonEmptyReads "$cleaned1reads" ||
+      { echo 'No reads left after cleaning. Quitting.' >&2; exit 3; }
 
-        # Map the contaminant reads to the reference, to measure how useful the
-        # cleaning procedure was.
-        if [[ "$MapContaminantReads" == "true" ]]; then
-          "$python2" "$Code_FindReadsInFastq" -s "$reads" "$BadReadsBaseName".txt > \
-          "$BadReadsBaseName".fastq || \
+      # Map the contaminant reads to the reference, to measure how useful the
+      # cleaning procedure was.
+      if [[ "$MapContaminantReads" == "true" ]]; then
+        "$python2" "$Code_FindReadsInFastq" -s "$reads1" "$BadReadsBaseName"_1.txt > \
+        "$BadReadsBaseName"_1.fastq &&
+        if [[ "$Paired" == "true" ]]; then
+          "$python2" "$Code_FindReadsInFastq" -s "$reads2" "$BadReadsBaseName"_2.txt > \
+          "$BadReadsBaseName"_2.fastq || \
           { echo 'Problem extracting the contaminant reads using' \
           "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
           BamOnly=true
-          map_unpaired "$BadReadsBaseName".fastq "$TheRef" \
+          map_paired "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq "$TheRef" \
+          "$MappedContaminantReads" "$BamOnly" || { echo "Problem mapping the" \
+          "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }
+        else
+          map_unpaired "$BadReadsBaseName"_1.fastq "$TheRef" \
           "$MappedContaminantReads" "$BamOnly" || { echo "Problem mapping the" \
           "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }
         fi
-
-        HaveModifiedReads=true
       fi
+
+      HaveModifiedReads=true
     fi
-    
   fi
 fi
 
@@ -731,8 +656,8 @@ if [[ "$KeepPreMappingReads" == "false" ]] && $HaveModifiedReads; then
     cleaned1reads="temp_$cleaned1reads"
     cleaned2reads="temp_$cleaned2reads"
   else
-    mv "$cleanedreads" "temp_$cleanedreads"
-    cleanedreads="temp_$cleanedreads"   
+    mv "$cleaned1reads" "temp_$cleaned1reads"
+    cleaned1reads="temp_$cleaned1reads"   
   fi 
 fi
 
@@ -746,7 +671,7 @@ BamOnly=false
 if [[ "$Paired" == "true" ]]; then
   map_paired "$cleaned1reads" "$cleaned2reads" "$TheRef" "$SID" "$BamOnly"
 else 
-  map_unpaired "$cleanedreads" "$TheRef" "$SID" "$BamOnly"
+  map_unpaired "$cleaned1reads" "$TheRef" "$SID" "$BamOnly"
 fi
 MapStatus=$?
 if [[ $MapStatus == 3 ]]; then
@@ -795,7 +720,7 @@ if [[ "$remap" == "true" ]]; then
     { echo 'Problem remapping to the consensus from the first round of mapping.'\
     'Quitting.' >&2 ; exit 1 ; }
   else 
-    map_unpaired "$cleanedreads" "$NewRef" "$NewSID" "$BamOnly" ||
+    map_unpaired "$cleaned1reads" "$NewRef" "$NewSID" "$BamOnly" ||
     { echo 'Problem remapping to the consensus from the first round of mapping.'\
     'Quitting.' >&2 ; exit 1 ; }
   fi

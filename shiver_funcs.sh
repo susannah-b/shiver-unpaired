@@ -168,8 +168,7 @@ function PrintAlnLengthIncrease {
 
 }
 
-
-function CheckReadNamesPaired {
+function CheckReadNames {
   ReadFile=$1
   # The second argument is 1 for forward reads or 2 for reverse reads.
   OneOrTwo=$2
@@ -178,61 +177,33 @@ function CheckReadNamesPaired {
     WrittenOneOrTwo="forward"
   elif [[ "$OneOrTwo" == "2" ]]; then
     WrittenOneOrTwo="reverse"
+  elif [[ "$OneOrTwo" == "0" ]]; then
+    WrittenOneOrTwo="unpaired"
   else
     echo "Error: CheckReadNames function called with a OneOrTwo argument not"\
-    "equal to 1 or 2."
+    "equal to 1, 2, or 0."
     return 1
   fi
 
-  # Check all read seq ids end in /1 or /2 as needed.
-  suffix=$(awk '{if ((NR-1)%4==0) print substr($1,length($1)-1,
-  length($1))}' "$ReadFile" | sort | uniq)
-  if [[ "$suffix" != '/'"$OneOrTwo" ]]; then
-    echo "Error: found at least one read in $ReadFile whose name does"\
-    "not end in '/$OneOrTwo', which is required for $WrittenOneOrTwo reads."\
-    "One particular problem I've seen in reads found online was that the"\
-    "sequence ID lines look like this:" >&2
-    echo "@ReadName descriptor/$OneOrTwo" >&2
-    echo "instead of like this:" >&2
-    echo "@ReadName/$OneOrTwo" >&2
-    echo "In that case you can remove the space, merging the descriptor and"\
-    "the /$OneOrTwo into the name, with a command like this:" >&2
-    echo "awk '"'{if (NR%4 == 1) {print $1 "_" $2} else print}'"' $ReadFile >"\
-    "MyRenamedReads_$OneOrTwo.fastq" >&2
-    return 1
-  fi
-
-  # Check none of the lines with read IDs contain tabs
-  NumNameLinesWithTabs=$(awk '{if ((NR-1)%4==0 && gsub("\t","\t",$0) > 0)
-  print}' "$ReadFile" | wc -l)
-  if [[ $NumNameLinesWithTabs -ne 0 ]]; then
-    echo "The following lines in $ReadFile contain tabs:"
-    awk '{if ((NR-1)%4==0 && gsub("\t","\t",$0) > 0) print}' "$ReadFile"
-    echo 'To remove contaminant reads, we require there to be no tabs in the' \
-    'sequence ID lines of fastq files.' >&2
-    return 1
-  fi
-
-  # Check all read names are unique
-  NumDuplicatedReadNames=$(awk '{if ((NR-1)%4==0) print substr($1,1)}'\
-  "$ReadFile" | sort | uniq -d | wc -l)
-  if [[ $NumDuplicatedReadNames -ne 0 ]]; then
-    echo "The following read names are duplicated in $ReadFile:" >&2
-    awk '{if ((NR-1)%4==0) print substr($1,1)}' "$ReadFile" | sort | uniq -d >&2
-    echo "Reads should be uniquely named." >&2
-    return 1
-  fi
-
-}
-
-function CheckReadNamesUnpaired {
-
-  ReadFile=$1
-
-  #testing
-  echo "OverrideEndCheck =$OverrideEndCheck"
-
-  if [[ "$OverrideEndCheck" = false ]]; then
+  if [[ "$WrittenOneOrTwo" != "unpaired" ]]; then
+    # Check all read seq ids end in /1 or /2 as needed.
+    suffix=$(awk '{if ((NR-1)%4==0) print substr($1,length($1)-1,
+    length($1))}' "$ReadFile" | sort | uniq)
+    if [[ "$suffix" != '/'"$OneOrTwo" ]]; then
+      echo "Error: found at least one read in $ReadFile whose name does"\
+      "not end in '/$OneOrTwo', which is required for $WrittenOneOrTwo reads."\
+      "One particular problem I've seen in reads found online was that the"\
+      "sequence ID lines look like this:" >&2
+      echo "@ReadName descriptor/$OneOrTwo" >&2
+      echo "instead of like this:" >&2
+      echo "@ReadName/$OneOrTwo" >&2
+      echo "In that case you can remove the space, merging the descriptor and"\
+      "the /$OneOrTwo into the name, with a command like this:" >&2
+      echo "awk '"'{if (NR%4 == 1) {print $1 "_" $2} else print}'"' $ReadFile >"\
+      "MyRenamedReads_$OneOrTwo.fastq" >&2
+      return 1
+    fi
+  else
     # Check no reads end in /1 or /2.
     suffix=$(awk '{if ((NR-1)%4==0) print substr($1,length($1)-1,
     length($1))}' "$ReadFile" | sort | uniq)
@@ -267,7 +238,6 @@ function CheckReadNamesUnpaired {
   fi
 
 }
-
 
 function sam_to_bam {
 
@@ -311,14 +281,14 @@ function sam_to_bam_unpaired {
   OutBam=$3
 
   # Thanks to Nick Croucher for these steps.
-  "$samtools" view -bS $samtoolsReadFlags_Unpaired -t "$LocalRefFAIindex" -o \
+  "$samtools" view -bS $samtoolsReadFlagsUnpaired -t "$LocalRefFAIindex" -o \
   "$MapOutConversion1".bam "$InSam" &&
   "$samtools" sort "$MapOutConversion1".bam -o "$OutBam" -T \
   "$SamtoolsSortFile" ||
   { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
 }
 
-function map_with_smalt_paired {
+function map_with_smalt {
   # Check for the right number of args
   ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -396,7 +366,7 @@ function map_with_smalt_unpaired {
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
-function map_with_bwa_mem_paired {
+function map_with_bwa_mem {
   # Check for the right number of args
   ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -472,7 +442,7 @@ function map_with_bwa_mem_unpaired {
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
-function map_with_bowtie_paired {
+function map_with_bowtie {
   # Check for the right number of args
   ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -595,15 +565,15 @@ function map_paired {
 
   # Map with the chosen mapper.
   if [[ "$mapper" == "smalt" ]]; then
-    map_with_smalt_paired "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+    map_with_smalt "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
     "$FinalConversionStepOut" ||
     { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
   elif [[ "$mapper" == "bowtie" ]]; then
-    map_with_bowtie_paired "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+    map_with_bowtie "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
     "$FinalConversionStepOut" ||
     { echo 'Problem mapping with bowtie.' >&2 ; return 1 ; }
   elif [[ "$mapper" == "bwa" ]]; then
-    map_with_bwa_mem_paired "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+    map_with_bwa_mem "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
     "$FinalConversionStepOut" ||
     { echo 'Problem mapping with bwa mem.' >&2 ; return 1 ; }
   else

@@ -203,17 +203,6 @@ function CheckReadNames {
       "MyRenamedReads_$OneOrTwo.fastq" >&2
       return 1
     fi
-  else
-    # Check no reads end in /1 or /2.
-    suffix=$(awk '{if ((NR-1)%4==0) print substr($1,length($1)-1,
-    length($1))}' "$ReadFile" | sort | uniq)
-    if [[ "$suffix" == "/1" || "$suffix" == "/2" ]]; then
-      echo "Error: found at least one read in $ReadFile which ends in"\
-      "/1 or /2, which is indicative of paired data. To analyse paired"\
-      "data specify both reads files in the shiver_map_reads.sh command."\
-      "To override this, set OverrideEndCheck to false in the config file." >&2
-      return 1
-    fi
   fi
 
   # Check none of the lines with read IDs contain tabs
@@ -240,7 +229,6 @@ function CheckReadNames {
 }
 
 function sam_to_bam {
-
   # Check for the right number of args
   ExpectedNumArgs=3
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
@@ -258,34 +246,14 @@ function sam_to_bam {
   "$samtools" view -bS $samtoolsReadFlags -t "$LocalRefFAIindex" -o \
   "$MapOutConversion1".bam "$InSam" &&
   "$samtools" sort -n "$MapOutConversion1".bam -o "$MapOutConversion2".bam -T \
-  "$SamtoolsSortFile" &&
-  "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
-  "$samtools" sort "$MapOutConversion3".bam -o "$OutBam" -T \
   "$SamtoolsSortFile" ||
   { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
-}
-
-function sam_to_bam_unpaired {
-
-  # Check for the right number of args
-  ExpectedNumArgs=3
-  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
-    echo "sam_to_bam function called with $# args; expected $ExpectedNumArgs."\
-    "Quitting." >&2
-    return 1
+  if [[ "$Paired" == "true" ]]; then
+    "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
+    "$samtools" sort "$MapOutConversion3".bam -o "$OutBam" -T \
+    "$SamtoolsSortFile" ||
+    { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
   fi
-
-  # Assign the args
-  InSam=$1
-  LocalRefFAIindex=$2
-  OutBam=$3
-
-  # Thanks to Nick Croucher for these steps.
-  "$samtools" view -bS $samtoolsReadFlagsUnpaired -t "$LocalRefFAIindex" -o \
-  "$MapOutConversion1".bam "$InSam" &&
-  "$samtools" sort "$MapOutConversion1".bam -o "$OutBam" -T \
-  "$SamtoolsSortFile" ||
-  { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
 }
 
 function map_with_smalt {
@@ -522,19 +490,31 @@ function map_with_bowtie_unpaired {
 
 function map_paired {
   # Check for the right number of args
-  ExpectedNumArgs=5
-  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
-    echo "map function called with $# args; expected $ExpectedNumArgs."\
-    "Quitting." >&2
-    return 1
+  ExpectedNumArgsPaired=5
+  ExpectedNumArgsUnpaired=4
+
+  if [[ "$Paired" == "true" ]]; then
+    if [[ "$#" -ne "$ExpectedNumArgsPaired" ]]; then
+      echo "map function called with $# args; expected $ExpectedNumArgsPaired"\
+      "Quitting." >&2
+      return 
+    fi
+  else
+    if [[ "$#" -ne "$ExpectedNumArgsUnpaired" ]]; then
+      echo "map function called with $# args; expected $ExpectedNumArgsUnpaired."\
+      "Quitting." >&2
+      return 1
+    fi
   fi
 
   # Assign the args
-  ReadsToMap1=$1
-  ReadsToMap2=$2
-  LocalRef=$3
-  OutFileStem=$4
-  BamOnlyArg=$5
+  LocalRef=$1
+  OutFileStem=$2
+  BamOnlyArg=$3
+  ReadsToMap1=$4
+  if [[ "$Paired" == "true" ]]; then
+    ReadsToMap2=$5
+  fi
 
   # Some out files we'll produce
   PreDedupBam="$OutFileStem$PreDeduplicationBamSuffix.bam"
@@ -562,108 +542,44 @@ function map_paired {
     FinalConversionStepOut="$FinalOutBam"
   fi
 
-
-  # Map with the chosen mapper.
-  if [[ "$mapper" == "smalt" ]]; then
-    map_with_smalt "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
-    "$FinalConversionStepOut" ||
-    { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
-  elif [[ "$mapper" == "bowtie" ]]; then
-    map_with_bowtie "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
-    "$FinalConversionStepOut" ||
-    { echo 'Problem mapping with bowtie.' >&2 ; return 1 ; }
-  elif [[ "$mapper" == "bwa" ]]; then
-    map_with_bwa_mem "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
-    "$FinalConversionStepOut" ||
-    { echo 'Problem mapping with bwa mem.' >&2 ; return 1 ; }
+  if [[ "$Paired" == "true" ]]; then
+    # Map with the chosen mapper.
+    if [[ "$mapper" == "smalt" ]]; then
+      map_with_smalt "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+      "$FinalConversionStepOut" ||
+      { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
+    elif [[ "$mapper" == "bowtie" ]]; then
+      map_with_bowtie "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+      "$FinalConversionStepOut" ||
+      { echo 'Problem mapping with bowtie.' >&2 ; return 1 ; }
+    elif [[ "$mapper" == "bwa" ]]; then
+      map_with_bwa_mem "$ReadsToMap1" "$ReadsToMap2" "$LocalRef" \
+      "$FinalConversionStepOut" ||
+      { echo 'Problem mapping with bwa mem.' >&2 ; return 1 ; }
+    else
+      echo "Unrecognised value $mapper for the 'mapper' config file variable;"\
+      "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
+      return 1
+    fi
   else
-    echo "Unrecognised value $mapper for the 'mapper' config file variable;"\
-    "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
-    return 1
+    # Map with the chosen mapper.
+    if [[ "$mapper" == "smalt" ]]; then
+      map_with_smalt_unpaired "$ReadsToMap" "$LocalRef" \
+      "$FinalConversionStepOut" ||
+      { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
+    elif [[ "$mapper" == "bowtie" ]]; then
+      map_with_bowtie_unpaired "$ReadsToMap" "$LocalRef" \
+      "$FinalConversionStepOut" ||
+      { echo 'Problem mapping with bowtie.' >&2 ; return 1 ; }
+    elif [[ "$mapper" == "bwa" ]]; then
+      map_with_bwa_mem_unpaired "$ReadsToMap" "$LocalRef" \
+      "$FinalConversionStepOut" ||
+      { echo 'Problem mapping with bwa mem.' >&2 ; return 1 ; }
+    else
+      echo "Unrecognised value $mapper for the 'mapper' config file variable;"\
+      "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
+      return 1
   fi
-
-  # Deduplicate if desired
-  if [[ "$deduplicate" == true ]]; then
-    $DeduplicationCommand REMOVE_DUPLICATES=True I="$FinalConversionStepOut" \
-    O="$FinalOutBam" M="$DedupStats" &&
-    ls "$FinalOutBam" > /dev/null ||
-    { echo "Problem running $DeduplicationCommand" >&2 ; return 1 ; }
-  fi
-
-  # Index the bam
-  "$samtools" index "$FinalOutBam" ||
-  { echo "Problem running $samtools index" >&2 ; return 1 ; }
-
-  # Stop here if desired
-  if [[ "$BamOnlyArg" == true ]]; then
-    return 0
-  fi
-
-  ProcessBam "$FinalOutBam" "$LocalRef" "$OutFileStem"
-  return "$?"
-
-}
-
-function map_unpaired {
-
-  # Check for the right number of args
-  ExpectedNumArgs=4
-  if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
-    echo "map function called with $# args; expected $ExpectedNumArgs."\
-    "Quitting." >&2
-    return 1
-  fi
-
-  # Assign the args
-  ReadsToMap=$1
-  LocalRef=$2
-  OutFileStem=$3
-  BamOnlyArg=$4
-
-  # Some out files we'll produce
-  PreDedupBam="$OutFileStem$PreDeduplicationBamSuffix.bam"
-  FinalOutBam="$OutFileStem.bam"
-  DedupStats="$OutFileStem$DeduplicationStatsSuffix"
-
-  # Check there's one seq in the ref file.
-  NumSeqsInRefFile=$(grep -e '^>' "$LocalRef" | wc -l)
-  if [ "$NumSeqsInRefFile" -eq 0 ]; then
-    echo "Error: there are $NumSeqsInRefFile seqs in $LocalRef; there should"\
-    "be exactly 1 for it to be used as a reference for mapping. Quitting." >&2
-    return 1
-  fi
-
-  # Index the ref
-  "$samtools" faidx "$LocalRef" && ls "$LocalRef".fai > /dev/null ||
-  { echo 'Problem indexing the refererence with samtools. Quitting.' >&2 ; 
-  return 1 ; }
-
-  # Set the file name of the bam according to whether we will be deduplicating
-  # it or not.
-  if [[ "$deduplicate" == true ]]; then
-    FinalConversionStepOut="$PreDedupBam"
-  else
-    FinalConversionStepOut="$FinalOutBam"
-  fi
-
-
-  # Map with the chosen mapper.
-  if [[ "$mapper" == "smalt" ]]; then
-    map_with_smalt_unpaired "$ReadsToMap" "$LocalRef" \
-    "$FinalConversionStepOut" ||
-    { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
-  elif [[ "$mapper" == "bowtie" ]]; then
-    map_with_bowtie_unpaired "$ReadsToMap" "$LocalRef" \
-    "$FinalConversionStepOut" ||
-    { echo 'Problem mapping with bowtie.' >&2 ; return 1 ; }
-  elif [[ "$mapper" == "bwa" ]]; then
-    map_with_bwa_mem_unpaired "$ReadsToMap" "$LocalRef" \
-    "$FinalConversionStepOut" ||
-    { echo 'Problem mapping with bwa mem.' >&2 ; return 1 ; }
-  else
-    echo "Unrecognised value $mapper for the 'mapper' config file variable;"\
-    "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
-    return 1
   fi
 
   # Deduplicate if desired
@@ -946,7 +862,7 @@ function GetHIVcontigs {
 function CheckConfig {
 
   # Check for the right number of args and assign them.
-  ExpectedNumArgs=4
+  ExpectedNumArgs=5
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
     echo "CheckConfig function called with $# args; expected"\
     "$ExpectedNumArgs. Quitting." >&2
@@ -956,6 +872,7 @@ function CheckConfig {
   CheckForInit=$2
   CheckForAligningContigs=$3
   CheckForMapping=$4
+  CheckForPaired=$5
   source "$ConfigFile"
 
   # Coerce boolean args into true bools if needed
@@ -973,6 +890,11 @@ function CheckConfig {
     CheckForMapping=true
   else
     CheckForMapping=false
+  fi
+  if [[ "$CheckForPaired" == "true" ]]; then
+    CheckForPaired=true
+  else
+    CheckForPaired=false
   fi
 
   # Check 0 < MaxContigGappiness < 1, and 0 < MinContigHitFrac < 1
@@ -1093,6 +1015,20 @@ function CheckConfig {
   # Some checks only needed if we're mapping:
   if $CheckForMapping; then
 
+    # Check for unpaired data if trimming primers
+    if [[ "$TrimReadsForPrimers" == "true" ]] && [[ "$Paired" == "false" ]]; then
+      echo "shiver was set to trim primers for unpaired data, which is incompatible. "\
+      "Quitting."
+      exit 1
+    fi
+
+    # Check for unpaired data if trimming adapters
+    if [[ "$TrimReadsForAdaptersAndQual" == "true" ]] && [[ "$Paired" == "false" ]]; then
+      echo "shiver was set to trim adapters and low quality bases for unpaired data, which is incompatible. "\
+      "Quitting."
+      exit 1
+    fi
+
     # Check fastaq works, if needed
     if [[ "$TrimReadsForPrimers" == "true" ]]; then
       "$fastaq" version &> /dev/null || { echo "Error running" \
@@ -1115,11 +1051,18 @@ function CheckConfig {
       "'$smalt version'. Are you sure that smalt is installed, and that you"\
       "chose the right value for the config file variable 'mapper'?" >&2; \
       return 1; }
+      # Check for paired smalt options if using unpaired data
+      if [[ "$Paired" == "false" ]] && [[ "$smaltMapOptions" =~ '-x'|'-i'|'-j' ]] ; then
+        echo "The smalt options used are incompatible with unpaired data."
+      fi
     elif [[ "$mapper" == "bowtie" ]]; then
       "$bowtie2" --help &> /dev/null || { echo "Error running" \
       "$bowtie2 --help. Are you sure that bowtie2 is installed, and"\
       "that you chose the right value for the config file variable" \
       "'mapper'?" >&2; return 1; }
+      if [[ "$Paired" == "false" ]] && [[ "$bowtieOptions" =~ '--maxins'|'--no-discordant' ]]; then
+        echo "The bowtie options used are incompatible with unpaired data."
+      fi
     elif [[ "$mapper" == "bwa" ]]; then
       # bwa doesn't seem to have any kind of 'help' or 'version' command that we
       # can call to test it works.

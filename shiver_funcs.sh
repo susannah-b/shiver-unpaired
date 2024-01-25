@@ -230,7 +230,7 @@ function CheckReadNames {
 
 function sam_to_bam {
   # Check for the right number of args
-  ExpectedNumArgs=3
+  ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
     echo "sam_to_bam function called with $# args; expected $ExpectedNumArgs."\
     "Quitting." >&2
@@ -241,6 +241,7 @@ function sam_to_bam {
   InSam=$1
   LocalRefFAIindex=$2
   OutBam=$3
+  Paired=$4
 
   # Thanks to Nick Croucher for these steps.
   "$samtools" view -bS $samtoolsReadFlags -t "$LocalRefFAIindex" -o \
@@ -291,7 +292,7 @@ function map_with_smalt {
     return 1 ; }
   fi
 
-  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" true ||
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
@@ -316,9 +317,9 @@ function map_with_smalt_unpaired {
   return 1 ; }
 
   # Do the mapping!
-  echo "Now mapping using smalt with options \"$smaltMapOptionsUnpaired\". Typically a"\
+  echo "Now mapping using smalt with options \"$smaltMapOptions\". Typically a"\
   "slow step."
-  "$smalt" map $smaltMapOptionsUnpaired -o "$MapOutAsSam" "$smaltIndex" \
+  "$smalt" map $smaltMapOptions -o "$MapOutAsSam" "$smaltIndex" \
   "$ReadsToMap" || \
   { echo 'Smalt mapping failed.' >&2 ; return 1 ; }
 
@@ -330,7 +331,7 @@ function map_with_smalt_unpaired {
     return 1 ; }
   fi
 
-  sam_to_bam_unpaired "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" false ||
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
@@ -368,7 +369,7 @@ function map_with_bwa_mem {
     return 1 ; }
   fi
 
-  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" true ||
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
@@ -406,7 +407,7 @@ function map_with_bwa_mem_unpaired {
     return 1 ; }
   fi
 
-  sam_to_bam_unpaired "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" false ||
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
@@ -445,7 +446,7 @@ function map_with_bowtie {
     return 1 ; }
   fi
 
-  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" true ||
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
@@ -484,27 +485,22 @@ function map_with_bowtie_unpaired {
     return 1 ; }
   fi
 
-  sam_to_bam_unpaired "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" ||
+  sam_to_bam "$MapOutAsSam" "$LocalRefFAIindex" "$OutFileAsBam" false ||
   { echo 'Problem converting from sam to bam format.' >&2 ; return 1 ; }
 }
 
-function map_paired {
+function map {
   # Check for the right number of args
   ExpectedNumArgsPaired=5
   ExpectedNumArgsUnpaired=4
-
-  if [[ "$Paired" == "true" ]]; then
-    if [[ "$#" -ne "$ExpectedNumArgsPaired" ]]; then
-      echo "map function called with $# args; expected $ExpectedNumArgsPaired"\
-      "Quitting." >&2
-      return 
-    fi
+  if [[ "$#" -eq 5 ]]; then
+    Paired=true
+    ReadsToMap2=$5
+  elif [[ "$#" -eq 4 ]]; then
+    Paired=false
   else
-    if [[ "$#" -ne "$ExpectedNumArgsUnpaired" ]]; then
-      echo "map function called with $# args; expected $ExpectedNumArgsUnpaired."\
-      "Quitting." >&2
-      return 1
-    fi
+    echo "map function called with $# args; 4 or 5 required. Quitting." >&2
+    return 1
   fi
 
   # Assign the args
@@ -512,9 +508,6 @@ function map_paired {
   OutFileStem=$2
   BamOnlyArg=$3
   ReadsToMap1=$4
-  if [[ "$Paired" == "true" ]]; then
-    ReadsToMap2=$5
-  fi
 
   # Some out files we'll produce
   PreDedupBam="$OutFileStem$PreDeduplicationBamSuffix.bam"
@@ -564,22 +557,22 @@ function map_paired {
   else
     # Map with the chosen mapper.
     if [[ "$mapper" == "smalt" ]]; then
-      map_with_smalt_unpaired "$ReadsToMap" "$LocalRef" \
+      map_with_smalt_unpaired "$ReadsToMap1" "$LocalRef" \
       "$FinalConversionStepOut" ||
       { echo 'Problem mapping with smalt.' >&2 ; return 1 ; }
     elif [[ "$mapper" == "bowtie" ]]; then
-      map_with_bowtie_unpaired "$ReadsToMap" "$LocalRef" \
+      map_with_bowtie_unpaired "$ReadsToMap1" "$LocalRef" \
       "$FinalConversionStepOut" ||
       { echo 'Problem mapping with bowtie.' >&2 ; return 1 ; }
     elif [[ "$mapper" == "bwa" ]]; then
-      map_with_bwa_mem_unpaired "$ReadsToMap" "$LocalRef" \
+      map_with_bwa_mem_unpaired "$ReadsToMap1" "$LocalRef" \
       "$FinalConversionStepOut" ||
       { echo 'Problem mapping with bwa mem.' >&2 ; return 1 ; }
     else
       echo "Unrecognised value $mapper for the 'mapper' config file variable;"\
       "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
       return 1
-  fi
+    fi
   fi
 
   # Deduplicate if desired

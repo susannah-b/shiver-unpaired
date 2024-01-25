@@ -612,12 +612,12 @@ else
           { echo 'Problem extracting the contaminant reads using' \
           "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
           BamOnly=true
-          map_paired "$BadReadsBaseName"_1.fastq "$BadReadsBaseName"_2.fastq "$TheRef" \
-          "$MappedContaminantReads" "$BamOnly" || { echo "Problem mapping the" \
+          map "$TheRef" "$MappedContaminantReads" "$BamOnly" "$BadReadsBaseName"_1.fastq \
+          "$BadReadsBaseName"_2.fastq || { echo "Problem mapping the" \
           "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }
         else
-          map_unpaired "$BadReadsBaseName"_1.fastq "$TheRef" \
-          "$MappedContaminantReads" "$BamOnly" || { echo "Problem mapping the" \
+          map "$TheRef" "$MappedContaminantReads" "$BamOnly" "$BadReadsBaseName"_1.fastq ||
+          { echo "Problem mapping the" \
           "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }
         fi
       fi
@@ -649,9 +649,9 @@ OldMafft=false
 # Do the mapping
 BamOnly=false
 if [[ "$Paired" == "true" ]]; then
-  map_paired "$TheRef" "$SID" "$BamOnly" "$cleaned1reads" "$cleaned2reads" 
+  map "$TheRef" "$SID" "$BamOnly" "$cleaned1reads" "$cleaned2reads" 
 else 
-  map_unpaired "$TheRef" "$SID" "$BamOnly" "$cleaned1reads"
+  map "$TheRef" "$SID" "$BamOnly" "$cleaned1reads"
 fi
 MapStatus=$?
 if [[ $MapStatus == 3 ]]; then
@@ -696,11 +696,11 @@ if [[ "$remap" == "true" ]]; then
   # Map!
   BamOnly=false
   if [[ "$Paired" == "true" ]]; then
-    map_paired "$cleaned1reads" "$cleaned2reads" "$NewRef" "$NewSID" "$BamOnly" ||
+    map "$NewRef" "$NewSID" "$BamOnly" "$cleaned1reads" "$cleaned2reads" ||
     { echo 'Problem remapping to the consensus from the first round of mapping.'\
     'Quitting.' >&2 ; exit 1 ; }
   else 
-    map_unpaired "$cleaned1reads" "$NewRef" "$NewSID" "$BamOnly" ||
+    map "$NewRef" "$NewSID" "$BamOnly" "$cleaned1reads" ||
     { echo 'Problem remapping to the consensus from the first round of mapping.'\
     'Quitting.' >&2 ; exit 1 ; }
   fi

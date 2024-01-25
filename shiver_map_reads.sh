@@ -27,7 +27,7 @@ to be used for mapping;
 # Check for the right number of arguments for paired or unpaired reads.
 PairedReadsArgs=8
 UnpairedReadsArgs=7
-if [ "#" != "$PairedReadsArgs" ] || [ "#" != "$UnpairedReadsArgs" ]; then
+if [[ "$#" -ne "$PairedReadsArgs" ]] && [[ "$#" -ne "$UnpairedReadsArgs" ]]; then
   echo $UsageInstructions
   echo "$#" 'arguments specified; for paired reads' "$PairedReadsArgs" 'are expected, or' \
   "$UnpairedReadsArgs" 'for unpaired. Quitting' >&2
@@ -68,16 +68,14 @@ primers="$InitDir"/'primers.fasta'
 # Source the shiver funcs, check files exist, source the config file, check it.
 ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$ThisDir"/'shiver_funcs.sh'
+CheckFilesExist "$ConfigFile" "$reads1" "$RawContigsFile" \
+"$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
+"$primers"
 if [[ "$Paired" == "true" ]]; then
-  CheckFilesExist "$ConfigFile" "$reads1" "$reads2" "$RawContigsFile" \
-  "$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
-  "$primers"
-else
-  CheckFilesExist "$ConfigFile" "$reads1" "$RawContigsFile" \
-  "$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
-  "$primers"  
+  CheckFilesExist "$reads2"
 fi
-CheckConfig "$ConfigFile" false false true || \
+
+CheckConfig "$ConfigFile" false false true "$Paired" || \
 { echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 # Check the primer + SNPs file exists, if it is needed.
@@ -97,19 +95,6 @@ if [[ "$TrimPrimerWithOneSNP" == "true" ]]; then
   fi
 else
   PrimersToUse="$primers"
-fi
-
-# Check for unpaired data if trimming
-if [[ "$TrimReadsForPrimers" = "true" ]] && [[ "$Paired" == "false" ]]; then
-  echo "shiver was set to trim primers for unpaired data, which is incompatible. "\
-  "Quitting."
-  exit 1
-fi
-
-if [[ "$TrimReadsForAdaptersAndQual" = "true" ]] && [[ "$Paired" == "false" ]]; then
-  echo "shiver was set to trim adapters and low quality bases for unpaired data, which is incompatible. "\
-  "Quitting."
-  exit 1
 fi
 
 # Print how this script was called, and what the config file parameter values
@@ -290,17 +275,15 @@ if [[ $(dirname "$reads1") != "." ]]; then
   "directory. Quitting." >&2; exit 1; }
   reads1="$NewReads1"
 fi
-if [[ "$Paired" == "true" ]]; then
-  if [[ $(dirname "$reads2") != "." ]]; then
-    NewReads2=$(basename "$reads2")
-    if [[ -f "$NewReads2" ]]; then
-      echo "A file called $NewReads2 exists in the working directory, $PWD,"\
-      "already; we will not overwrite it with $reads2. Quitting." >&2; exit 1;
-    fi
-    cp -i "$reads2" . || { echo "Failed to copy $reads2 to the working"\
-    "directory. Quitting." >&2; exit 1; }
-    reads2="$NewReads2"
+if [[ "$Paired" == "true" ]] && [[ $(dirname "$reads2") != "." ]]; then
+  NewReads2=$(basename "$reads2")
+  if [[ -f "$NewReads2" ]]; then
+    echo "A file called $NewReads2 exists in the working directory, $PWD,"\
+    "already; we will not overwrite it with $reads2. Quitting." >&2; exit 1;
   fi
+  cp -i "$reads2" . || { echo "Failed to copy $reads2 to the working"\
+  "directory. Quitting." >&2; exit 1; }
+  reads2="$NewReads2" 
 fi
 
 
@@ -312,14 +295,12 @@ if [[ "$reads1" == *.gz ]]; then
   exit 1; }
   reads1="$NewReads1"
 fi
-if [[ "$Paired" == "true" ]]; then
-  if [[ "$reads2" == *.gz ]]; then
-    gunzip -f "$reads2" &&
-    NewReads2="${reads2%.gz}" &&
-    ls $NewReads2 > /dev/null || { echo "Problem unzipping $reads2. Quitting.">&2;
-    exit 1; }
-    reads2="$NewReads2"
-  fi
+if [[ "$Paired" == "true" ]] && [[ "$reads2" == *.gz ]]; then
+  gunzip -f "$reads2" &&
+  NewReads2="${reads2%.gz}" &&
+  ls $NewReads2 > /dev/null || { echo "Problem unzipping $reads2. Quitting.">&2;
+  exit 1; }
+  reads2="$NewReads2"
 fi
 
 if [[ "$Paired" == "true" ]]; then
@@ -486,7 +467,6 @@ else
       exit 1 ; }
     fi
 
-    # For Paired reads:
     # Blast reads and determine if they blast to something other than the reference
     # Blast the reads.
     echo 'Now blasting the reads - typically a slow step.'
@@ -566,7 +546,7 @@ else
     # reference, we just duplicate the original short read files.
     # NOTE: some repetition in paired/unpaired clauses here but I kept it that way to make
     # a simpler overall if/else structure. Tried to make this section and the surrounding
-    # (lines ~490-650) as logical as possible but I'm open to changes
+    # (lines ~490-650) as logical as possible but it can be restructured
     NumContaminantReads=$(wc -l "$BadReadsBaseName"_1.txt | \
     awk '{print $1}')
     if [ "$NumContaminantReads" -eq 0 ]; then
@@ -669,9 +649,9 @@ OldMafft=false
 # Do the mapping
 BamOnly=false
 if [[ "$Paired" == "true" ]]; then
-  map_paired "$cleaned1reads" "$cleaned2reads" "$TheRef" "$SID" "$BamOnly"
+  map_paired "$TheRef" "$SID" "$BamOnly" "$cleaned1reads" "$cleaned2reads" 
 else 
-  map_unpaired "$cleaned1reads" "$TheRef" "$SID" "$BamOnly"
+  map_unpaired "$TheRef" "$SID" "$BamOnly" "$cleaned1reads"
 fi
 MapStatus=$?
 if [[ $MapStatus == 3 ]]; then

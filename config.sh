@@ -117,6 +117,8 @@ mapper="smalt"
 
 # Check the smalt documentation for a full explanation of options,
 # including those not used by default here.
+# The default options listed use the -x, -i, and -j options, which are needed for 
+# paired read data but should not be used for unpaired reads. 
 # A summary of the index options used below:
 # -k sets the word (kmer) length, -s the sampling step size (i.e. is every word
 #  hashed, or every second word, or one word in every 3, ...), when a hash table
@@ -129,10 +131,11 @@ mapper="smalt"
 # pair is still mapped, but flagged as improperly paired.
 smaltIndexOptions="-k 15 -s 3"
 smaltMapOptions="-x -y 0.7 -j 0 -i 2000"
-smaltMapOptionsUnpaired="-y 0.7"
 
 # Check the bowtie2 documentation for a full explanation of options,
 # including those not used by default here.
+# The default options listed use the options --maxins and --no-discordant, which
+# are needed for paired read data but should not be use for unpaired reads.
 # A summary of the options used below:
 # --local means bowtie might soft-clip read ends if doing so maximizes the
 # alignment score.

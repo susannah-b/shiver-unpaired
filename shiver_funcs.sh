@@ -250,11 +250,15 @@ function sam_to_bam {
   "$SamtoolsSortFile" ||
   { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
   if [[ "$Paired" == "true" ]]; then
-    "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam &&
-    "$samtools" sort "$MapOutConversion3".bam -o "$OutBam" -T \
-    "$SamtoolsSortFile" ||
+    "$samtools" fixmate "$MapOutConversion2".bam "$MapOutConversion3".bam ||
     { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
+  else
+    mv "$MapOutConversion2.bam" "$MapOutConversion3.bam"
   fi
+  "$samtools" sort "$MapOutConversion3".bam -o "$OutBam" -T \
+  "$SamtoolsSortFile" ||
+  { echo 'Failed to convert from sam to bam format.' >&2 ; return 1 ; }
+
 }
 
 function map_with_smalt {

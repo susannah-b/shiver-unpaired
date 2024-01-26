@@ -162,9 +162,8 @@ bwaOptions='-v 2'
 # gives a more user-friendly correspondance between SAM flags and kinds of
 # reads.
 # The flags used below mean unmapped reads are excluded (-F 4) and only properly
-# aligned pairs are kept (-f 3).
+# aligned pairs are kept (-f 3). The '-f 3' should be removed for unpaired data.
 samtoolsReadFlags='-f 3 -F 4'
-samtoolsReadFlagsUnpaired='-F 4'
 
 # See http://www.htslib.org/doc/samtools.html for a description of samtools
 # mpileup options. Those used below mean that: the base alignment quality ('BAQ')

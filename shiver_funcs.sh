@@ -1021,8 +1021,8 @@ function CheckConfig {
 
     # Check for unpaired data if trimming adapters
     if [[ "$TrimReadsForAdaptersAndQual" == "true" ]] && [[ "$Paired" == "false" ]]; then
-      echo "shiver was set to trim adapters and low quality bases for unpaired data, which is incompatible. "\
-      "Quitting."
+      echo "shiver was set to trim adapters and low quality bases for unpaired data, which "\
+      "is incompatible. Quitting."
       exit 1
     fi
 
@@ -1050,15 +1050,18 @@ function CheckConfig {
       return 1; }
       # Check for paired smalt options if using unpaired data
       if [[ "$Paired" == "false" ]] && [[ "$smaltMapOptions" =~ '-x'|'-i'|'-j' ]] ; then
-        echo "The smalt options used are incompatible with unpaired data."
+        echo "The smalt options used are incompatible with unpaired data." >&2; \
+        return 1
       fi
     elif [[ "$mapper" == "bowtie" ]]; then
+      echo "$bowtieOptions"
       "$bowtie2" --help &> /dev/null || { echo "Error running" \
       "$bowtie2 --help. Are you sure that bowtie2 is installed, and"\
       "that you chose the right value for the config file variable" \
       "'mapper'?" >&2; return 1; }
-      if [[ "$Paired" == "false" ]] && [[ "$bowtieOptions" =~ '--maxins'|'--no-discordant' ]]; then
-        echo "The bowtie options used are incompatible with unpaired data."
+      if [[ "$Paired" == "false" ]] && { [[ "$bowtieOptions" =~ '--maxins'|'--no-discordant' ]]; }; then
+        echo "The bowtie options used are incompatible with unpaired data.">&2; \
+        return 1
       fi
     elif [[ "$mapper" == "bwa" ]]; then
       # bwa doesn't seem to have any kind of 'help' or 'version' command that we

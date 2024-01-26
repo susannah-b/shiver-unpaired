@@ -544,9 +544,6 @@ else
 
     # If none of the read pairs blast better to contaminant contigs than the
     # reference, we just duplicate the original short read files.
-    # NOTE: some repetition in paired/unpaired clauses here but I kept it that way to make
-    # a simpler overall if/else structure. Tried to make this section and the surrounding
-    # (lines ~490-650) as logical as possible but it can be restructured
     NumContaminantReads=$(wc -l "$BadReadsBaseName"_1.txt | \
     awk '{print $1}')
     if [ "$NumContaminantReads" -eq 0 ]; then

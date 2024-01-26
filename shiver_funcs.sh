@@ -1014,16 +1014,18 @@ function CheckConfig {
 
     # Check for unpaired data if trimming primers
     if [[ "$TrimReadsForPrimers" == "true" ]] && [[ "$Paired" == "false" ]]; then
-      echo "shiver was set to trim primers for unpaired data, which is incompatible. "\
-      "Quitting."
-      exit 1
+      echo "TrimReadsForPrimers was set to true in the config file; this"\
+      "feature is not yet implemented for unpaired read data." \
+      "If desired please run read trimming separately before shiver." >&2
+      return 1
     fi
 
     # Check for unpaired data if trimming adapters
     if [[ "$TrimReadsForAdaptersAndQual" == "true" ]] && [[ "$Paired" == "false" ]]; then
-      echo "shiver was set to trim adapters and low quality bases for unpaired data, which "\
-      "is incompatible. Quitting."
-      exit 1
+      echo "TrimReadsForAdaptersAndQual was set to true in the config file;"\
+      "this feature is not yet implemented for unpaired read data." \
+      "If desired please run read trimming separately before shiver." >&2
+      return 1
     fi
 
     # Check fastaq works, if needed
@@ -1042,27 +1044,45 @@ function CheckConfig {
       "'trimmomatic'?" >&2; return 1; }
     fi
 
-    # Test the mapper is one we support and can run.
+    # Test the mapper is one we support and can run, testing for paired-read
+    # only options used for unpaired data...
+    
+    # ...first, smalt...
     if [[ "$mapper" == "smalt" ]]; then
       "$smalt" version &> /dev/null || { echo "Error running" \
       "'$smalt version'. Are you sure that smalt is installed, and that you"\
       "chose the right value for the config file variable 'mapper'?" >&2; \
       return 1; }
       # Check for paired smalt options if using unpaired data
-      if [[ "$Paired" == "false" ]] && [[ "$smaltMapOptions" =~ '-x'|'-i'|'-j' ]] ; then
-        echo "The smalt options used are incompatible with unpaired data." >&2; \
-        return 1
+      if [[ "$Paired" == "false" ]]; then
+        smaltMapOptionsPairedOnly='-x -i -j'
+        for option in $(echo $smaltMapOptionsPairedOnly); do
+          if [[ "$smaltMapOptions" =~ "$option " ]]; then
+            echo "Option $option was specified in smaltMapOptions in the"\
+            "config file; this is only for paired read data." >&2; 
+            return 1
+          fi 
+        done
       fi
+      
+    # ...second, bowtie...
     elif [[ "$mapper" == "bowtie" ]]; then
-      echo "$bowtieOptions"
       "$bowtie2" --help &> /dev/null || { echo "Error running" \
       "$bowtie2 --help. Are you sure that bowtie2 is installed, and"\
       "that you chose the right value for the config file variable" \
       "'mapper'?" >&2; return 1; }
-      if [[ "$Paired" == "false" ]] && { [[ "$bowtieOptions" =~ '--maxins'|'--no-discordant' ]]; }; then
-        echo "The bowtie options used are incompatible with unpaired data.">&2; \
-        return 1
+      if [[ "$Paired" == "false" ]]; then
+        bowtieOptionsPairedOnly='--maxins --no-discordant'
+        for option in $(echo $bowtieOptionsPairedOnly); do
+          if [[ "$bowtieOptions" =~ "$option " ]]; then
+            echo "Option $option was specified in bowtieOptions in the config"\
+            "file; this is only for paired read data." >&2; 
+            return 1
+          fi 
+        done
       fi
+      
+    # ...third bwa
     elif [[ "$mapper" == "bwa" ]]; then
       # bwa doesn't seem to have any kind of 'help' or 'version' command that we
       # can call to test it works.

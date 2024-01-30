@@ -1092,6 +1092,25 @@ function CheckConfig {
       "possible values are 'smalt', 'bowtie' or 'bwa'." >&2
       return 1
     fi
+
+    # Check samtoolsReadFlags for -f values incompatible with unpaired data
+    if [[ "$Paired" == "false" ]]; then
+      if [[ $samtoolsReadFlags =~ "-f" ]]; then
+        FilterInteger=$(grep -Eo '\-f\s+([0-9]+)' <<< "$samtoolsReadFlags" | awk '{print $2}')
+        # Determine if -f option is odd
+        if [[ $(( $FilterInteger % 2 )) -eq 1 ]]; then
+          echo "samtools option -f $FilterInteger was specified in samtoolsReadFlags"\
+          "in the config file; this is only for paired read data." >&2;
+          return 1
+        fi
+        # Determine if -f option has remainder 2 when divided by 4
+        if [[ $(( $FilterInteger % 4 )) -eq 2 ]]; then
+          echo "samtools option -f $FilterInteger was specified in samtoolsReadFlags"\
+          "in the config file; this is only for paired read data." >&2;
+          return 1
+        fi
+      fi
+    fi
   fi
 
   # Check positive ints are positive ints

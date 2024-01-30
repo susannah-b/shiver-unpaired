@@ -1100,13 +1100,17 @@ function CheckConfig {
         # Determine if -f option is odd
         if [[ $(( $FilterInteger % 2 )) -eq 1 ]]; then
           echo "samtools option -f $FilterInteger was specified in samtoolsReadFlags"\
-          "in the config file; this is only for paired read data." >&2;
+          "in the config file. Specifying an odd number here means that all"\
+          "reads that are not paired will be excluded from the bam file; this"\
+          "is incompatible with providing unpaired read data." >&2;
           return 1
         fi
         # Determine if -f option has remainder 2 when divided by 4
         if [[ $(( $FilterInteger % 4 )) -eq 2 ]]; then
           echo "samtools option -f $FilterInteger was specified in samtoolsReadFlags"\
-          "in the config file; this is only for paired read data." >&2;
+          "in the config file. Specifying an number here that has remainder 2"\
+          "after division by 4 means that reads not mapped in a pair will be"\
+          "excluded; this is incompatible with providing unpaired read data." >&2;
           return 1
         fi
       fi

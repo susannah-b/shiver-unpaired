@@ -596,7 +596,7 @@ function map {
     return 0
   fi
 
-  ProcessBam "$FinalOutBam" "$LocalRef" "$OutFileStem"
+  ProcessBam "$FinalOutBam" "$LocalRef" "$OutFileStem" "$Paired"
   return "$?"
 
 }
@@ -604,7 +604,7 @@ function map {
 function ProcessBam {
 
   # Check for the right number of args
-  ExpectedNumArgs=3
+  ExpectedNumArgs=4
   if [[ "$#" -ne "$ExpectedNumArgs" ]]; then
     echo "ProcessBam function called with $# args; expected $ExpectedNumArgs."\
     "Quitting." >&2
@@ -615,6 +615,7 @@ function ProcessBam {
   bam=$1
   LocalRef=$2
   OutFileStem=$3
+  Paired=$4
 
   # Some out files we'll produce
   InsertSizeCounts="$OutFileStem$InsertSizeCountsSuffix"
@@ -646,18 +647,20 @@ function ProcessBam {
     return 3
   fi
 
-  # Calculate the normalised insert size distribution.
-  "$samtools" view "$bam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
-  InsertCount=$(wc -l "$InsertSizes1" | awk '{print $1}')
-  if [[ $InsertCount -gt 0 ]]; then
-    echo "Insert size,Count,Unit-normalised count" > "$InsertSizeCounts"
-    sort -n "$InsertSizes1" | uniq -c > "$InsertSizes2"
-    awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" >> \
-    "$InsertSizeCounts"
-  else
-    echo "Warning: no read in $bam was identified as having"\
-    "positive insert size. Unexpected. We'll skip making an insert size"\
-    "distribution and continue."
+  # Calculate the normalised insert size distribution, for paired reads
+  if [[ "$Paired" == "true" ]]; then 
+    "$samtools" view "$bam" | awk '{if ($9 > 0) print $9}' > "$InsertSizes1"
+    InsertCount=$(wc -l "$InsertSizes1" | awk '{print $1}')
+    if [[ $InsertCount -gt 0 ]]; then
+      echo "Insert size,Count,Unit-normalised count" > "$InsertSizeCounts"
+      sort -n "$InsertSizes1" | uniq -c > "$InsertSizes2"
+      awk '{print $2 "," $1 "," $1/'$InsertCount'}' "$InsertSizes2" >> \
+      "$InsertSizeCounts"
+    else
+      echo "Warning: no read in $bam was identified as having"\
+      "positive insert size. Unexpected. We'll skip making an insert size"\
+      "distribution and continue."
+    fi
   fi
 
   # Generate pileup
@@ -1013,7 +1016,7 @@ function CheckConfig {
   if $CheckForMapping; then
 
     # Check for unpaired data if trimming primers
-    if [[ "$TrimReadsForPrimers" == "true" ]] && [[ "$Paired" == "false" ]]; then
+    if [[ "$TrimReadsForPrimers" == "true" ]] && ! $CheckForPaired; then
       echo "TrimReadsForPrimers was set to true in the config file; this"\
       "feature is not yet implemented for unpaired read data." \
       "If desired please run read trimming separately before shiver." >&2
@@ -1021,7 +1024,7 @@ function CheckConfig {
     fi
 
     # Check for unpaired data if trimming adapters
-    if [[ "$TrimReadsForAdaptersAndQual" == "true" ]] && [[ "$Paired" == "false" ]]; then
+    if [[ "$TrimReadsForAdaptersAndQual" == "true" ]] && ! $CheckForPaired; then
       echo "TrimReadsForAdaptersAndQual was set to true in the config file;"\
       "this feature is not yet implemented for unpaired read data." \
       "If desired please run read trimming separately before shiver." >&2
@@ -1054,7 +1057,7 @@ function CheckConfig {
       "chose the right value for the config file variable 'mapper'?" >&2; \
       return 1; }
       # Check for paired smalt options if using unpaired data
-      if [[ "$Paired" == "false" ]]; then
+      if ! $CheckForPaired; then
         smaltMapOptionsPairedOnly='-x -i -j'
         for option in $(echo $smaltMapOptionsPairedOnly); do
           if [[ "$smaltMapOptions" =~ "$option " ]]; then
@@ -1071,7 +1074,7 @@ function CheckConfig {
       "$bowtie2 --help. Are you sure that bowtie2 is installed, and"\
       "that you chose the right value for the config file variable" \
       "'mapper'?" >&2; return 1; }
-      if [[ "$Paired" == "false" ]]; then
+      if ! $CheckForPaired; then
         bowtieOptionsPairedOnly='--maxins --no-discordant'
         for option in $(echo $bowtieOptionsPairedOnly); do
           if [[ "$bowtieOptions" =~ "$option " ]]; then
@@ -1094,7 +1097,7 @@ function CheckConfig {
     fi
 
     # Check samtoolsReadFlags for -f values incompatible with unpaired data
-    if [[ "$Paired" == "false" ]]; then
+    if ! $CheckForPaired; then
       if [[ $samtoolsReadFlags =~ "-f" ]]; then
         FilterInteger=$(grep -Eo '\-f\s+([0-9]+)' <<< "$samtoolsReadFlags" | awk '{print $2}')
         # Determine if -f option is odd

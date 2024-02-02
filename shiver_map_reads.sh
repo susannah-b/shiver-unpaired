@@ -603,12 +603,12 @@ else
       if [[ "$MapContaminantReads" == "true" ]]; then
         "$python2" "$Code_FindReadsInFastq" -s "$reads1" "$BadReadsBaseName"_1.txt > \
         "$BadReadsBaseName"_1.fastq &&
+        BamOnly=true
         if [[ "$Paired" == "true" ]]; then
           "$python2" "$Code_FindReadsInFastq" -s "$reads2" "$BadReadsBaseName"_2.txt > \
           "$BadReadsBaseName"_2.fastq || \
           { echo 'Problem extracting the contaminant reads using' \
           "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
-          BamOnly=true
           map "$TheRef" "$MappedContaminantReads" "$BamOnly" "$BadReadsBaseName"_1.fastq \
           "$BadReadsBaseName"_2.fastq || { echo "Problem mapping the" \
           "contaminant reads to $RefName using smalt. Quitting." >&2 ; exit 1 ; }

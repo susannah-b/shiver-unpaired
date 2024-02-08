@@ -4,7 +4,7 @@ Sequences from HIV Easily Reconstructed.
 <p align="center"><img src="info/AssemblyPipelineDiagram_ForPaper.png" width=800, height="370"/></p>
 
 shiver is freely available under the GNU General Public License version 3, described [here](LICENSE).  
-shiver is a tool for mapping paired-end short reads to a custom reference sequence constructed using _de novo_ assembled contigs, in order to minimise the biased loss of information that occurs from mapping to a reference that differs from the sample.
+shiver is a tool for mapping reads (fragments of genetic sequence) to a custom reference sequence constructed using _de novo_ assembled contigs, in order to minimise the biased loss of information that occurs from mapping to a reference that differs from the sample.
 From the mapped reads, base frequencies are calculated, and a consensus sequence is called.  
 The method, its performance and scientific context are discussed [here](https://doi.org/10.1093/ve/vey007); please cite this if you find shiver, or our discussion of the relevant issues, helpful.
 If you use shiver, please also cite its dependencies. Citation details [here](info/CitationDetails.bib).

@@ -431,11 +431,13 @@ else
 
 
   # If there are no contaminant contigs, we don't need to clean.
-  # We create a blank mapping file to more easily keep track of the fact that
-  # there are no contaminant reads in this case.
   if [ "$NumContaminantContigs" -eq 0 ]; then
     echo 'There are no contaminant contigs: read cleaning unnecessary.'
-    echo -n > "$MappedContaminantReads"
+    if [[ "$MapContaminantReads" == "true" ]]; then
+      # Create a blank mapping file to more easily keep track of the fact that
+      # there are no contaminant reads in this case.
+      echo -n > "$MappedContaminantReads"
+    fi
     if $HaveModifiedReads; then
       mv "$reads1" "$cleaned1reads"
       if $Paired; then
@@ -548,7 +550,11 @@ else
     awk '{print $1}')
     if [ "$NumContaminantReads" -eq 0 ]; then
       echo 'There are no contaminant read pairs.'
-      echo -n > "$MappedContaminantReads"
+      if [[ "$MapContaminantReads" == "true" ]]; then
+        # Create a blank mapping file to more easily keep track of the fact that
+        # there are no contaminant reads in this case.
+        echo -n > "$MappedContaminantReads"
+      fi
       if $HaveModifiedReads; then
         mv "$reads1" "$cleaned1reads"
         if $Paired; then

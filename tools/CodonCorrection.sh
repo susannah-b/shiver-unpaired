@@ -34,9 +34,8 @@ else
   GenesToAnalyse=$6
 fi
 
-# Check init has been done
+# Check init script has been run
 BLASTnDB_Path=~/shiver/CodonCorrectionReferences/BLASTnDB
-
 if [[ ! -d "$BLASTnDB_Path" ]]; then
   echo "No BLASTn database found. Please run CodonCorrectionInit.sh before running this script. Quitting." >&2
   exit 1
@@ -168,9 +167,14 @@ SeqIO.write([sample_seq], sample_seq_file, 'fasta')
 python2 -c "$Python_Extract_Sample" "$SampleFile"
 
 SampleSequence="temp_SampleSequence.fasta"
+SampleSequenceNoQuery="temp_SampleSequence_QueryRemoved.fasta"
+
+# Replace '?' with 'N' from the sequence for BLAST (unable to blast to ? characters)
+# 
+sed '/^>/!s/?/N/g' "$SampleSequence" > "$SampleSequenceNoQuery"
 
 # BLASTn the target sequence to the possible references
-blastn -query "$SampleSequence" -db ~/shiver/CodonCorrectionReferences/BLASTnDB/CC_whole_genome -outfmt \
+blastn -query "$SampleSequenceNoQuery" -db ~/shiver/CodonCorrectionReferences/BLASTnDB/CC_whole_genome -outfmt \
 "10 qseqid qseq evalue sseqid pident qlen qstart qend sstart send frames" -out blastn.out -max_target_seqs 1 
 # Change to do top 3-5 then evaluate
 
@@ -229,6 +233,7 @@ ReferenceAlignment="$SequenceName_shell"_AlignedSeqs.fasta
 
 Python_Extract_Genes="""
 import sys
+import os
 from Bio import AlignIO
 from Bio import SeqIO
 
@@ -304,13 +309,11 @@ if gene_loci:
             reference_sequence = ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1].ungap('-')
             output_file.write('>' + ReferenceAlignment[RefSequenceNumber].id + '_' + gene + '\n' + str(reference_sequence) + '\n')
 
-          # testing
+          # testing - delete after
           print('ref_start:', ref_start)
           print('ref_end:', ref_end)
           print('gene_start:', gene_start)
           print('gene_end:', gene_end)
-          print('ref_pos:', ref_pos)
-
 
 # Gene extraction for sample sequence
 # Select which genes to extract
@@ -336,7 +339,7 @@ if gene_loci:
         if indel_difference != 0:
           print ('{} Indel(s) detected in {} for {}.'.format(indel_difference, SequenceName, gene))
         
-        #testing
+        #testing - delete after
         print('consensus_start:', consensus_start)
         print('consensus_end:', consensus_end)
         print('sequence_pos:', sequence_pos)
@@ -368,7 +371,7 @@ else:
 
 # Extract the sample sequences to individual fastas for VIRULIGN processing
 # maybe make as temp_ files and deleted after processing
-multi_fasta_sample = SequenceName + '_GenesExtracted.fasta' # python2?
+multi_fasta_sample = SequenceName + '_GenesExtracted.fasta'
 
 for record in SeqIO.parse(multi_fasta_sample, 'fasta'):
   individual_file = 'temp_{}_only.fasta'.format(record.id)
@@ -383,11 +386,16 @@ for record in SeqIO.parse(multi_fasta_ref, 'fasta'):
   with open(individual_file, 'w') as file:
     file.write('>' + str(record.id) + '\n' + str(record.seq))
 
+# Return error if the [Sample]_GenesExtracted.fasta file is empty
+if os.path.getsize(multi_fasta_sample) == 0:
+  print('{} is empty. This can happen if all genes being analysed have missing coverage (? characters). Check MissingCoverage.txt. Now quitting.'.format(multi_fasta_sample))
+  sys.exit(1)
+
 """
 
 python2 -c "$Python_Extract_Genes" "$ReferenceAlignment" "$RefSequenceName_shell" "$GeneCoordInfo" "$GAG" "$POL" "$VIF" "$VPR" "$VPU" "$ENV" "$NEF" "$Remap"
 
-# add warning if some are added to missing coverage
+# add warning if some are added to missing coverage - ie if not empty
 
 ###################################################################################
 # No longer needed due to mafft extraction - leaving in temporarily in case code is useful later
@@ -560,7 +568,7 @@ function run_virulign {
 if [[ "$Nucleotides" == "true" ]]; then
   export_alphabet="Nucleotides"
   export_kind="GlobalAlignment"
-  FailedDebug="--nt-debug ${gene}FailedVIRULIGN"
+  FailedDebug="--nt-debug FailedVIRULIGN"
   # Currently only using this for Nucleotides. Could make diff file names for each failed output but need to consider how useful this is
   FileAppend="_Nucl_corrected.fasta"
 
@@ -625,10 +633,13 @@ elif [[ "$Mutations" == "false" ]]; then
 fi
 
 # Delete Failed directory if empty
-# Need to test with one that I know fails - maybe manually change reference. 
-if [[ -d FailedVIRULIGN ]]; then
-  rmdir ./FailedVIRULIGN || echo "Some sequences failed to align correctly, check /FailedVIRULIGN."
+# Remove Directory not empty message (expected behaviour)
+# However - I haven't found a sequence that didn't enter failed even when the output looks right. 
+# In my last test the only sample sequence that entered (in addition to the reference genes) was the one without an alignment error
+if [ -d FailedVIRULIGN ]; then
+  rmdir FailedVIRULIGN
 fi
+
 
 
 # For virulign:

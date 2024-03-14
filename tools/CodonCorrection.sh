@@ -369,11 +369,12 @@ function run_virulign {
         echo "$v_output"
 
         # Check for errors
-        # should only add if not already listed
         ErrorFile="FailedAlignment.txt"
         if echo "$v_output" | grep -qi 'error'; then
           error_line=$(echo "$v_output" | grep -i 'error')
-          echo "$error_line" >> "$ErrorFile"
+          if ! grep -qF "$error_line" "$ErrorFile"; then
+            echo "$error_line" >> "$ErrorFile"
+          fi
         fi
       else
         echo "Skipping virulign analysis of ${gene} due to missing coverage."
@@ -424,11 +425,62 @@ if [[ "$MutationTable" == "true" ]]; then
 fi
 
 # Check options are set correctly
+# move this to before running virulign
 if [[ -z $export_alphabet || -z $export_kind || -z $FileAppend ]]; then
     echo "Error: One or more options are not set. Quitting."
     exit 1
 fi
 
+# Check for single sequences in output (indicates failed as they should be paired)
+if [[ "$Nucleotides" == "true" ]]; then
+  for gene in "${genes[@]}"; do
+    if [ -f  "HIV_${gene}_Nucl_corrected.fasta" ]; then
+      sequence_num=$(grep ">" "HIV_${gene}_Nucl_corrected.fasta" | wc -l)
+      if [ "$sequence_num" -lt 2 ]; then
+        # Set gene value to false so it's not used for subsequent analysis
+        eval "$gene=false"
+        echo "Due to failed alignment ${gene} will be omitted from further processing."
+        # If not already in the failed alignments error file, then note the error
+        if ! grep -qE "^${SequenceName_shell}_${gene}" "$ErrorFile"; then
+          echo "${SequenceName_shell}_${gene} did not produce an alignment due to an unspecified error." >> "$ErrorFile"
+        fi
+      fi
+    fi
+  done
+fi
+
+# do for other three outputs
+
+# Compare sequence length of the extracted sample to final corrected sequence
+if [[ "$Nucleotides" == "true" ]]; then
+  LengthFile="FailedLengthSeqs.txt"
+  for gene in "${genes[@]}"; do
+    if [ "${!gene}" = true ]; then
+      SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
+      # Determine lengths
+      if [ -s "HIV_${gene}_Nucl_corrected.fasta" ] && [ -f "$SampleGene" ]; then
+        extracted_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; next} found { gsub("-", "", $0); len+=length($0) } END{print len}' "$SampleGene") # add error checks to these if failed
+        v_output_sample_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; next} found { gsub("-", "", $0); len+=length($0) } END{print len}' "HIV_${gene}_Nucl_corrected.fasta")
+        seq_difference=$((v_output_sample_seq_length - extracted_seq_length))
+        if [ "$seq_difference" != '0' ]; then
+          echo "${gene} sequence length = $extracted_seq_length"
+          echo "Corrected ${gene} sequence length (minus gaps) = $v_output_sample_seq_length" 
+          echo "Corrected ${gene} sequence has a change in length of $seq_difference"
+          echo "${SequenceName_shell}_${gene} had a change in length of $seq_difference" >> "$LengthFile"
+        fi
+      fi
+    fi
+  done
+fi
+
+# Error message for truncated/extended sequences
+if [[ -s $LengthFile ]]; then
+  echo "Some sequences were extended or truncated. Check $LengthFile."
+fi
+
+# v_output_sample_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" 'BEGIN{found=0} { if ($0 ~ "^>" seq_name "_" gene) found=1; if (found) gsub("-", "", $0); len+=length($0); if (found && $0 !~ /^>/) exit } END{print len}' "HIV_${gene}_Nucl_corrected.fasta")
+
+# improve readibility of printed errors/output
 
 # Print frameshift info to file
 # TODO if sequence_name already in file return error
@@ -451,6 +503,11 @@ if [[ -f "Frameshifts.txt"  ]] && [[ "$Mutations" == "true" ]]; then
 elif [[ "$Mutations" == "false" ]]; then
   echo "To list frameshifts found in the sample enable the 'Mutations' virulign option."
 fi
+
+# Check output contains two sequences for each output format - maybe within virulign loop
+
+# Can also do for AA?
+
 
 # delete frameshifts.txt if only contains header? 
 

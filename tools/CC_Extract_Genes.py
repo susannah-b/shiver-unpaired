@@ -55,6 +55,7 @@ with open(GeneCoordInfo, 'r') as file:
       break
 
 # Gene extraction for reference sequence
+gene_reference_gaps = {} # part of my indel detection for testing - remove reference gaps calcs for final code as it's not foolproof (if gaps are in the last section equal to the # of gaps)
 if gene_loci:
   with open(ref_output_file_name, 'w') as output_file:
     for gene, (gene_start, gene_end) in gene_loci.items():
@@ -74,8 +75,9 @@ if gene_loci:
               break
           if ref_start is not None and ref_end is not None:
             # Count gaps for indel calculation
-            reference_sequence_gapped = ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1]
-            reference_gaps = reference_sequence_gapped.count('-')
+            reference_sequence_gapped = ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1] # if this part ignored gaps for ref end determination it would work for all sequences
+            gene_reference_gaps[gene] = reference_sequence_gapped.count('-')
+
             # Write the reference sequence to a file
             reference_sequence = ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1].ungap('-')
             output_file.write('>' + ReferenceAlignment[RefSequenceNumber].id + '_' + gene + '\n' + str(reference_sequence) + '\n')
@@ -105,9 +107,17 @@ if gene_loci:
           # Calculate indel size
           gene_sequence_gapped = ReferenceAlignment[0].seq[consensus_start:consensus_end + 1]
           sample_gaps = gene_sequence_gapped.count('-')
-          indel_difference =  (consensus_end + 1 - consensus_start - sample_gaps) - (gene_end + 1 - gene_start - reference_gaps)
+          indel_difference =  (consensus_end + 1 - consensus_start - sample_gaps) - (gene_end + 1 - gene_start)
           if indel_difference != 0:
-            print ('{} Indel(s) detected in {} for {}.'.format(indel_difference, SequenceName, gene))
+            print ('{} Indel(s) detected in {} for {}.'.format(indel_difference, SequenceName, gene)) # Not necessarily 'indels' but +/- bases relative to reference. Probably remove after testing
+            # TESTING
+            print ('consensus_start = {}'.format(consensus_start))
+            print ('consensus_end = {}'.format(consensus_end))
+            print ('sample_gaps = {}'.format(sample_gaps))
+            print ('gene_start = {}'.format(gene_start))
+            print ('gene_end = {}'.format(gene_end))
+            print ('gene_reference_gaps[gene] = {}'.format(gene_reference_gaps[gene]))
+            print ('indel_difference = {}'.format(indel_difference))
 
           # Write the gene sequence to file unless it contains '?'
           gene_sequence = ReferenceAlignment[0].seq[consensus_start:consensus_end + 1].ungap('-')

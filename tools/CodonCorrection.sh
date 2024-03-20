@@ -292,17 +292,12 @@ ReferenceAlignment="$SequenceName_shell"_AlignedSeqs.fasta
 # Set up shiver location properly
 CC_Extract_Genes="$HOME/shiver/tools/CC_Extract_Genes.py"
 
+# Check references are divisible by three - i.e. readable as codons
+
 Python_Extract_Genes= # Now removed - clear all references
 "$python2" "$CC_Extract_Genes" "$ReferenceAlignment" "$RefSequenceName_shell" "$GeneCoordInfo" "$GAG" "$POL" "$VIF" "$VPR" "$VPU" "$ENV" "$NEF" "$SingleSequence"
 
 ###################################################################################
-
-# Make a directory for the failed alignments
-  # Add path check error messages
-  # TODO eventually remove this and similar - I created a separate FailedAlignments.txt 
-if [ ! -d "FailedVIRULIGN" ]; then
-  mkdir FailedVIRULIGN
-fi
 
 # Determine VIRULIGN options
 Nucleotides=false
@@ -355,18 +350,21 @@ else
   exit 1
 fi
 
+# Override for Nucleotides - in order to correctly analyse length this is always set to true
+# TODO should be incorporated more elegantly into the code (currently listed options wont print it, add documentation for being true, 
+# adjust options - cannot be removed entirely in the event you only want Nucl as argument cannot be empty)
+Nucleotides=true
+
 # Initialise variables
 export_alphabet=""
 export_kind=""
-FailedDebug=""
 FileAppend=""
 
 # Define a function to call virulign
 function run_virulign {
   export_alphabet_func="$1"
   export_kind_func="$2"
-  FailedDebug_func="$3"
-  FileAppend_func="$4"
+  FileAppend_func="$3"
   # Setting a max value for frameshifts arbitrarily due to frameshift errors occuring in highly variable genes
   # could be adjusted or change based on which gene is being analysed - eg ENV
   MaxFrameshifts=100
@@ -380,11 +378,13 @@ function run_virulign {
       if [ -n "$SampleGene" ]; then
         # Run VIRULIGN
         v_output=$( { $VirulignLocation $ReferenceGene $SampleGene --exportKind $export_kind_func --exportAlphabet $export_alphabet_func --exportReferenceSequence yes \
-          --exportWithInsertions yes --maxFrameShifts $MaxFrameshifts $FailedDebug_func; } 2>&1 > HIV_${gene}$FileAppend_func )
+          --exportWithInsertions yes --maxFrameShifts $MaxFrameshifts; } 2>&1 > HIV_${gene}$FileAppend_func )
         echo -e "${GREY}$v_output${END}"
 
         # Check for errors
         ErrorFile="FailedAlignment.txt"
+        touch "$ErrorFile"
+
         if echo "$v_output" | grep -qi 'error'; then
           error_line=$(echo "$v_output" | grep -i 'error')
           if ! grep -qF "$error_line" "$ErrorFile"; then
@@ -407,25 +407,21 @@ function call_virulign {
         "Nucleotides")
           export_alphabet="Nucleotides"
           export_kind="GlobalAlignment"
-          FailedDebug="--nt-debug FailedVIRULIGN"
           FileAppend="_Nucl_corrected.fasta"
           ;;
         "AminoAcids")
           export_alphabet="AminoAcids"
           export_kind="GlobalAlignment"
-          FailedDebug=""
           FileAppend="_AminoAcids_corrected.fasta"
           ;;
         "Mutations")
           export_alphabet="Nucleotides"
           export_kind="Mutations"
-          FailedDebug=""
           FileAppend="_Mutations.csv"
           ;;
         "MutationTable")
           export_alphabet="AminoAcids"
           export_kind="MutationTable"
-          FailedDebug=""
           FileAppend="_MutationTable.csv"
           ;;
       esac
@@ -436,7 +432,7 @@ function call_virulign {
       fi
 
      # Run virulign
-     run_virulign "$export_alphabet" "$export_kind" "$FailedDebug" "$FileAppend" || { echo "Problem running virulign. Quitting." >&2; exit 1; }
+     run_virulign "$export_alphabet" "$export_kind" "$FileAppend" || { echo "Problem running virulign. Quitting." >&2; exit 1; }
 
     fi
   done
@@ -523,8 +519,6 @@ function add_length {
 
     # Call virulign again to analyse using new reference lengths 
     call_virulign || { echo "Problem calling virulign after length correction. Quitting." >&2; return 1; }
-    # testing
-    echo "Gene value = $Gene = ${!Gene}"
   fi
 
 }
@@ -558,20 +552,28 @@ fi
 
 # improve readibility of printed errors/output
 
+# Check if any alignments failed
+if [[ -s "$ErrorFile" ]]; then
+  echo -e "${YELLOW}Not all alignments were successful, check $ErrorFile${END}"
+else
+  rm "$ErrorFile"
+fi
+
 # Print frameshift info to file
 # TODO if sequence_name already in file return error
 # Could be set up to return more meaningful info
 if [[ ! -f "Frameshifts.txt"  ]] && [[ "$Mutations" == "true" ]]; then
-  echo "Sequence Name, Frameshift number, Mutations" > Frameshifts.txt
+  echo "Sequence Name, Frameshift quantity, Mutations" > Frameshifts.txt
 fi
 
-if [[ -f "Frameshifts.txt"  ]] && [[ "$Mutations" == "true" ]]; then
+if [[ -f "Frameshifts.txt" ]] && [[ "$Mutations" == "true" ]]; then
   # Extract frameshift information
   for gene in "${genes[@]}"; do
     if [[ -f "HIV_${gene}_Mutations.csv" ]]; then
       frameshift_info=$(awk -F ',' 'NR==3 {print $1 ", " $4 ", " $7}' "HIV_${gene}_Mutations.csv")
       frameshift_number=$(echo "$frameshift_info" | awk -F', ' '{print $2}')
-      if [[ "$frameshift_number" != "0" ]]; then
+      # Check if frameshifts are present and that the alignment has not failed
+      if [[ "$frameshift_number" != "0" && $(grep -c "${SequenceName_shell}_${gene}" "$ErrorFile") -eq 0 ]]; then
         echo "$frameshift_info" >> Frameshifts.txt
       fi
     fi
@@ -580,24 +582,15 @@ elif [[ "$Mutations" == "false" ]]; then
   echo -e "${BLUE}To list frameshifts found in the sample enable the 'Mutations' virulign option.${END}"
 fi
 
-# delete frameshifts.txt if only contains header? 
+# Delete frameshift if no frameshifts are recorded
+if [ "$( wc -l <Frameshifts.txt )" -eq 1 ]; then
+    rm Frameshifts.txt
+    echo "No frameshifts found within successful alignments for $SequenceName_shell"
+fi
 
 # Delete temp_ files
 # could add a config variable with optional keep temp files, or for some
 # rm -f temp_*
-
-# Check if any alignments failed
-if [[ -s "$ErrorFile" ]]; then
-  echo -e "${YELLOW}Not all alignments were successful, check $ErrorFile${END}"
-fi
-
-# Delete Failed directory if empty
-# Remove Directory not empty message (expected behaviour)
-# However - I haven't found a sequence that didn't enter failed even when the output looks right. 
-# In my last test the only sample sequence that entered (in addition to the reference genes) was the one without an alignment error
-if [ -d FailedVIRULIGN ]; then
-  rmdir FailedVIRULIGN || echo -e "${YELLOW}Some sequences failed to align correctly. Check FailedVIRULIGN.${END}"
-fi
 
 # Warn if some genes have missing coverage
 if [[ -s "MissingCoverage.txt" ]]; then

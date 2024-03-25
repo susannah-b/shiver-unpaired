@@ -47,9 +47,11 @@ END="\033[0m"
 # Other variables
 ReferenceFile="$InitDir/CC_References.fasta"
 GeneCoordInfo="$InitDir/CC_Coords.fasta"
+HXB2File="$HOME/shiver/info/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta" # set up for $shiver
+PythonFuncs="$HOME/shiver/tools/CC_Python_funcs.py" # for full implementation add this to shiver init so i can have one variable for CC.sh and CC Init
 
 # Check init script has been run
-if [[ ! -s "$ReferenceFile" ]] || [ ! -s "$GeneCoordInfo" ]]; then
+if [[ ! -s "$ReferenceFile" ]] || [[ ! -s "$GeneCoordInfo" ]]; then
   echo "Reference file and coordinates file are not found in the init directory. Please run CodonCorrectionInit.sh before running this script. Quitting." >&2
   exit 1
 fi
@@ -82,22 +84,6 @@ elif [[ "$Sample_SeqNumber" == 2 ]]; then
   SingleSequence=false # In this case expects remap consensus files (=2 sequences) and will do AlignMoreSeqs. Can develop this later for other file formats if needed
 else 
   echo "Unexpected number of sequences in the sample file. Expected 1 or 2. Quitting." >&2
-  exit 1
-fi
-
-# Check GeneCoordInfo
-if [[ "$GeneCoordInfo" != *.txt ]]; then 
-  echo "Gene coordinates file in unexpected format. Please provide as a .txt file. Quitting." >&2
-  exit 1
-fi
-# Check header is as expected
-# Not strictly necessary for function but ensures the gene info is formatted in the correct way. But maybe overly strict.
-GC_FirstLine=$(head -n 1 "$GeneCoordInfo")
-GeneCoord_Header="Sequence_name, gag_start, gag_end, pol_start, pol_end, vif_start, vif_end, vpr_start, \
-vpr_end, vpu_start, vpu_end, env_start, env_end, nef_start, nef_end"
-if [[ "$GC_FirstLine" != *"$GeneCoord_Header"* ]]; then
-  echo -e "Expected the gene coordinates file to have the header: '$GeneCoord_Header'\nPlease supply the gene coordinate \
-  data in the correct format. Quitting" >&2
   exit 1
 fi
 
@@ -187,102 +173,112 @@ else
   exit 1
 fi
 
+# Align reference to sample
+# todo check hxb2 file exists
+function align_to_sample {
+  # Creates temp_ files from within the AlignMoreSeqs script that will be overwritten if batch processing 
+  AlignmentRef="$1"
+  AlignmentAppend="$2"
 
-### Extract sample and reference sequences for virulign processing
-# Extract the first sequence in the file - for MinCov files there will be a second GapsFilled file
-Python_Extract_Sample="
-from Bio import SeqIO
-import sys
+  if [[ "$AlignmentRef" == "$HXB2File" ]]; then
+    OutputAlignment=temp_"$SequenceName_shell$AlignmentAppend"
+  else
+    OutputAlignment="$SequenceName_shell$AlignmentAppend"
+  fi
 
-input_sequences = SeqIO.parse(sys.argv[1], 'fasta')
-sample_seq_file = 'temp_SampleSequence.fasta' 
-sample_seq = next(input_sequences)
-SeqIO.write([sample_seq], sample_seq_file, 'fasta')
-"
+  if [[ "$SingleSequence" == 'true' ]]; then
+    # Carry out a mafft pairwise alignment due to no missing coverage in SID_remap_ref files
+    "$mafft" --add "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
+  else
+    # Capable of handling sequence with unknown coverage in parts. Requires two sequences in the starting sample .fasta
+    "$python2" "$AlignMoreSeqsTool" "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
+  fi
 
-"$python2" -c "$Python_Extract_Sample" "$SampleFile" || { echo "CodonCorrection.sh was unable \
-to extract the sample sequence. Quitting." >&2; exit 1; }
+}
 
-SampleSequence="temp_SampleSequence.fasta"
-SampleSequenceNoQuery="temp_SampleSequence_QueryRemoved.fasta"
+# Align sample to HXB2 in preparation for gene extraction
+align_to_sample "$HXB2File" "_HXB2Aligned.fasta" || { echo "Problem aligning sample with reference HXB2. Quitting." >&2; exit 1; }
+HXB2_Alignment=temp_"$SequenceName_shell$AlignmentAppend"
 
-# Replace '?' with 'N' within the sequence for BLAST (unable to blast to ? characters)
-sed '/^>/!s/?/N/g' "$SampleSequence" > "$SampleSequenceNoQuery"
+# Extract approximate sample genes using HXB2 as a reference
+$python2 "$PythonFuncs" ExtractWithHXB2 --AlignmentFile "$HXB2_Alignment" --SingleSeq "$SingleSequence" || { echo "CodonCorrection.sh was unable to extract the sample gene sequences. Quitting." >&2; exit 1; }
 
-# BLASTn the target sequence to the possible references
-BLASTn_Database="$InitDir/BLASTnDB"
-blastn -query "$SampleSequenceNoQuery" -db "$BLASTn_Database"/CC_whole_genome -outfmt \
-"10 qseqid qseq evalue sseqid pident qlen qstart qend sstart send frames" -out blastn.out -max_target_seqs 1 \
-|| { echo "Failed to execute BLASTn command. Quitting." >&2; exit 1; }
-# Change to do top 3-5 then evaluate
+# Check if genes have entered MissingCoverage.txt, and if so omit from further processing
+for gene in "${genes[@]}"; do
+  if [[ "${!gene}" = true ]]; then
+    if grep -q "$SequenceName_shell"_"${gene}" "MissingCoverage.txt"; then
+        eval "$gene=false"
+    fi
+  fi
+done
 
-blast_output="blastn.out"
+# BLASTn the sample sequences to the corresponding gene database
 
-# Find the sseqid with the highest pident
-# Is this an accurate way to find the closest match? Is evalue better? Also doesn't account for fragment length
-RefSequenceName_shell=$(awk -F',' 'NR > 1 {print $5, $0}' "$blast_output" | sort -rn | head -n 1 | awk -F',' '{print $4}')
+function blastn_to_genes() {
+  for gene in "${genes[@]}"; do
+    if [[ "${!gene}" = true ]]; then
+      BLASTn_Database="$InitDir/BLASTnDB_${gene}"
+      BLAST_Gene=/"$OutputDir"/temp_preBLAST_Sample_Gene_"${gene}".fasta
+      BLAST_Output=blastn_"${gene}".out
+      # Run BLASTn
+      blastn -query "$BLAST_Gene" -db "$BLASTn_Database"/"${gene}" -outfmt \
+      "10 qseqid qseq evalue sseqid pident qlen qstart qend sstart send frames" -out "$BLAST_Output" -max_target_seqs 1 \
+      || { echo "Failed to execute BLASTn command. Quitting." >&2; return 1; }
+      # TODO add headers to the blast output - could do after processing just for ease of reading
+      
+      # Assign reference name per gene based on the highest pident
+      ExtractMatch="$(awk -F',' '{print $5, $0}' "$BLAST_Output" | sort -rn | head -n 1 | awk -F',' '{print $4}')"
+      ExtractSeqName=${ExtractMatch%????}
+      # Is pident an accurate way to find the closest match? Is evalue better? Also doesn't account for fragment length
+      # Assign a reference variable for each gene
+      GeneRef="ref_$gene"
+      eval "$GeneRef=$ExtractSeqName"
+      # List reference to shell
+      echo -e "${GREEN}Closest annotatable ${gene} reference: ${!GeneRef}${END}"
+    fi
+  done
+  return 0
+}
 
-echo -e "${GREEN}Closest annotatable reference:" "$RefSequenceName_shell${END}"
+# Call BLASTn function
+blastn_to_genes || { echo "Problem BLASTing sample genes to the corresponding gene database. Quitting." >&2; exit 1; }
 
-# Extract the sequence from the reference file
-Python_Extract_Reference="
-from Bio import SeqIO
-import sys
+# Extract the reference sequence from the full references list for each gene
+for gene in "${genes[@]}"; do
+  if [[ "${!gene}" = true ]]; then
+    GeneRef="ref_$gene"
+    "$python2" "$PythonFuncs" ExtractRefFromFasta --ReferenceName "${!GeneRef}" --GenomeFile "$ReferenceFile" --Gene "$gene" || { echo "CodonCorrection.sh was unable to extract the reference sequence from the list of references. Quitting." >&2; exit 1; }
+  fi
+done
 
-Ref_Name = sys.argv[1]
-Ref_File = sys.argv[2]
-output_ref = 'temp_Reference_Genome.fasta'
+# Assign the reference genome as a variable for each gene
+for gene in "${genes[@]}"; do
+  if [[ "${!gene}" = true ]]; then
+    ReferenceGenome="ref_genome_$gene"
+    eval "$ReferenceGenome=temp_Reference_Genome_$gene.fasta"
+  fi
+done
 
-found = False
-with open(output_ref, 'w') as file:
-  for record in SeqIO.parse(Ref_File, 'fasta'):
-    if record.id == Ref_Name:
-      SeqIO.write(record, file, 'fasta')
-      found = True
-      break
+# Align the sample genome to the reference genome for each gene and extract the sample and reference genes
+  # Sample genes have been extracted with HXB2 already (although perhaps less accurately as it just uses HXB2 to align and extract) 
+  # and the reference genes were extracted as part of the init. Because this script is already written I'm keeping it for the updated 
+  # gene-by-gene processing, but it could be modified/removed due to those preexisting files.
+  # Can align_to_sample/mafft be set to quiet? The printing to terminal can obfuscate error messages
+for gene in "${genes[@]}"; do
+  if [[ "${!gene}" = true ]]; then
+    ReferenceGenome="ref_genome_$gene"
+    GeneRef="ref_$gene"
+    align_to_sample "${!ReferenceGenome}" "_AlignedSeqs_$gene.fasta" || { echo "Problem aligning sample with reference genome. Quitting." >&2; exit 1; }
+    # Assign the reference alignment file
+    ReferenceAlignment="$SequenceName_shell"_AlignedSeqs_$gene.fasta # This variable will only work within the loop
 
-if not found:
-  print('Reference sequence {} was not found win the provided reference file {}.'.format(Ref_Name, Ref_File))
-"
+   # Run python script to extract the final sample and reference genes
+     # Names of output files could be confusing? Rename if needed
+   "$python2" "$PythonFuncs" ExtractRefandSample --AlignmentToRef "$ReferenceAlignment" --SingleSeq "$SingleSequence" --ReferenceName "${!GeneRef}" --GeneCoordInfo "$GeneCoordInfo" --Gene "${gene}" || { echo "CodonCorrection.sh was unable to extract the genes for reference and sample. Quitting." >&2; exit 1; }
+  fi
+done
 
-"$python2" -c "$Python_Extract_Reference" "$RefSequenceName_shell" "$ReferenceFile" || { echo "CodonCorrection.sh was unable \
-to extract the reference sequence. Quitting." >&2; exit 1; }
-
-# Assign the individual reference file - consists of the full genome sample
-ReferenceGenome=temp_Reference_Genome.fasta
-
-###################################################################################
-
-### Align reference to sample
-# Creates temp_ files from within the AlignMoreSeqs script that will be overwritten if batch processing 
-if [[ "$SingleSequence" == 'true' ]]; then
-  # Carry out a mafft pairwise alignment due to no missing coverage in SID_remap_ref files
-  # mafft can use the "$mafft" variable if used within shiver
-  # options??
-  mafft --add "$ReferenceGenome" "$SampleFile" > "$SequenceName_shell"_AlignedSeqs.fasta
-else
-  # Capable of handling sequence with unknown coverage in parts. Requires two sequences in the starting sample .fasta
-  "$python2" "$AlignMoreSeqsTool" "$ReferenceGenome" "$SampleFile" > "$SequenceName_shell"_AlignedSeqs.fasta
-fi
-
-ReferenceAlignment="$SequenceName_shell"_AlignedSeqs.fasta
-
-# python also needs splitting into functions
-# Add file overwrite checks
-# The [...]_Reference_Genes_Extracted.fasta is named after the sample it was generated for, but the
-  # individual genes are named after the actual reference. Change this to make it clearer or keep as is?
-  # Reason I did it this way was I think it helps to match up the sample genes and the reference used, but
-  # once making files for individual genes it seems clearer to separate by actual ID as there's more of them 
-  # (also they're intended as temp files)
-
-# Call python script to extract individual genes from the reference and sample
-# Set up shiver location properly
-CC_Extract_Genes="$HOME/shiver/tools/CC_Extract_Genes.py"
-
-# Check references are divisible by three - i.e. readable as codons
-
-Python_Extract_Genes= # Now removed - clear all references
-"$python2" "$CC_Extract_Genes" "$ReferenceAlignment" "$RefSequenceName_shell" "$GeneCoordInfo" "$GAG" "$POL" "$VIF" "$VPR" "$VPU" "$ENV" "$NEF" "$SingleSequence"
+# Check references are divisible by three - i.e. readable as codons TODO
 
 ###################################################################################
 
@@ -359,8 +355,9 @@ function run_virulign {
   # Find sample and reference files
   for gene in "${genes[@]}"; do
     if [[ "${!gene}" == true ]]; then
+      GeneRef="ref_$gene"
       SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
-      ReferenceGene=$(find . -type f -name "temp_${RefSequenceName_shell}_${gene}_Reference_only.fasta")
+      ReferenceGene=$(find . -type f -name "temp_${!GeneRef}_${gene}_Reference_only.fasta")
 
       if [[ -n "$SampleGene" ]]; then
         # Run VIRULIGN
@@ -514,7 +511,7 @@ done
 function add_length {
   LengthChange=$1
   Gene=$2
-  ReferenceGene=$(find . -type f -name "temp_${RefSequenceName_shell}_${gene}_Reference_only.fasta")
+  ReferenceGene=$(find . -type f -name "temp_${!GeneRef}_${gene}_Reference_only.fasta")
   NsToAdd=""
 
   if [[ "$LengthChange" -lt 0 ]]; then
@@ -566,6 +563,7 @@ function add_length {
 if [[ "$Nucleotides" == "true" ]]; then
   LengthFile="FailedLengthSeqs.txt"
   for gene in "${genes[@]}"; do
+    GeneRef="ref_$gene"
     if [[ "${!gene}" = true ]]; then
       SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
       # Determine lengths - ignore gaps and N to determine only 'real' changes in lengths, ie false truncation/extension
@@ -640,6 +638,12 @@ if [[ -s "MissingCoverage.txt" ]]; then
   echo -e "${YELLOW}Some genes were not analysed due to missing coverage, check 'MissingCoverage.txt'.${END}"
 fi
 
+# Delete temporary files
+  # Currently just a true/false in the code. Could be added as an arg or set in shiver_config
+DeleteTemp=true
+if [[ "$DeleteTemp" == "true" ]]; then
+  rm temp_*
+fi
 
 # After correcting the gene, do we update the full genome consensus?
 
@@ -652,8 +656,6 @@ fi
 # TODO after: remap to this (i.e. feed into shiver so name files accordingly) verify that 
 # the .bam produced is more correct than previously, verify that protein is more correct 
   # could rename the shiver-generated remap file and name my new one the same thing to replace it to preserve shiver code
-
-# clear temp files?? should they not be temp files? some also are overwritten per sample
 
 # Had to set up chmod for first time running. is this a problem for future use in other machines?
 

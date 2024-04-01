@@ -26,4 +26,4 @@ args = parser.parse_args()
 
 with open(args.InputFile, 'r') as f:
   for line in f:
-    print line.rstrip()
+    print(line.rstrip())

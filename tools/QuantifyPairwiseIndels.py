@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from six.moves import zip
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -144,7 +145,7 @@ def ProcessRangeOfSeqs(SeqNumbers):
       seq1sub = seq1[start : end + 1]
       seq2sub = seq2[start : end + 1]
 
-      for pos, (gap1, gap2) in enumerate(itertools.izip(seq1sub, seq2sub)):
+      for pos, (gap1, gap2) in enumerate(zip(seq1sub, seq2sub)):
 
         # The first position in the pairwise alignment.
         if not pos:

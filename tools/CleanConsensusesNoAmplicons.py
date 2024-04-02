@@ -97,7 +97,7 @@ def PropagateNoCoverageChar(seq, LeftToRightDone=False):
   becomes
   ACTGNNNNNNNACTG'''
   
-  assert type(seq) == type("a string")
+  assert isinstance(seq, type("a string"))
   if LeftToRightDone:
     seq = seq[::-1]
   BaseToLeftIsNoCoverage = False

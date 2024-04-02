@@ -50,7 +50,7 @@ for seq in SeqIO.parse(open(args.InputFasta),'fasta'):
     continue
 
   # Check for unexpected bases in input.
-  if not all(base in OKbases for base in SeqAsStr):
+  if not all(_base in OKbases for _base in SeqAsStr):
     print('Seq', seq.id, 'contains a base not in "' + OKbases + '". Quitting.',
     file=sys.stderr)
     exit(1)

@@ -30,7 +30,7 @@ def TranslateSeqCoordsToAlnCoords(seq, coords):
   translated to their positions in the gappy version of the sequence.
   e.g. called with the arguments "-a--cg-t-" and [1,2,3], we return [2,5,6].
   '''
-  TranslatedCoords = [-1 for coord in coords]
+  TranslatedCoords = [-1 for _coord in coords]
   PositionInSeq = 0
   for GappyPostitionMin1,base in enumerate(seq):
     if base != '-':

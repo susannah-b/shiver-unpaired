@@ -134,9 +134,9 @@ if args.reorder or args.reorder_Hiseq:
   # Find, rename and reorder consensuses and references; collect other sequences
   # (contigs) separately.
   NumRegexs = len(regexs)
-  CompiledRegexs = [re.compile(regex) for regex in regexs]
-  RegexsFound = [False for regex in regexs]
-  ColourCodesRefsAndConsensuses = ['' for i in range(NumRegexs)]
+  CompiledRegexs = [re.compile(_regex) for _regex in regexs]
+  RegexsFound = [False for _regex in regexs]
+  ColourCodesRefsAndConsensuses = ['' for _i in range(NumRegexs)]
   ColourCodesContigs = []
   ColourCodesContigsHiseqLane2 = []
   for SeqID, ColourCodes in OutList:
@@ -154,15 +154,15 @@ if args.reorder or args.reorder_Hiseq:
         ColourCodesContigs.append(ColourCodes)
 
   # Check we found all regexs
-  MissingRegexs = [regexs[i] for i in range(NumRegexs) if not RegexsFound[i]]
+  MissingRegexs = [regexs[_i] for _i in range(NumRegexs) if not RegexsFound[_i]]
   if len(MissingRegexs) > 0:
     print('The following regexes were not found in', args.alignment + ':', \
     ' '.join(MissingRegexs) + '. Quitting.', file=sys.stderr)
     exit(1)
 
   # Combine consensuses, references and contigs
-  OutListReordered = [(NewNames[i], ColourCodesRefsAndConsensuses[i]) \
-  for i in range(NumRegexs)]
+  OutListReordered = [(NewNames[_i], ColourCodesRefsAndConsensuses[_i]) \
+  for _i in range(NumRegexs)]
   for i, ContigColourCode in enumerate(ColourCodesContigs):
     # Skip empty contigs
     if ContigColourCode == 'n' * AlignmentLength:

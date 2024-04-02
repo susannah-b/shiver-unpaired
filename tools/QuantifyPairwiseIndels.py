@@ -87,14 +87,14 @@ if args.reference:
 
 if args.subset_size:
   SeqsToKeep = np.random.choice(NumSeqs, args.subset_size, replace=False)
-  alignment = [alignment[i] for i in SeqsToKeep]
+  alignment = [alignment[_i] for _i in SeqsToKeep]
   NumSeqs = args.subset_size
 
 NumComparisons = (NumSeqs * (NumSeqs - 1)) // 2  
 
 # Our representation of each seq will be an array of bools: True for a gap char,
 # False otherwise
-seqs = np.array([np.array([base == '-' for base in seq.seq]) for seq in \
+seqs = np.array([np.array([_base == '-' for _base in _seq.seq]) for _seq in \
 alignment])
 
 def GetSeqStartAndEndPos(seq):

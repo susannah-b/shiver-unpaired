@@ -144,7 +144,7 @@ if GapChar in RefSeqFromPair:
     RefSeqFromPair = RefSeqFromPair_NoGaps
     SeqToAdd = SeqToAdd_NoInsertions
 else:
-  NewToOldDict = {pos:pos for pos in range(len(RefSeqFromPair))}
+  NewToOldDict = {_pos:_pos for _pos in range(len(RefSeqFromPair))}
 
 # TODO: how to keep track of the positions where RefSeqFromPair has a gap, and
 # insert them, in order, into TranslationRecord?

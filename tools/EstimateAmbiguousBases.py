@@ -62,8 +62,8 @@ for pos in range(AlignmentLength):
   BaseCountTotalsByPos.append(sum(BaseCounts.values()))
 
 # Make the alignment writable
-MutableSeqList = [seq.seq.tomutable() for seq in alignment]
-IDs = [seq.id for seq in alignment]
+MutableSeqList = [_seq.seq.tomutable() for _seq in alignment]
+IDs = [_seq.id for _seq in alignment]
 
 for row in range(len(MutableSeqList)):
   SeqAsStr = str(MutableSeqList[row])
@@ -110,5 +110,5 @@ for row in range(len(MutableSeqList)):
         "was changed to", BaseToUse, "(the latter appearing", CountToUse,
         "times amongst", BaseCountTotalsByPos[pos], "unambiguous bases here).")
 
-SeqIO.write((SeqIO.SeqRecord(seq, id=IDs[i], description='') for i, seq in \
+SeqIO.write((SeqIO.SeqRecord(_seq, id=IDs[_i], description='') for _i, _seq in \
 enumerate(MutableSeqList)), args.OutputFile, 'fasta')

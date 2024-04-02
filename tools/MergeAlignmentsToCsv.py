@@ -51,7 +51,7 @@ def GetSeqToRefComparison(File):
   AlnLength = alignment.get_alignment_length()
 
   if HaveSkipString:
-    alignment = [seq for seq in alignment if not args.skip_string in seq.id]
+    alignment = [_seq for _seq in alignment if not args.skip_string in _seq.id]
 
   # Check that there are no duplicate seq names
   AllSeqNames = []
@@ -88,7 +88,7 @@ def GetSeqToRefComparison(File):
   # Now populate the matrix: each element will be what that sequence has at that
   # non-gap char of the ref, may be a base or a gap, or more generally a kmer,
   # because that non-gap char of the ref may be followed by gaps in the ref.
-  AlnAsArray = np.array([str(seq.seq) for seq in alignment])
+  AlnAsArray = np.array([str(_seq.seq) for _seq in alignment])
   RefPos0based = -1
   for AlnPos0based, RefBaseHere in enumerate(RefSeq):
 
@@ -134,8 +134,8 @@ for FileNum, FastaFile in enumerate(args.alignment):
     # from the new matrix and its key before updating all the results.
     PreviouslyEncounteredSeqNames = \
     set(KeyForAllRowNames).intersection(KeyForRowNames)
-    PreviouslyEncounteredSeqNameIndices = sorted([KeyForRowNames.index(name) \
-    for name in PreviouslyEncounteredSeqNames], reverse=True)
+    PreviouslyEncounteredSeqNameIndices = sorted([KeyForRowNames.index(_name) \
+    for _name in PreviouslyEncounteredSeqNames], reverse=True)
     for index in PreviouslyEncounteredSeqNameIndices:
       name = KeyForRowNames[index]
       PositionInPreviousResults = KeyForAllRowNames.index(name)
@@ -180,8 +180,8 @@ AllResults = AllResults.transpose()
 
 np.savetxt(sys.stdout, AllResults, delimiter=",", fmt='%s', comments='',
 header='Position in ' + args.RefName + ',Base in ' + args.RefName + ',' + \
-','.join('kmer in ' + name for name in KeyForAllRowNames if \
-name != args.RefName))
+','.join('kmer in ' + _name for _name in KeyForAllRowNames if \
+_name != args.RefName))
     
 
 

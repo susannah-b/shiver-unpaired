@@ -68,7 +68,7 @@ if args.longest_gap and check_undetermined:
 
 def get_max_match_length(string, pattern):
   "Of all matches of a pattern to a string, we report the largest length."
-  match_lengths = [len(match) for match in re.findall(pattern, string)] 
+  match_lengths = [len(_match) for _match in re.findall(pattern, string)] 
   if len(match_lengths) == 0:
     return 0
   return max(match_lengths)
@@ -112,9 +112,9 @@ for file_ in args.FastaFile:
         seq.seq = seq.seq.ungap("n")
         seq.seq = seq.seq.ungap("N")
     if args.ignore_lower_case:
-      seq.seq = ''.join(x for x in seq.seq if not x.islower())
+      seq.seq = ''.join(_x for _x in seq.seq if not _x.islower())
     if args.fragments:
-      FragLengths = [len(frag) for frag in seq.seq.split('?') if len(frag) > 0]
+      FragLengths = [len(_frag) for _frag in seq.seq.split('?') if len(_frag) > 0]
       FragLengths = sorted(FragLengths, reverse=True)
       FragLengths.append(0)
       SeqLengths.append([seq.id] + FragLengths)

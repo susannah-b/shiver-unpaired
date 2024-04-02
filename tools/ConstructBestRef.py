@@ -140,7 +140,7 @@ else:
 # would do nothing, because they are parsed taking whitespace as a delimiter.
 # However, if the Mac \r character is amongst them that messes things up. This
 # solves it.
-ContigNames = [name.strip() for name in ContigNames]
+ContigNames = [_name.strip() for _name in ContigNames]
 
 # Can't use these two options together
 if CompareContigsToConsensus and CheckContigSNPs:
@@ -150,7 +150,7 @@ if CompareContigsToConsensus and CheckContigSNPs:
 
 # Check all contig names are unique
 CounterObject = collections.Counter(ContigNames)
-DuplicatedContigNames = [i for i in CounterObject if CounterObject[i]>1]
+DuplicatedContigNames = [_i for _i in CounterObject if CounterObject[_i]>1]
 if len(DuplicatedContigNames) != 0:
   for ContigName in DuplicatedContigNames:
     print('Contig name', ContigName, 'was duplicated in the arguments.', \
@@ -185,7 +185,7 @@ for SeqName in AllSeqsDict:
     RefDict[SeqName] = AllSeqsDict[SeqName]
 
 # Check we found all the contigs
-MissingContigs = [contig for contig in ContigNames if not contig in ContigDict]
+MissingContigs = [_contig for _contig in ContigNames if not _contig in ContigDict]
 if len(MissingContigs) != 0:
   for ContigName in MissingContigs:
     print('Contig "'+ContigName+'" was not found in the alignment file.', \
@@ -286,7 +286,7 @@ if args.contigs_length:
 # Make a list, of the same length of the alignment, of integers: each one
 # counting the number of contigs with coverage there. Gaps inside contigs get
 # counted as coverage; gaps between contigs get a count of 0.
-ContigCoverageByPosition = [0 for n in range(0,AlignmentLength)]
+ContigCoverageByPosition = [0 for _n in range(0,AlignmentLength)]
 for [start,end] in ContigStartsAndEnds.values():
   for position in range(start,end+1):
     ContigCoverageByPosition[position] += 1
@@ -352,17 +352,17 @@ if ConsensusName != None:
           exit(1)
 
         if ConsensusBase == '?':
-          if all(ContigBase == GapChar for ContigBase in ContigBases):
+          if all(_ContigBase == GapChar for _ContigBase in ContigBases):
             cat = None
           else:
             cat = 3
         elif ConsensusBase == GapChar:
-          if all(ContigBase != GapChar for ContigBase in ContigBases):  
+          if all(_ContigBase != GapChar for _ContigBase in ContigBases):  
             cat = 2
           else:
             cat = None
         else:
-          if any(ContigBase == ConsensusBase for ContigBase in ContigBases):  
+          if any(_ContigBase == ConsensusBase for _ContigBase in ContigBases):  
             cat = 1
           else:
             cat = 2
@@ -432,7 +432,7 @@ for RefName,RefSeq in RefDict.items():
   #NumBasesAgreeing])
 
 # Check at least one reference matches at least one position!
-if all(item[3] < FloatComparisonTolerance for item in ListOfRefsAndScores):
+if all(_item[3] < FloatComparisonTolerance for _item in ListOfRefsAndScores):
   print('No reference matches the contigs at any position! We assume this is',\
   'is an error.\nQuitting.', file=sys.stderr)
   exit(1)
@@ -451,12 +451,12 @@ if args.summarise_contigs_2:
   ContigsWithBestRef = [RefDict[BestRefName]] + list(ContigDict.values())
   NumSeqs = len(ContigsWithBestRef)
   for column in range(AlignmentLength-1,-1,-1):
-    if all(seq[column] == '-' for seq in ContigsWithBestRef):
+    if all(_seq[column] == '-' for _seq in ContigsWithBestRef):
       for i in range(NumSeqs):
         ContigsWithBestRef[i] = ContigsWithBestRef[i][:column] + \
         ContigsWithBestRef[i][column+1:]
   ThisAlignmentLength = len(ContigsWithBestRef[0])
-  assert all(len(seq) == ThisAlignmentLength for seq in ContigsWithBestRef)
+  assert all(len(_seq) == ThisAlignmentLength for _seq in ContigsWithBestRef)
   #for i in range(NumSeqs):
   #  print('>'+str(i+1))
   #  print(ContigsWithBestRef[i])

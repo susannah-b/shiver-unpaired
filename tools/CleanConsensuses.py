@@ -239,14 +239,14 @@ if args.split_amplicons:
   if have_global_aln:
     pieces = args.output.rsplit(".", 1)
     if len(pieces) == 2:
-      per_region_output_file_dict = {region : pieces[0] + "_" + region + "." + \
-      pieces[1] for region in regions}
+      per_region_output_file_dict = {_region : pieces[0] + "_" + _region + "." + \
+      pieces[1] for _region in regions}
     else:
-      per_region_output_file_dict = {region : args.output + "_" + region + \
-      ".fasta" for region in regions}
+      per_region_output_file_dict = {_region : args.output + "_" + _region + \
+      ".fasta" for _region in regions}
   else:
-    per_region_output_file_dict = {region : os.path.join(args.output,
-    "region_" + region + ".fasta") for region in regions}
+    per_region_output_file_dict = {_region : os.path.join(args.output,
+    "region_" + _region + ".fasta") for _region in regions}
   for output_file in per_region_output_file_dict.values():
     if os.path.isfile(output_file):
       print(output_file, "exists already; quitting to prevent overwriting.",
@@ -281,12 +281,12 @@ with open(args.seq_based_blacklist, 'r') as f:
 
     # Coerce string bools to bools, and record them.
     values = fields[1:-1]
-    if any(value != "TRUE" and value != "FALSE" for value in values):
+    if any(_value != "TRUE" and _value != "FALSE" for _value in values):
       print('Unexpected value not equal to TRUE or FALSE on line',
       line_num_min_1 + 1, 'in', args.seq_based_blacklist + '. Quitting.',
       file=sys.stderr)
       exit(1)
-    values = np.array([True if value == "TRUE" else False for value in values],
+    values = np.array([True if _value == "TRUE" else False for _value in values],
     dtype=bool)
 
     # If we've seen this seq in the blacklist already, we should blacklist each
@@ -315,7 +315,7 @@ def preprocess_seq(seq, check_for_ambig_bases, keep_overhang, start, end):
   seq_as_str = str(seq.seq)
   initial_length = len(seq_as_str)
   seq_as_str = sub("[a-z]|\?", "N", seq_as_str)
-  if check_for_ambig_bases and any(not base in "ACGTN-" for base in seq_as_str):
+  if check_for_ambig_bases and any(not _base in "ACGTN-" for _base in seq_as_str):
     print('Seq', seq.id, 'contains a base other than A, C, G, T, N or -;',
     'unexpected. Have you run shiver/tools/EstimateAmbiguousBases.py on your',
     'alignment first? Quitting.', file=sys.stderr)
@@ -324,7 +324,7 @@ def preprocess_seq(seq, check_for_ambig_bases, keep_overhang, start, end):
     seq_as_str = "N" * (start - 1) + seq_as_str[start - 1 : end] + \
     "N" * (initial_length - end)
   assert len(seq_as_str) == initial_length
-  wholly_undetermined = all(base == "N" or base == "-" for base in seq_as_str)
+  wholly_undetermined = all(_base == "N" or _base == "-" for _base in seq_as_str)
   return seq_as_str, wholly_undetermined
 
 def preprocess_seq_id(seq_id):
@@ -419,7 +419,7 @@ first_gapless_reference = None
 blacklisted_patients_found = set([])
 blacklisted_seqs_found = set([])
 max_missingness = 0.2
-unaln_seqs_by_region = {region : {} for region in regions}
+unaln_seqs_by_region = {_region : {} for _region in regions}
 #completeness_percents = collections.defaultdict(list)
 
 for seq in collection_of_seqs:
@@ -639,7 +639,7 @@ for seq in collection_of_seqs:
         region_length = end - start + 1
         seq_here = seq_as_str[start - 1: end].replace("-", "") # strip gaps
         seq_here = seq_here.strip("N") # strip Ns at the ends
-        if not all(base == "N" for base in seq_here):
+        if not all(_base == "N" for _base in seq_here):
           if beehive_id in unaln_seqs_by_region[region]:
             previous_seq_here = unaln_seqs_by_region[region][beehive_id]
             if num_known_bases(seq_here) <= num_known_bases(previous_seq_here):
@@ -653,7 +653,7 @@ for seq in collection_of_seqs:
               "previously encountered seq from", beehive_id, "because the",
               "former has more known bases.")
           unaln_seqs_by_region[region][beehive_id] = seq_here
-    if all(base == "N" for base in seq_as_str):
+    if all(_base == "N" for _base in seq_as_str):
       if args.verbose:
         print("Skipping sequence", seq_id, "which is wholly undetermined after",
         "blacklisting.")
@@ -726,17 +726,17 @@ if have_individual_consensus or have_base_freqs:
     for region, output_file in per_region_output_file_dict.items():
       seq_dict_here = unaln_seqs_by_region[region]
       sorted_seqs_here = sorted(list(seq_dict_here.items()), key=lambda x:x[0])
-      SeqIO.write((SeqIO.SeqRecord(Seq.Seq(seq), id=seq_id, description='') \
-      for seq_id, seq in sorted_seqs_here), output_file, 'fasta')
+      SeqIO.write((SeqIO.SeqRecord(Seq.Seq(_seq), id=_seq_id, description='') \
+      for _seq_id, _seq in sorted_seqs_here), output_file, 'fasta')
   exit(0)
 
 # Form a dict for patients with multiple sequences, listing the sequence IDs
 per_patient_seq_counts = \
-collections.Counter(get_beehive_id(seq_id) for seq_id in seq_dict)
-multiply_seqd_patients = set(patient for patient, count in \
-per_patient_seq_counts.items() if count > 1)
-singly_seqd_patients = set(patient for patient, count in \
-per_patient_seq_counts.items() if count == 1)
+collections.Counter(get_beehive_id(_seq_id) for _seq_id in seq_dict)
+multiply_seqd_patients = set(_patient for _patient, _count in \
+per_patient_seq_counts.items() if _count > 1)
+singly_seqd_patients = set(_patient for _patient, _count in \
+per_patient_seq_counts.items() if _count == 1)
 seq_ids_for_multiply_seqd_patients = collections.defaultdict(list)
 for seq_id in seq_dict:
   beehive_id = get_beehive_id(seq_id)
@@ -747,7 +747,7 @@ for seq_id in seq_dict:
 # Merge multiple seqs per patient.
 for multiply_seqd_patient, seq_ids in \
 seq_ids_for_multiply_seqd_patients.items():
-  seqs = [seq_dict[seq_id] for seq_id in seq_ids]
+  seqs = [seq_dict[_seq_id] for _seq_id in seq_ids]
   num_seqs = len(seqs)
   seqs_by_length = sorted(seqs, key=lambda seq : alignment_length - \
   seq.count("N") - seq.count("-"), reverse=True)
@@ -771,7 +771,7 @@ seq_ids_for_multiply_seqd_patients.items():
 # Multiply sequenced patients now have only one seq, labelled by the patient;
 # ensure that for other patients their only seq is also labelled by the patient.
 seq_ids_to_rename = \
-[seq_id for seq_id in seq_dict if get_beehive_id(seq_id) != seq_id]
+[_seq_id for _seq_id in seq_dict if get_beehive_id(_seq_id) != _seq_id]
 for seq_id in seq_ids_to_rename:
   seq_dict[get_beehive_id(seq_id)] = seq_dict.pop(seq_id)
 
@@ -789,14 +789,14 @@ if args.split_amplicons:
     region_length = end - start + 1
     for seq_id, seq in sorted_seqs:
       seq_here = seq[start - 1: end]
-      if not all(base == "N" for base in seq_here):
+      if not all(_base == "N" for _base in seq_here):
         OutSeqs.append(SeqIO.SeqRecord(Seq.Seq(seq_here), id=seq_id,
         description=''))
     SeqIO.write(OutSeqs, per_region_output_file_dict[region], 'fasta')    
 
 OutSeqs = []
 for seq_id, seq in sorted_seqs:
-  if all(base == "N" for base in seq):
+  if all(_base == "N" for _base in seq):
     if args.verbose:
       print("Skipping sequence", seq_id, "which is wholly undetermined after",
       "blacklisting.")

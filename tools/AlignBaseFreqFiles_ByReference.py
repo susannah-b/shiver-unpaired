@@ -255,11 +255,11 @@ ref2freqs)):
       else:
         if args.compare_simple or args.compare_snips_with_coverage:
           MaxFreq1 = max(ref1freqs)
-          BasesWithMaxCount1 = [i for i,count in enumerate(ref1freqs) \
-          if count == MaxFreq1]
+          BasesWithMaxCount1 = [_i for _i, _count in enumerate(ref1freqs) \
+          if _count == MaxFreq1]
           MaxFreq2 = max(ref2freqs)
-          BasesWithMaxCount2 = [i for i,count in enumerate(ref2freqs) \
-          if count == MaxFreq2]
+          BasesWithMaxCount2 = [_i for _i, _count in enumerate(ref2freqs) \
+          if _count == MaxFreq2]
           if BasesWithMaxCount1 == BasesWithMaxCount2:
             SimScoreBin = 1
           else:

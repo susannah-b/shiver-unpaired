@@ -30,7 +30,7 @@ def CommaSeparatedFloatPair(FloatPairAsString):
   try:
     values = FloatPairAsString.split(',')
     assert len(values) == 2
-    values = [float(value) for value in values]
+    values = [float(_value) for _value in values]
   except:
     raise argparse.ArgumentTypeError('Unable to understand ' +\
     FloatPairAsString + ' as a comma-separated pair of floats.')

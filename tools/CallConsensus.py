@@ -213,7 +213,7 @@ with open(BaseFreqFile, 'r') as f:
       exit(1)
 
     # Check positive
-    if any(count < 0 for count in counts):
+    if any(_count < 0 for _count in counts):
       print('Negative count on line', str(LineNumMin1+1), ',\n', \
       line, 'in', BaseFreqFile + '. Quitting', file=sys.stderr)
       exit(1)
@@ -231,8 +231,8 @@ with open(BaseFreqFile, 'r') as f:
     # Find the base with the highest count (or bases, if they have joint-highest
     # counts).
     MaxCount = max(counts)
-    BasesWithMaxCount = [ExpectedBasesNoN[i] for i,count in enumerate(counts) \
-    if count == MaxCount]
+    BasesWithMaxCount = [ExpectedBasesNoN[_i] for _i, _count in enumerate(counts) \
+    if _count == MaxCount]
 
     # If we're calling the most common base regardless of count:
     if CallMostCommon: 

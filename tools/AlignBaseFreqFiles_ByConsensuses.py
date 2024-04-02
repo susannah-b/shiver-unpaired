@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from six.moves import map
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -153,7 +154,7 @@ def GetFreqs(BaseFreqsFile, consensus):
         continue
       fields = line.split(',')
       try:
-        freqs = map(int, fields[2:])
+        freqs = list(map(int, fields[2:]))
         assert len(freqs) == 6
       except (ValueError, AssertionError):
         print("Unexpected input format of", BaseFreqsFile + ". It appears that",

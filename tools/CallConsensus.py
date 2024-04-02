@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 from __future__ import print_function
 from six.moves import zip
+from six.moves import map
 #
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -204,7 +205,7 @@ with open(BaseFreqFile, 'r') as f:
 
     # Convert to ints    
     try:
-      counts = map(int, counts)
+      counts = list(map(int, counts))
     except ValueError:
       print('Could not understand the base counts as ints on line', \
       str(LineNumMin1+1), ',\n', line, 'in', BaseFreqFile + \

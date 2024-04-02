@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 from __future__ import print_function
+from six.moves import zip
 #
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -256,7 +257,7 @@ if not args.keep_gaps_by_missing:
 if not args.ref_seq_missing:
   NewConsensus = ''
   NewRefSeq = ''
-  for ConsensusBase, RefBase in itertools.izip(consensus, RefSeq):
+  for ConsensusBase, RefBase in zip(consensus, RefSeq):
     if RefBase == GapChar and (ConsensusBase == '?' or ConsensusBase == \
     GapChar):
       continue

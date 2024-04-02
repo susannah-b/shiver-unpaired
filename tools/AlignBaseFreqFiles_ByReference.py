@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from six.moves import zip
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -217,7 +218,7 @@ NumPosWithHigherCovIn1 = 0
 NumPosWithHigherCovIn2 = 0
 
 # Record each row of the csv file
-for PosMin1, (ref1freqs, ref2freqs) in enumerate(itertools.izip(ref1freqs,
+for PosMin1, (ref1freqs, ref2freqs) in enumerate(zip(ref1freqs,
 ref2freqs)):
   PosInRef1 = ref1PosConversions[PosMin1]
   PosInRef2 = ref2PosConversions[PosMin1]

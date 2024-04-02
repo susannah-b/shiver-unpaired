@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from six.moves import zip
+from six.moves import map
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -158,7 +159,7 @@ def GetFreqs(BaseFreqsFile, RefSeq):
         ':', RefBase, 'in', BaseFreqsFile, 'but', GaplessRefSeq[RefPos-1],
         'in', args.alignment + '. Quitting.', file=sys.stderr)
         quit(1)
-      freqs = map(int, fields[2:])
+      freqs = list(map(int, fields[2:]))
       assert len(freqs) == 6
       FreqsInRef.append(freqs)
       LastRefPos += 1

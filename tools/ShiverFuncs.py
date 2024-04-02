@@ -21,7 +21,7 @@ def CalculateReadIdentity(PysamRead, ReferenceSeq):
         assert DeletionSize > 0
         NumDeletions += DeletionSize
       LastRefPos = pos
-  return float(NumAgreeingBases) // (len(positions) + NumDeletions)
+  return float(NumAgreeingBases) / (len(positions) + NumDeletions)
 
 # Stolen from phyloscanner
 def TranslateSeqCoordsToAlnCoords(seq, coords):

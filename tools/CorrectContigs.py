@@ -222,7 +222,7 @@ def MergeStronglyOverlappingHits(hits, MinOverlap):
           # Skip if the hits don't overlap enough.
           overlap = min(qend_i, qend_j) - max(qstart_i, qstart_j) + 1
           MinHitLength = min(abs(qend_i - qstart_i), abs(qend_j - qstart_j)) + 1
-          overlap = float(overlap) // MinHitLength
+          overlap = float(overlap) / MinHitLength
           #print("overlap:", overlap)
           if overlap < args.OverlapFracToMerge:
             continue
@@ -324,7 +324,7 @@ for contig, hits in HitDict.items():
     CorrectionsNeeded = True
 
   # Quit if the hit fraction is too small, if desired.
-  HitFrac = float(HitLength) // qlen
+  HitFrac = float(HitLength) / qlen
   if not MakeCorrections and HitFrac < args.min_hit_frac:
     print('Contig correction required (the hit\n', \
     ' '.join(map(str, FirstHit)), '\nfor contig', contig, 'has a hit fraction',\

@@ -113,7 +113,7 @@ reverse=True):
   if pos == 0 or pos == RefLength:
     PercentageClipped = 100
   else:
-    PercentageClipped = 100 * float(count) // \
+    PercentageClipped = 100 * float(count) / \
     (count + NumbersOfSpanningReads[pos])
   output += '\n' + str(pos+1) + ',' + str(count) + ',%.3f' % PercentageClipped
 

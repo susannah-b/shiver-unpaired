@@ -157,7 +157,7 @@ if args.csv_for_replotting == None:
   for i, (coverage, count) in enumerate(sorted(list(CoverageCounts.items()),
   key = lambda x : x[0], reverse = True)):
     x[i] = coverage
-    y[i] = ScaledTotalIdentitiesByCoverage[coverage] // count
+    y[i] = ScaledTotalIdentitiesByCoverage[coverage] / count
     RunningTotalNumberOfPositions += count
     NumbersOfPositionsExceedingCoverages[i] = RunningTotalNumberOfPositions
 
@@ -168,7 +168,7 @@ if args.csv_for_replotting == None:
 
   # Divide NumbersOfPositionsExceedingCoverages by the number of samples, to get
   # a mean value per sample.
-  MeanNumPosExceedingCoveragesPerSample = [float(NumPos) // len(args.DataFile) \
+  MeanNumPosExceedingCoveragesPerSample = [float(NumPos) / len(args.DataFile) \
   for NumPos in NumbersOfPositionsExceedingCoverages]
 
   # Write the csv output

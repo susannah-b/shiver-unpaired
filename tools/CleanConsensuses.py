@@ -574,7 +574,7 @@ for seq in collection_of_seqs:
         start, end = regions_dict_this_aln[region]
         region_length = end - start + 1
         seq_here = seq_as_str[start - 1: end]
-        missingness = float(seq_here.count("N")) // region_length
+        missingness = float(seq_here.count("N")) / region_length
         if missingness >= max_missingness:
           if not seq_in_blacklist:
             seq_blacklist_dict[seq_id] = [True] * (num_regions + 1)

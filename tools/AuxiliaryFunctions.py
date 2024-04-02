@@ -70,7 +70,7 @@ def InterpretIUPAC(MyDict):
 
   for AmbigLetter,TargetLetters in IUPACdict.items():
     if AmbigLetter in keys:
-      WeightPerTargetLetter = float(MyDict[AmbigLetter])//len(TargetLetters)
+      WeightPerTargetLetter = float(MyDict[AmbigLetter]) / len(TargetLetters)
       for TargetLetter in TargetLetters:
         if TargetLetter in UpdatedDict:
           UpdatedDict[TargetLetter] += WeightPerTargetLetter

@@ -326,8 +326,8 @@ AllSeq2freqs)):
           SimScoreCont = 0
           for i in range(5):
             SimScoreCont += \
-            abs(float(seq1freqs[i])//seq1cov - float(seq2freqs[i])//seq2cov)
-          SimScoreCont = 1 - SimScoreCont//2
+            abs(float(seq1freqs[i]) / seq1cov - float(seq2freqs[i]) / seq2cov)
+          SimScoreCont = 1 - SimScoreCont / 2
     if args.compare_simple:
       outstring += ',' + str(SimScoreBin)
     if args.compare:

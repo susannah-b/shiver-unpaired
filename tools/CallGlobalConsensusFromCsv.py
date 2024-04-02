@@ -87,7 +87,7 @@ with open(args.alignment_csv, 'r') as f:
     # Skip positions where too many kmers were wholly undetermined (nothing but
     # "N" and "-").
     num_known_kmers = sum(kmer_counts.values())
-    missingness = 1 - float(num_known_kmers) // num_seqs
+    missingness = 1 - float(num_known_kmers) / num_seqs
     if missingness > args.fractional_missingness_threshold:
       continue
 

@@ -282,8 +282,8 @@ ref2freqs)):
           SimScoreCont = 0
           for i in range(5):
             SimScoreCont += \
-            abs(float(ref1freqs[i])//ref1cov - float(ref2freqs[i])//ref2cov)
-          SimScoreCont = 1 - SimScoreCont//2
+            abs(float(ref1freqs[i]) / ref1cov - float(ref2freqs[i]) / ref2cov)
+          SimScoreCont = 1 - SimScoreCont / 2
     if args.compare_simple:
       outstring += ',' + str(SimScoreBin)
     if args.compare:

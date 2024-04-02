@@ -213,7 +213,7 @@ def FillInCounterBlanksAndRescale(counter):
   MaxValSize = max(counter.keys())
   for val in range(1, MaxValSize + 1):
     if val in counter:
-      counter[val] = float(counter[val]) // NumComparisons
+      counter[val] = float(counter[val]) / NumComparisons
     else:
       counter[val] = 0
 

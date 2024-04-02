@@ -69,7 +69,7 @@ for i in range(1,len(file1values)):
     else:
       PercentageIncrease = 'inf'
   else:
-    PercentageIncrease = (count2 - count1) * 100. // count1
+    PercentageIncrease = (count2 - count1) * 100. / count1
   print(IdentityThreshold, PercentageIncrease, sep=',')
 
 

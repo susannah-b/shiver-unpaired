@@ -175,7 +175,7 @@ for pos in range(RefLength):
 outstring = 'Coverage,Number of positions with that coverage,Mean identity'
 for coverage, count in sorted(list(CoverageCounts.items()), key=lambda x: x[0]):
   TotalNumReads = coverage * count
-  MeanIdentity = float(IdentityTotalsByCoverage[coverage]) // TotalNumReads
+  MeanIdentity = float(IdentityTotalsByCoverage[coverage]) / TotalNumReads
   outstring += '\n' + str(coverage) + ',' + str(count) + ',' + str(MeanIdentity)
 
 print(outstring)

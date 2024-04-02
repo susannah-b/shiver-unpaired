@@ -78,7 +78,7 @@ except:
 def split_parts(c, min_contig_size, split_gap_size, prefix=''):
   '''Split sequence at gaps >= split_gap_size, retaining subsequences >=
   min_contig_size. Rename where we keep >1 subsequence.'''
-  if type(c) is SeqRecord:
+  if isinstance(c, SeqRecord):
     prefix = c.name
     c = str(c.seq)
   aln_length = len(c)

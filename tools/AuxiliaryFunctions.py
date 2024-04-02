@@ -167,7 +167,7 @@ def ReadSequencesFromFile(DataFile,IsAlignment=True):
     exit(1)
 
   # Check that the second argument is a bool
-  if type(IsAlignment) != type(True):
+  if not isinstance(IsAlignment, type(True)):
     print('Function ReadSequencesFromFile called with a second argument that',\
     'is not a bool.\nQuitting.', file=sys.stderr)
     exit(1)
@@ -239,7 +239,7 @@ def ReadSequencesFromFile_ordered(DataFile,IsAlignment=True):
     exit(1)
 
   # Check that the second argument is a bool
-  if type(IsAlignment) != type(True):
+  if not isinstance(IsAlignment, type(True)):
     print('Function ReadSequencesFromFile called with a second argument that',\
     'is not a bool.\nQuitting.', file=sys.stderr)
     exit(1)

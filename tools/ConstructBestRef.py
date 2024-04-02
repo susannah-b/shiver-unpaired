@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 from __future__ import print_function
 from six.moves import map
+from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251 
@@ -448,7 +449,7 @@ if args.print_best_score:
 if args.summarise_contigs_2:
   ContigsWithBestRef = [RefDict[BestRefName]] + ContigDict.values()
   NumSeqs = len(ContigsWithBestRef)
-  for column in xrange(AlignmentLength-1,-1,-1):
+  for column in range(AlignmentLength-1,-1,-1):
     if all(seq[column] == '-' for seq in ContigsWithBestRef):
       for i in range(NumSeqs):
         ContigsWithBestRef[i] = ContigsWithBestRef[i][:column] + \
@@ -499,7 +500,7 @@ for position in range(0,AlignmentLength):
 # Inserting line breaks: thanks Stackoverflow:
 def insert_newlines(string, every=50):
   lines = []
-  for i in xrange(0, len(string), every):
+  for i in range(0, len(string), every):
     lines.append(string[i:i+every])
   return '\n'.join(lines)
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -228,9 +229,9 @@ for beehive_id, sub_seq_dict in seq_dict.iteritems():
       seqs_by_length = sorted(seqs, key=lambda seq : num_known_bases(seq),
       reverse=True)
       best_seq = ""
-      for pos in xrange(alignment_length):
+      for pos in range(alignment_length):
         best_base = "N"
-        for i in xrange(num_seqs):
+        for i in range(num_seqs):
           base = seqs_by_length[i][pos]
           if base != "N":
             best_base = base

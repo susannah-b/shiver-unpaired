@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from six.moves import map
+from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -564,7 +565,7 @@ for seq in collection_of_seqs:
     # Add our own blacklisting of regions, based on the fraction that's not "N",
     # for regions that have not already been blacklisted.
     if not args.dont_blacklist_missingness:
-      for region_num in xrange(num_regions):
+      for region_num in range(num_regions):
         seq_in_blacklist = seq_id in seq_blacklist_dict
         if seq_in_blacklist and not seq_blacklist_dict[seq_id][region_num + 1]:
           continue
@@ -603,7 +604,7 @@ for seq in collection_of_seqs:
         ": discarding whole sequence as it was blacklisted.", sep='')
       continue
 
-    for region_num in xrange(num_regions):
+    for region_num in range(num_regions):
 
       # Mask blacklisted regions.
       keep_region = seq_blacklist_values[region_num + 1]
@@ -750,12 +751,12 @@ seq_ids_for_multiply_seqd_patients.items():
   seqs_by_length = sorted(seqs, key=lambda seq : alignment_length - \
   seq.count("N") - seq.count("-"), reverse=True)
   best_seq = ""
-  for pos in xrange(alignment_length):
+  for pos in range(alignment_length):
 
     # Try each seq in order from best to worst until one of them has something
     # other than an N:
     best_base = "N"
-    for i in xrange(num_seqs):
+    for i in range(num_seqs):
       base = seqs_by_length[i][pos]
       if base != "N":
         best_base = base

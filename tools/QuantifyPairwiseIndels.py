@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from six.moves import zip
+from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -204,7 +205,7 @@ def ProcessRangeOfSeqs(SeqNumbers):
   return DelSizeCounts, DelPositionCounts
   
 # Do all the pairwise comparisons!
-DelSizeCounts, DelPositionCounts = ProcessRangeOfSeqs(range(NumSeqs))
+DelSizeCounts, DelPositionCounts = ProcessRangeOfSeqs(list(range(NumSeqs)))
 
 def FillInCounterBlanksAndRescale(counter):
   '''Rescale all values by n(n-1)/2 and supply zero for missing values.'''

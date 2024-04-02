@@ -9,6 +9,7 @@ from __future__ import print_function
 ## or both to be ambiguous.
 
 import os, sys, collections
+from six.moves import range
 
 # A dictionary of what the IUPAC ambiguous letters mean
 IUPACdict = {}

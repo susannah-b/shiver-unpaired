@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 from __future__ import print_function
+from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251 
@@ -222,7 +223,7 @@ FinalSeqToAdd = PropagateNoCoverageChar(SeqToAdd_WithGaps)
 # Thanks Stackoverflow:
 def insert_newlines(string, every=FastaSeqLineLength):
     lines = []
-    for i in xrange(0, len(string), every):
+    for i in range(0, len(string), every):
         lines.append(string[i:i+every])
     return '\n'.join(lines)
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from six.moves import map
+from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk and Francois Blanquart who
 ## wrote the original version of this script in R. Thanks to Tanya Golubchick

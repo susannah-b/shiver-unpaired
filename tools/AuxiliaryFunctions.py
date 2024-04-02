@@ -61,7 +61,7 @@ def InterpretIUPAC(MyDict):
   for an ambiguity code key is divided equally between the letters involved in
   the ambiguity code.'''
 
-  keys = MyDict.keys()
+  keys = list(MyDict.keys())
   UpdatedDict = {}
   for UnambigLetter in acgt:
     if UnambigLetter in keys:
@@ -116,7 +116,7 @@ def CallAmbigBaseIfNeeded(bases, coverage, MinCovForUpper, BaseFreqFile):
       except KeyError:
         print('Unexpected set of bases', bases, 'found in', BaseFreqFile, \
         ', not found amonst those for which we have ambiguity codes, namely:', \
-        ' '.join(ReverseIUPACdict2.keys()) + '. Quitting.', file=sys.stderr)
+        ' '.join(list(ReverseIUPACdict2.keys())) + '. Quitting.', file=sys.stderr)
         raise
   if coverage < MinCovForUpper - 0.5:
     return BaseHere.lower()
@@ -214,7 +214,7 @@ def ReadSequencesFromFile(DataFile,IsAlignment=True):
 
 
   # Check all sequences have the same length, if they're supposed to
-  FirstSequenceName, FirstSequence = AllSequences.items()[0]
+  FirstSequenceName, FirstSequence = list(AllSequences.items())[0]
   SequenceLength = len(FirstSequence)
   if IsAlignment:
     for SequenceName, Sequence in AllSequences.items():

@@ -49,7 +49,7 @@ for pos in range(AlignmentLength):
 
   # Sort the OKbases here by how common they are. (Check there are some!)
   BaseCounts = collections.Counter(alignment[:, pos])
-  BasesObserved = BaseCounts.keys()
+  BasesObserved = list(BaseCounts.keys())
   for base in BasesObserved:
     if not base in OKbases:
       del BaseCounts[base]

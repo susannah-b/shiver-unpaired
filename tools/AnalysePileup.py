@@ -53,7 +53,7 @@ def ReadReferenceFromFile(File):
     print('Found', len(AllSequences), 'sequences in', ReferenceFile+\
     '; expected 1.\nQuitting.', file=sys.stderr)
     exit(1)
-  return AllSequences.items(), ReferenceLength
+  return list(AllSequences.items()), ReferenceLength
 
 # If a reference file was given, read it in; otherwise just check a directory
 # was specified.

@@ -82,8 +82,8 @@ for InputFile in [MainAlnFile, PairedAlnFile]:
 
 # Read in the sequences from the main alignment file (into a dictionary)
 MainAlnSeqDict, MainAlnSeqLength = ReadSequencesFromFile(MainAlnFile)
-MainAlnSeqNames = MainAlnSeqDict.keys()
-MainAlnSeqs     = MainAlnSeqDict.values()
+MainAlnSeqNames = list(MainAlnSeqDict.keys())
+MainAlnSeqs     = list(MainAlnSeqDict.values())
 
 
 # Read in the sequences from the paired alignment file
@@ -94,7 +94,7 @@ if len(PairedAlnSeqDict) != 2:
   print('File', PairedAlnFile, 'contains', len(PairedAlnSeqDict),\
   'sequences; two were expected.\nQuitting.', file=sys.stderr)
   exit(1)
-Seq1name, Seq2name = PairedAlnSeqDict.keys()
+Seq1name, Seq2name = list(PairedAlnSeqDict.keys())
 
 # Check that one of the sequences is in the main alignment file (the 'Ref')
 # and one is not (the 'SeqToAdd').

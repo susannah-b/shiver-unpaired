@@ -63,5 +63,5 @@ for pos in range(min_ref_pos, max_ref_pos + 1):
     counts_by_ref_pos[pos] = 0
 
 print("reference position (1-based),coverage")
-for pos, coverage in sorted(counts_by_ref_pos.items(), key=lambda x:x[0]):
+for pos, coverage in sorted(list(counts_by_ref_pos.items()), key=lambda x:x[0]):
   print(pos + 1, coverage, sep=",")

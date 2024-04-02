@@ -259,7 +259,7 @@ for position in range(StartOfFirstContig,EndOfLastContig+1):
     DictOfBasesHere[ContigName] = ContigSeq[position]
   BasesHere = set(DictOfBasesHere.values())
   if len(BasesHere) == 1:
-    BaseHere = DictOfBasesHere.values()[0]
+    BaseHere = list(DictOfBasesHere.values())[0]
   else:
     LengthOfLongestDesiredContig = 0
     for ContigName in DictOfBasesHere:
@@ -447,7 +447,7 @@ if args.print_best_score:
   exit(0)
 
 if args.summarise_contigs_2:
-  ContigsWithBestRef = [RefDict[BestRefName]] + ContigDict.values()
+  ContigsWithBestRef = [RefDict[BestRefName]] + list(ContigDict.values())
   NumSeqs = len(ContigsWithBestRef)
   for column in range(AlignmentLength-1,-1,-1):
     if all(seq[column] == '-' for seq in ContigsWithBestRef):

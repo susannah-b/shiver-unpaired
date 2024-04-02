@@ -128,7 +128,7 @@ def CallAmbigBaseIfNeeded(bases, coverage):
       except KeyError:
         print('Unexpected set of bases', bases, 'found in', BaseFreqFile, \
         ', not found amonst those for which we have ambiguity codes, namely:', \
-        ' '.join(ReverseIUPACdict2.keys()) + '. Quitting.', file=sys.stderr)
+        ' '.join(list(ReverseIUPACdict2.keys())) + '. Quitting.', file=sys.stderr)
         raise
   if coverage < MinCovForUpper - 0.5:
     return BaseHere.lower()

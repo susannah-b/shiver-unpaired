@@ -106,7 +106,7 @@ if args.min_read_count > 1:
 output = 'Reference position, Number of reads clipped, Percentage of spanning'+\
 ' reads clipped'
 
-for pos, count in sorted(ClipPositionCounts.items(), key=lambda x:x[1], \
+for pos, count in sorted(list(ClipPositionCounts.items()), key=lambda x:x[1], \
 reverse=True):
   # 100% of reads overhanging the start or end of the reference are clipped.
   if pos == 0 or pos == RefLength:

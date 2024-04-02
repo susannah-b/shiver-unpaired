@@ -220,10 +220,10 @@ with open(args.amplicon_regions_file, 'r') as f:
     regions_dict[region] = (start, end)
     regions_dict_not_empty = True
 last_region = next(reversed(regions_dict))
-first_region = regions_dict.keys()[0]
+first_region = list(regions_dict.keys())[0]
 last_start, last_end = regions_dict[last_region]
 first_start = regions_dict[first_region][0]
-regions = regions_dict.keys()
+regions = list(regions_dict.keys())
 num_regions = len(regions)
 
 # If we're splitting amplicons, set up file names for the per-region output
@@ -724,7 +724,7 @@ if have_individual_consensus or have_base_freqs:
   if args.split_amplicons:
     for region, output_file in per_region_output_file_dict.items():
       seq_dict_here = unaln_seqs_by_region[region]
-      sorted_seqs_here = sorted(seq_dict_here.items(), key=lambda x:x[0])
+      sorted_seqs_here = sorted(list(seq_dict_here.items()), key=lambda x:x[0])
       SeqIO.write((SeqIO.SeqRecord(Seq.Seq(seq), id=seq_id, description='') \
       for seq_id, seq in sorted_seqs_here), output_file, 'fasta')
   exit(0)
@@ -779,7 +779,7 @@ for seq_id in seq_dict:
   seq_dict[seq_id] = PropagateNoCoverageChar(seq_dict[seq_id])
 
 # Sort seqs by name
-sorted_seqs = sorted(seq_dict.items(), key=lambda x:x[0])
+sorted_seqs = sorted(list(seq_dict.items()), key=lambda x:x[0])
 
 if args.split_amplicons:
 

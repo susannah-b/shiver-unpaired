@@ -362,7 +362,7 @@ for seq in SeqIO.parse(open(args.contigs),'fasta'):
   ContigDict[seq.id] = seq
 
 # Check we have a sequence for each hit
-UnknownHits = [hit for hit in HitDict.keys() if not hit in ContigDict.keys()]
+UnknownHits = [hit for hit in HitDict.keys() if not hit in list(ContigDict.keys())]
 if len(UnknownHits) != 0:
   print('The following hits in', args.BlastFile, 'do not have a corresponding',\
   'sequence in', args.contigs +':\n', ' '.join(UnknownHits) + \

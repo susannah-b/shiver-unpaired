@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import division
 from six.moves import map
 from six.moves import range
 
@@ -325,8 +326,8 @@ AllSeq2freqs)):
           SimScoreCont = 0
           for i in range(5):
             SimScoreCont += \
-            abs(float(seq1freqs[i])/seq1cov - float(seq2freqs[i])/seq2cov)
-          SimScoreCont = 1 - SimScoreCont/2
+            abs(float(seq1freqs[i])//seq1cov - float(seq2freqs[i])//seq2cov)
+          SimScoreCont = 1 - SimScoreCont//2
     if args.compare_simple:
       outstring += ',' + str(SimScoreBin)
     if args.compare:

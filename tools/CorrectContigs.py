@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import division
 from six.moves import map
 from six.moves import range
 
@@ -221,7 +222,7 @@ def MergeStronglyOverlappingHits(hits, MinOverlap):
           # Skip if the hits don't overlap enough.
           overlap = min(qend_i, qend_j) - max(qstart_i, qstart_j) + 1
           MinHitLength = min(abs(qend_i - qstart_i), abs(qend_j - qstart_j)) + 1
-          overlap = float(overlap) / MinHitLength
+          overlap = float(overlap) // MinHitLength
           #print("overlap:", overlap)
           if overlap < args.OverlapFracToMerge:
             continue
@@ -323,7 +324,7 @@ for contig, hits in HitDict.items():
     CorrectionsNeeded = True
 
   # Quit if the hit fraction is too small, if desired.
-  HitFrac = float(HitLength) / qlen
+  HitFrac = float(HitLength) // qlen
   if not MakeCorrections and HitFrac < args.min_hit_frac:
     print('Contig correction required (the hit\n', \
     ' '.join(map(str, FirstHit)), '\nfor contig', contig, 'has a hit fraction',\
@@ -443,16 +444,16 @@ for ContigName, hits in HitDict.items():
           if i == 0:
             NextStart, NextEnd = hits[i+1][5:7]
             CutStart = 1
-            CutEnd = (ThisEnd + NextStart) / 2
+            CutEnd = (ThisEnd + NextStart) // 2
           elif i == NumHits-1:
             LastStart, LastEnd = hits[i-1][5:7]
-            CutStart = (LastEnd + ThisStart) / 2 + 1
+            CutStart = (LastEnd + ThisStart) // 2 + 1
             CutEnd = SeqLength
           else:
             LastStart, LastEnd = hits[i-1][5:7]
             NextStart, NextEnd = hits[i+1][5:7]
-            CutStart = (LastEnd + ThisStart) / 2 + 1
-            CutEnd = (ThisEnd + NextStart) / 2
+            CutStart = (LastEnd + ThisStart) // 2 + 1
+            CutEnd = (ThisEnd + NextStart) // 2
 
         # For this block, we want to discard sequence that's not inside a hit,
         # and cut in half sequence that's overlapped by two hits.
@@ -460,16 +461,16 @@ for ContigName, hits in HitDict.items():
           if i == 0:
             NextStart, NextEnd = hits[i+1][5:7]
             CutStart = ThisStart
-            CutEnd = min(ThisEnd, (ThisEnd + NextStart) / 2)
+            CutEnd = min(ThisEnd, (ThisEnd + NextStart) // 2)
           elif i == NumHits-1:
             LastStart, LastEnd = hits[i-1][5:7]
-            CutStart = max(ThisStart, (LastEnd + ThisStart) / 2 + 1)
+            CutStart = max(ThisStart, (LastEnd + ThisStart) // 2 + 1)
             CutEnd = ThisEnd
           else:
             LastStart, LastEnd = hits[i-1][5:7]
             NextStart, NextEnd = hits[i+1][5:7]
-            CutStart = max(ThisStart, (LastEnd + ThisStart) / 2 + 1)
-            CutEnd = min(ThisEnd, (ThisEnd + NextStart) / 2)
+            CutStart = max(ThisStart, (LastEnd + ThisStart) // 2 + 1)
+            CutEnd = min(ThisEnd, (ThisEnd + NextStart) // 2)
 
       ThisCutSeq = copy.deepcopy(seq)
       ThisCutSeq.seq = ThisCutSeq.seq[CutStart-1 : CutEnd]

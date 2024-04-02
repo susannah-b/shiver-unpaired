@@ -1,5 +1,6 @@
 #!/usr/bin/env python2
 from __future__ import print_function
+from __future__ import division
 from six.moves import map
 from six.moves import range
 
@@ -224,7 +225,7 @@ for ContigName,ContigSeq in ContigDict.items():
   TotalGapsInContigs += NumInternalGaps
   ContigLengths[ContigName] = AlignmentLength -NumGapsInAlignedContig
   ContigGapFractions[ContigName] = \
-  float(NumInternalGaps)/(EndOfContig+1 - StartOfContig)
+  float(NumInternalGaps)//(EndOfContig+1 - StartOfContig)
 
 if args.summarise_contigs_1:
   for ContigName, length in ContigLengths.items():
@@ -425,7 +426,7 @@ for RefName,RefSeq in RefDict.items():
   if OverlapLength == 0:
     FractionalAgreement = 0
   else:
-    FractionalAgreement = float(NumBasesAgreeing)/OverlapLength
+    FractionalAgreement = float(NumBasesAgreeing)//OverlapLength
   ListOfRefsAndScores.append([RefName, StartOfRef, EndOfRef, \
   FractionalAgreement])
   #NumBasesAgreeing])
@@ -464,7 +465,7 @@ if args.summarise_contigs_2:
     start, end = FindSeqStartAndEnd('contig', contig, ThisAlignmentLength,
     AlignmentFile)
     NumGaps = contig[start:end+1].count('-')
-    GapFrac = float(NumGaps)/(end - start + 1)
+    GapFrac = float(NumGaps)//(end - start + 1)
     Length = end - start + 1 - NumGaps
     GapFracsAndLengths.append(str(Length) +',' + str(GapFrac))
   print('\n'.join(GapFracsAndLengths))

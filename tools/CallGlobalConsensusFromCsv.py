@@ -5,6 +5,7 @@ from __future__ import print_function
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
+from __future__ import division
 ExplanatoryMessage = '''This script finds the consensus sequence, i.e. the
 sequence defined by taking what is most common at each position, from a set of
 input sequences that are aligned in the csv format produced by
@@ -86,7 +87,7 @@ with open(args.alignment_csv, 'r') as f:
     # Skip positions where too many kmers were wholly undetermined (nothing but
     # "N" and "-").
     num_known_kmers = sum(kmer_counts.values())
-    missingness = 1 - float(num_known_kmers) / num_seqs
+    missingness = 1 - float(num_known_kmers) // num_seqs
     if missingness > args.fractional_missingness_threshold:
       continue
 

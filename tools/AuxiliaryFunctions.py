@@ -8,6 +8,7 @@ from __future__ import print_function
 ## into a dictionary, and for checking if two bases match while allowing for one
 ## or both to be ambiguous.
 
+from __future__ import division
 import os, sys, collections
 from six.moves import range
 
@@ -69,7 +70,7 @@ def InterpretIUPAC(MyDict):
 
   for AmbigLetter,TargetLetters in IUPACdict.items():
     if AmbigLetter in keys:
-      WeightPerTargetLetter = float(MyDict[AmbigLetter])/len(TargetLetters)
+      WeightPerTargetLetter = float(MyDict[AmbigLetter])//len(TargetLetters)
       for TargetLetter in TargetLetters:
         if TargetLetter in UpdatedDict:
           UpdatedDict[TargetLetter] += WeightPerTargetLetter

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import division
 from six.moves import zip
 from six.moves import range
 
@@ -89,7 +90,7 @@ if args.subset_size:
   alignment = [alignment[i] for i in SeqsToKeep]
   NumSeqs = args.subset_size
 
-NumComparisons = (NumSeqs * (NumSeqs - 1)) / 2  
+NumComparisons = (NumSeqs * (NumSeqs - 1)) // 2  
 
 # Our representation of each seq will be an array of bools: True for a gap char,
 # False otherwise
@@ -212,7 +213,7 @@ def FillInCounterBlanksAndRescale(counter):
   MaxValSize = max(counter.keys())
   for val in range(1, MaxValSize + 1):
     if val in counter:
-      counter[val] = float(counter[val]) / NumComparisons
+      counter[val] = float(counter[val]) // NumComparisons
     else:
       counter[val] = 0
 

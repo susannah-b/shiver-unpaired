@@ -185,8 +185,8 @@ def MergeStronglyOverlappingHits(hits, MinOverlap):
 
   # All hits should have the same qseqid and qlen (the 0th and 4th elements of
   # each hit list).
-  assert all(hit[0] == hits[0][0] for hit in hits[1:])
-  assert all(hit[4] == hits[0][4] for hit in hits[1:])
+  assert all(_hit[0] == hits[0][0] for _hit in hits[1:])
+  assert all(_hit[4] == hits[0][4] for _hit in hits[1:])
 
   # Iterate through all pairs of hits, indexed by i and j, and see if they
   # should be merged. If so, merge and restart the iteration (so that all
@@ -363,7 +363,7 @@ for seq in SeqIO.parse(open(args.contigs),'fasta'):
   ContigDict[seq.id] = seq
 
 # Check we have a sequence for each hit
-UnknownHits = [hit for hit in HitDict.keys() if not hit in list(ContigDict.keys())]
+UnknownHits = [_hit for _hit in HitDict.keys() if not _hit in list(ContigDict.keys())]
 if len(UnknownHits) != 0:
   print('The following hits in', args.BlastFile, 'do not have a corresponding',\
   'sequence in', args.contigs +':\n', ' '.join(UnknownHits) + \
@@ -402,7 +402,7 @@ for ContigName, hits in HitDict.items():
   else:
 
     # Sort hits by their start point.
-    StartPoints = [hit[5] for hit in hits]
+    StartPoints = [_hit[5] for _hit in hits]
     assert len(StartPoints) == len(set(StartPoints)), \
     'Internal error cutting contigs. Please report to Chris Wymant.'
     hits = sorted(hits, key=lambda x:x[5])

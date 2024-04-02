@@ -118,10 +118,10 @@ OutFile_2reads = OutFileBasename+'_2.txt'
 HaveSomeReads = len(ContaminantReadPairs) > 0
 with open(OutFile_1reads, 'w') as f:
   if HaveSomeReads:
-    f.write('\n'.join([ReadName+'/1' for ReadName in ContaminantReadPairs]) + "\n")
+    f.write('\n'.join([_ReadName+'/1' for _ReadName in ContaminantReadPairs]) + "\n")
 with open(OutFile_2reads, 'w') as f:
   if HaveSomeReads:
-    f.write('\n'.join([ReadName+'/2' for ReadName in ContaminantReadPairs]) + "\n")
+    f.write('\n'.join([_ReadName+'/2' for _ReadName in ContaminantReadPairs]) + "\n")
 
 # Antiquated code, from when non-contaminant read pairs were printed:
 '''

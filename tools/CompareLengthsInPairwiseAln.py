@@ -48,7 +48,7 @@ if len(alignment) != 2:
 
 # Our representation of each seq will be an array of bools: False for a gap char,
 # True otherwise
-seqs = np.array([np.array([base != '-' for base in seq.seq]) for seq in \
+seqs = np.array([np.array([_base != '-' for _base in _seq.seq]) for _seq in \
 alignment])
 
 def GetSeqStartAndEndPos(seq):
@@ -69,10 +69,10 @@ start1, end1 = GetSeqStartAndEndPos(seqs[0])
 start2, end2 = GetSeqStartAndEndPos(seqs[1])
 
 ExtraAtEndsFor1 = 0
-ExtraAtEndsFor1 += sum(IsNotGap for IsNotGap in seqs[0][start1:start2] if IsNotGap)
-ExtraAtEndsFor1 -= sum(IsNotGap for IsNotGap in seqs[0][start2:start1] if IsNotGap)
-ExtraAtEndsFor1 += sum(IsNotGap for IsNotGap in seqs[0][end2:end1] if IsNotGap)
-ExtraAtEndsFor1 -= sum(IsNotGap for IsNotGap in seqs[0][end1:end2] if IsNotGap)
+ExtraAtEndsFor1 += sum(_IsNotGap for _IsNotGap in seqs[0][start1:start2] if _IsNotGap)
+ExtraAtEndsFor1 -= sum(_IsNotGap for _IsNotGap in seqs[0][start2:start1] if _IsNotGap)
+ExtraAtEndsFor1 += sum(_IsNotGap for _IsNotGap in seqs[0][end2:end1] if _IsNotGap)
+ExtraAtEndsFor1 -= sum(_IsNotGap for _IsNotGap in seqs[0][end1:end2] if _IsNotGap)
 
 ExtraInMiddleFor1 = 0
 for pos in range(max(start1, start2), min(end1, end2)):

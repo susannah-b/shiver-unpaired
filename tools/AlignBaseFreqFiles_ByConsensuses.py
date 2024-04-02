@@ -177,8 +177,8 @@ def GetFreqs(BaseFreqsFile, consensus):
         BaseFromFreqs = 'N'
       else:
         MaxFreq = max(FreqsNoN)
-        BasesWithMaxFreq = [ExpectedBasesNoN[i] for i, freq in \
-        enumerate(FreqsNoN) if freq == MaxFreq]
+        BasesWithMaxFreq = [ExpectedBasesNoN[_i] for _i, _freq in \
+        enumerate(FreqsNoN) if _freq == MaxFreq]
         BaseFromFreqs = CallAmbigBaseIfNeeded(BasesWithMaxFreq, coverage,
         args.MinCoverage, BaseFreqsFile)
         # Skip to the next position if the consensus has a gap here.

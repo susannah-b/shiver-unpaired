@@ -109,7 +109,7 @@ ref.seq = Seq.Seq(RefAsString)
 ConsensusAsString = PropagateNoCoverageChar(ConsensusAsString)
 
 # Check all seq IDs are unique.
-IDsOfSeqsToBeAdded = [seq.id for seq in \
+IDsOfSeqsToBeAdded = [_seq.id for _seq in \
 SeqIO.parse(open(args.OtherSeqsToBeAdded),'fasta')]
 if consensus.id in IDsOfSeqsToBeAdded:
   print('A sequence in', args.OtherSeqsToBeAdded, 'is called', consensus.id +
@@ -146,7 +146,7 @@ for i, seq in enumerate(SeqIO.parse(open(args.temp_file_2),'fasta')):
   AlignedSeqs.append(seq)
   if seq.id == consensus.id:
     ConsensusPosition = i
-if sorted([seq.id for seq in AlignedSeqs]) != \
+if sorted([_seq.id for _seq in AlignedSeqs]) != \
 sorted([consensus.id, ref.id] + IDsOfSeqsToBeAdded):
   print('Error: different sequences found in', args.temp_file_2, \
   'compared to', args.SeqPairWithMissingCov, 'and', args.OtherSeqsToBeAdded + \

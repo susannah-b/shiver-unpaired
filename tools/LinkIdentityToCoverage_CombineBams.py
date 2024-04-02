@@ -168,8 +168,8 @@ if args.csv_for_replotting == None:
 
   # Divide NumbersOfPositionsExceedingCoverages by the number of samples, to get
   # a mean value per sample.
-  MeanNumPosExceedingCoveragesPerSample = [float(NumPos) / len(args.DataFile) \
-  for NumPos in NumbersOfPositionsExceedingCoverages]
+  MeanNumPosExceedingCoveragesPerSample = [float(_NumPos) / len(args.DataFile) \
+  for _NumPos in NumbersOfPositionsExceedingCoverages]
 
   # Write the csv output
   df = pd.DataFrame({'coverage' : x})

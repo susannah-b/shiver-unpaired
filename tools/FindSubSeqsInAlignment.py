@@ -89,7 +89,7 @@ for PrimerList in [StartPrimers,EndPrimers]:
         '\nQuitting.', file=sys.stderr)
         exit(1)
   CounterObject = collections.Counter(PrimerList)
-  DuplicatedPrimers = [i for i in CounterObject if CounterObject[i]>1]
+  DuplicatedPrimers = [_i for _i in CounterObject if CounterObject[_i]>1]
   if len(DuplicatedPrimers) != 0:
     for DuplicatedPrimer in DuplicatedPrimers:
       print('SubSeq', DuplicatedPrimer, 'was specified twice with the same',\
@@ -110,9 +110,9 @@ ChosenRefSeq = SeqDict[ChosenRef]
 # Define the set of unique primers, i.e. StartPrimers+EndPrimers but not 
 # double counting those that appear in both. Record their lengths in a dict.
 AllUniquePrimers = StartPrimers + \
-[primer for primer in EndPrimers if not primer in StartPrimers]
+[_primer for _primer in EndPrimers if not _primer in StartPrimers]
 NumUniquePrimers = len(AllUniquePrimers)
-PrimerLengths = {primer : len(primer) for primer in AllUniquePrimers} 
+PrimerLengths = {_primer : len(_primer) for _primer in AllUniquePrimers} 
 
 # Finds the position in the alignment, for each primer, after
 # which we should stop checking for primer-reference matches because the number
@@ -134,7 +134,7 @@ for PositionMin1 in range(AlignmentLength-1,-1,-1):
 # finding enough bases to get to the length of the primer must be longer than
 # the reference.
 if not AllPrimersShorterThanRef:
-  OverlyLongPrimers = [primer for primer in AllUniquePrimers if not primer in \
+  OverlyLongPrimers = [_primer for _primer in AllUniquePrimers if not _primer in \
   PrimerLastChancesForMatch]
   print('The following SubSeqs are longer than', ChosenRef+':', \
   ' '.join(OverlyLongPrimers) +'\nQuitting.', file=sys.stderr)
@@ -178,8 +178,8 @@ for PositionMin1,base in enumerate(ChosenRefSeq):
       StepsForward += 1
         
 # Check that all primers were found
-MissingPrimers = [primer for primer in AllUniquePrimers if \
-(not primer in StartPrimerPositions) and (not primer in EndPrimerPositions)]
+MissingPrimers = [_primer for _primer in AllUniquePrimers if \
+(not _primer in StartPrimerPositions) and (not _primer in EndPrimerPositions)]
 if len(MissingPrimers) != 0:
   print('Unable to find', ' or '.join(MissingPrimers), 'in', ChosenRef+\
   '.\nQuitting.', file=sys.stderr)
@@ -187,13 +187,13 @@ if len(MissingPrimers) != 0:
 
 # Merge the start and end positions into a single sorted list, each value being
 # coupled to its primer name with 'start_of_' or 'end_of_' prepended.
-SortedList = [['start_of_'+primer,value] for primer,value in \
-StartPrimerPositions.items()] + [['end_of_'+primer,value] for primer,value in \
+SortedList = [['start_of_'+_primer,_value] for _primer,_value in \
+StartPrimerPositions.items()] + [['end_of_'+_primer,_value] for _primer,_value in \
 EndPrimerPositions.items()]
 SortedList = sorted(SortedList, key=lambda item: item[1])
 
 if args.AlignmentCoords:
-  print(' '.join(str(value) for key,value in SortedList))
+  print(' '.join(str(_value) for _key,_value in SortedList))
   exit(0)
 
 # Now convert those primer positions, which were with respect to the alignment,
@@ -224,7 +224,7 @@ for SeqName, seq in SeqDict.items():
   PositionsDict[SeqName] = PositionsWRTseq
 
 # Print output, with an explanatory header line beginning with a hash.
-print('# name ', '  '.join([str(item[0]) for item in SortedList]))
+print('# name ', '  '.join([str(_item[0]) for _item in SortedList]))
 for SeqName in sorted(PositionsDict.keys()):
   print(SeqName, ' '.join(map(str,PositionsDict[SeqName])))
 

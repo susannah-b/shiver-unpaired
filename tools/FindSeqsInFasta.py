@@ -109,7 +109,7 @@ else:
 
 # Check all sequences to be searched for are unique
 CounterObject = collections.Counter(SeqNames)
-DuplicatedArgs = [i for i in CounterObject if CounterObject[i]>1]
+DuplicatedArgs = [_i for _i in CounterObject if CounterObject[_i]>1]
 if len(DuplicatedArgs) != 0:
   for DuplicatedArg in DuplicatedArgs:
     print('Sequence name', DuplicatedArg, 'was duplicated in the arguments.',\
@@ -166,8 +166,8 @@ if (not args.ignore_missing) and SeqsWeWant == []:
 # Check all specified seqs were encountered (unless only the beginnings of names
 # were specified).
 if not (args.match_start or args.ignore_missing):
-  SeqsNotFound = [seq for seq in SeqNames \
-  if not seq in AllSeqNamesEncountered]
+  SeqsNotFound = [_seq for _seq in SeqNames \
+  if not _seq in AllSeqNamesEncountered]
   if len(SeqsNotFound) != 0:
     print('The following sequences were not found in', args.FastaFile+':', \
     ' '.join(SeqsNotFound) +'\nQuitting.', file=sys.stderr)

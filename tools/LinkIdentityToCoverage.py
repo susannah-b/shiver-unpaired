@@ -103,8 +103,8 @@ if HaveEnd:
 # At each reference position record (1) the number of reads mapped here and (2)
 # the sum of the identity values of reads mapped here. Each read contributes to
 # a count of 1, and its identity value, to every position to which it is mapped.
-CoveragesByPos = [0 for pos in range(RefLength)]
-IdentityTotalsByPos = [0 for pos in range(RefLength)]
+CoveragesByPos = [0 for _pos in range(RefLength)]
+IdentityTotalsByPos = [0 for _pos in range(RefLength)]
 PositionsByRead = {}
 for read in BamFile.fetch(RefName):
 
@@ -119,7 +119,7 @@ for read in BamFile.fetch(RefName):
   if (not args.double_count_overlaps) and read.is_paired:
     if read.query_name in PositionsByRead:
       MatePositions = PositionsByRead[read.query_name]
-      MappedPositions = [pos for pos in MappedPositions if not pos in \
+      MappedPositions = [_pos for _pos in MappedPositions if not _pos in \
       MatePositions]
       if not MappedPositions:
         continue

@@ -54,7 +54,7 @@ if file1values[0] != file2values[0]:
   '. Quitting.', file=sys.stderr)
   exit(1)
 
-if [value[0] for value in file1values] != [value[0] for value in file2values]:
+if [_value[0] for _value in file1values] != [_value[0] for _value in file2values]:
   print('Differing first columns in', args.file1, 'and', args.file2 + \
   '. Quitting.', file=sys.stderr)
   exit(1)

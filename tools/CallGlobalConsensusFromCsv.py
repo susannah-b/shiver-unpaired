@@ -81,7 +81,7 @@ with open(args.alignment_csv, 'r') as f:
       len_kmer = len(kmer)
       if len_kmer > 0:
         kmer_counts[kmer] += count
-      if any(base != "N" for base in unprocessed_kmer):
+      if any(_base != "N" for _base in unprocessed_kmer):
         kmer_len_counts[len_kmer] += count
 
     # Skip positions where too many kmers were wholly undetermined (nothing but

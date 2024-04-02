@@ -59,7 +59,7 @@ if len(AllReferenceLengths) != 1:
 RefLength = AllReferenceLengths[0]
 
 ClipPositions = []
-NumbersOfSpanningReads = [0 for i in range(RefLength)]
+NumbersOfSpanningReads = [0 for _i in range(RefLength)]
 NumReads = 0
 
 for read in BamFile.fetch(RefName):
@@ -67,7 +67,7 @@ for read in BamFile.fetch(RefName):
   positions = read.get_reference_positions(full_length=True)
 
   # Shouldn't happen, but skip reads mapped to no position
-  if not any(pos != None for pos in positions):
+  if not any(_pos != None for _pos in positions):
     continue
 
   NumReads += 1
@@ -100,8 +100,8 @@ if NumReads == 0:
 ClipPositionCounts = collections.Counter(ClipPositions)
 
 if args.min_read_count > 1:
-  ClipPositionCounts = {key:value for key, value in ClipPositionCounts.items() \
-  if value >= args.min_read_count}
+  ClipPositionCounts = {_key:_value for _key, _value in ClipPositionCounts.items() \
+  if _value >= args.min_read_count}
 
 # Print the output
 output = 'Reference position, Number of reads clipped, Percentage of spanning'+\

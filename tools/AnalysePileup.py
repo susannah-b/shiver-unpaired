@@ -301,7 +301,7 @@ with open(PileupFile, 'r') as f:
       for i in range(0,len(InsertionsConsidered)):
         InsertionsConsidered[i] = InsertionsConsidered[i].upper()
       for PositionInInsertion in range(0,MostCommonInsertionSize):
-        BasesHere = [insertion[PositionInInsertion] for insertion in \
+        BasesHere = [_insertion[PositionInInsertion] for _insertion in \
         InsertionsConsidered]
         BaseCounts = collections.Counter(BasesHere)
         SummaryList = ProcessBaseCounts(BaseCounts, BasePosition, \

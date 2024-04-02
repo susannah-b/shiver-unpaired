@@ -64,14 +64,14 @@ def preprocess_seq(seq):
   seq_as_str = sub("\?", "N", seq_as_str)
   assert len(seq_as_str) == initial_length
   seq_as_str = seq_as_str.upper()
-  if any(not base in "ACGTN-" for base in seq_as_str):
-    unexpected_bases = set(base for base in seq_as_str if not base in "ACGTN-")
+  if any(not _base in "ACGTN-" for _base in seq_as_str):
+    unexpected_bases = set(_base for _base in seq_as_str if not _base in "ACGTN-")
     print('Seq', seq.id, 'contains a base other than A, C, G, T, N or -',
     '(specifically: ', ', '.join(unexpected_bases) + '). This is unexpected.',
     'Have you run shiver/tools/EstimateAmbiguousBases.py on your',
     'alignment first? Quitting.', file=sys.stderr)
     exit(1)
-  wholly_undetermined = all(base == "N" or base == "-" for base in seq_as_str)
+  wholly_undetermined = all(_base == "N" or _base == "-" for _base in seq_as_str)
   return seq_as_str, wholly_undetermined
 
 def preprocess_seq_id(seq_id):
@@ -135,7 +135,7 @@ alignment_length = alignment.get_alignment_length()
 
 # Read the seq-based blacklist.
 with open(args.seq_based_blacklist, 'r') as f:
-  seq_blacklist = set(line.strip() for line in f)
+  seq_blacklist = set(_line.strip() for _line in f)
 
 # Iterate through all seqs.
 seq_dict = collections.defaultdict(dict)
@@ -277,8 +277,8 @@ for beehive_id, sub_seq_dict in six.iteritems(seq_dict):
   # Now we have multiple non-NA dates. Must choose one.
 
   # Get the date sampled from the csv.
-  which_rows_this_pat = [row_num for row_num, pat in \
-  enumerate(pats_in_date_sampled_df) if pat == beehive_id]
+  which_rows_this_pat = [_row_num for _row_num, _pat in \
+  enumerate(pats_in_date_sampled_df) if _pat == beehive_id]
   if len(which_rows_this_pat) != 1:
     print('Error: expected exactly 1 row in', args.date_sampled_csv,
     "with a PATIENT value of", beehive_id + "; found " + \

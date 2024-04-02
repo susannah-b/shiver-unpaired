@@ -49,7 +49,7 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
   # Remove characters problematic for filenames from the seq id.
   # Check that something is left, that it's unique, and that the output file
   # does not already exist.
-  FilenameSafeID = ''.join(char for char in seq.id if char in FilenameSafeChars)
+  FilenameSafeID = ''.join(_char for _char in seq.id if _char in FilenameSafeChars)
   if FilenameSafeID == '':
     print('Sequence name', seq.id, 'in', args.FastaFile, 'containins no',
     'filename-safe characters. Quitting.', file=sys.stderr)

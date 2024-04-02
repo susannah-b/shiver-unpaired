@@ -59,10 +59,10 @@ else:
 
 # Make a list of upper-case seqs and their ids. Strip gaps if desired.
 if args.gap_aware:
-  seqs = [(seq.id, str(seq.seq).upper()) for seq in \
+  seqs = [(_seq.id, str(_seq.seq).upper()) for _seq in \
   SeqIO.parse(open(args.FastaFile), 'fasta')]
 else:
-  seqs = [(seq.id, str(seq.seq).upper().replace("-", "")) for seq in \
+  seqs = [(_seq.id, str(_seq.seq).upper().replace("-", "")) for _seq in \
   SeqIO.parse(open(args.FastaFile), 'fasta')]
 
 # Thanks stack overflow:

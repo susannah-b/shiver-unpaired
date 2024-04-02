@@ -59,7 +59,7 @@ if args.split_gap_size <= 0:
 
 # Check all contig names are unique
 CounterObject = collections.Counter(ContigNames)
-DuplicatedArgs = [i for i in CounterObject if CounterObject[i]>1]
+DuplicatedArgs = [_i for _i in CounterObject if CounterObject[_i]>1]
 if len(DuplicatedArgs) != 0:
   for DuplicatedArg in DuplicatedArgs:
     print('Contig name', DuplicatedArg, 'was duplicated in the arguments.',\
@@ -84,8 +84,8 @@ def split_parts(c, min_contig_size, split_gap_size, prefix=''):
   aln_length = len(c)
   pat = '(-{%s,})' % split_gap_size
   contig_bits = re.compile(pat).split(c)
-  num_contig_bits_to_keep = sum(1 for bit in contig_bits if bit and \
-  len(bit) - bit.count('-') >= min_contig_size)
+  num_contig_bits_to_keep = sum(1 for _bit in contig_bits if _bit and \
+  len(_bit) - _bit.count('-') >= min_contig_size)
   rename = num_contig_bits_to_keep > 1
   pos = 0
   i = 0
@@ -103,7 +103,7 @@ def split_parts(c, min_contig_size, split_gap_size, prefix=''):
 
 # Check we find all contigs. Find the start of the first and end of the last
 # non-contig sequence.
-ContigsFound = {contig:False for contig in ContigNames}
+ContigsFound = {_contig:False for _contig in ContigNames}
 NumRefSeqs = 0
 AlignmentLength = AlignedSeqs.get_alignment_length()
 FirstRefStart = AlignmentLength
@@ -119,7 +119,7 @@ for seq in AlignedSeqs:
     NumRefSeqs += 1
 
 # Check if any of the named contigs were not found.
-MissingContigs = {contig for contig, found in ContigsFound.items() if not found}
+MissingContigs = {_contig for _contig, _found in ContigsFound.items() if not _found}
 if MissingContigs:
   print("The following contigs were not found in " + args.alignment + ":",
   " ".join(MissingContigs) + '\nQuitting.', file=sys.stderr)

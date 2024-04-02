@@ -90,7 +90,7 @@ def BaseMatch(base1,base2):
     return True
   if base1 in IUPACdict:
     if base2 in IUPACdict:
-      return any(i in IUPACdict[base1] for i in IUPACdict[base2])
+      return any(_i in IUPACdict[base1] for _i in IUPACdict[base2])
     return base2 in IUPACdict[base1]
   if base2 in IUPACdict:
     return base1 in IUPACdict[base2]
@@ -285,8 +285,8 @@ def ReadSequencesFromFile_ordered(DataFile,IsAlignment=True):
   FirstSeqName =AllSequences[0][0]
   FirstSeqLength = len(AllSequences[0][1])
   if IsAlignment:
-    OtherSeqs = [item[1] for item in AllSequences[1:]]
-    if not all(len(OtherSeq) == FirstSeqLength for OtherSeq in OtherSeqs):
+    OtherSeqs = [_item[1] for _item in AllSequences[1:]]
+    if not all(len(_OtherSeq) == FirstSeqLength for _OtherSeq in OtherSeqs):
       for [SeqName,seq] in AllSequences[1:]:
         if len(item[1]) != FirstSeqLength:
           print(SeqName, 'has length', len(seq), 'whereas', \
@@ -316,7 +316,7 @@ def ReadPatientFile(OneLinePerPatientOnly, filename):
       if CurrentLineNumber == 1:
 
         # Let the file itself choose the names of the fields. Strip whitespace.
-        fields = [field.strip() for field in line.split(',')]
+        fields = [_field.strip() for _field in line.split(',')]
         NumFields = len(fields)
 
         # Complain if any field except the first one is called 'ID'.
@@ -329,7 +329,7 @@ def ReadPatientFile(OneLinePerPatientOnly, filename):
 
         # Check all field names are unique
         CounterObject = collections.Counter(fields)
-        DuplicatedFieldNames = [i for i in CounterObject if CounterObject[i]>1]
+        DuplicatedFieldNames = [_i for _i in CounterObject if CounterObject[_i]>1]
         if len(DuplicatedFieldNames) != 0:
           for DuplicatedFieldName in DuplicatedFieldNames:
             print('The field name "'+ DuplicatedFieldName+\
@@ -347,7 +347,7 @@ def ReadPatientFile(OneLinePerPatientOnly, filename):
           data[i] = data[i].strip()
 
         # Ignore empty lines
-        if all(datum == '' for datum in data):
+        if all(_datum == '' for _datum in data):
           continue
 
         # Trim single or double quotes from around the patient ID

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import division
 from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
@@ -44,7 +45,7 @@ seqs_before = list(SeqIO.parse(open(args.seqs_before), 'fasta'))
 seqs_after  = list(SeqIO.parse(open(args.seqs_after),  'fasta'))
 
 # Function to turn 1 into 1st, 2 into 2nd, etc.
-ordinal = lambda n: "%d%s" % (n,"tsnrhtdd"[(n/10%10!=1)*(n%10<4)*n%10::4])
+ordinal = lambda n: "%d%s" % (n,"tsnrhtdd"[(n//10%10!=1)*(n%10<4)*n%10::4])
 
 # Check same number of seqs
 assert len(seqs_after) == len(seqs_before), \

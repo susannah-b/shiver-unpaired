@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import division
 from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
@@ -91,7 +92,7 @@ if BinByIdentity:
     'and less than one minus the minimum (so that there is at least one bin).',\
     'Quitting.', file=sys.stderr)
     exit(1)
-  NumBins = int(Range / BinWidth) + 1
+  NumBins = int(Range // BinWidth) + 1
   NumMappedBasesByReadIdentity = [0] * NumBins
 
   def Bin(x):
@@ -100,7 +101,7 @@ if BinByIdentity:
       return NumBins-1
     if x <= Min:
       return 0
-    return int(float(x - Min) / BinWidth)
+    return int(float(x - Min) // BinWidth)
 
 else:
   NumMappedBases = 0

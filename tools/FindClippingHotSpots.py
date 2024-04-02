@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from __future__ import division
 from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
@@ -112,7 +113,7 @@ reverse=True):
   if pos == 0 or pos == RefLength:
     PercentageClipped = 100
   else:
-    PercentageClipped = 100 * float(count) / \
+    PercentageClipped = 100 * float(count) // \
     (count + NumbersOfSpanningReads[pos])
   output += '\n' + str(pos+1) + ',' + str(count) + ',%.3f' % PercentageClipped
 

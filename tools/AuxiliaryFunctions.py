@@ -401,3 +401,17 @@ def ReadPatientFile(OneLinePerPatientOnly, filename):
 
   return AllPatientsDict
 
+
+def ungap(seq_object, gap_char = "-"):
+  '''Try both replace and ungap on seq objects, flexible to Biopython version'''
+  try:
+    seq_ungapped = seq_object.replace(gap_char, "")
+  except AttributeError:
+    try:
+      seq_ungapped = seq_object.ungap(gap_char)
+    except AttributeError:
+      print("shiver's ungap function called on a Biopython Seq object that has",
+      'neither a .replace() attribute nor an .ungap() attribute. Unexpected.',
+      "Quitting.", file=sys.stderr)
+      raise
+  return(seq_ungapped)

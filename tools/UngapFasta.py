@@ -14,6 +14,7 @@ import sys
 from Bio import SeqIO
 from Bio import Seq
 from re import sub
+from AuxiliaryFunctions import ungap
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -35,9 +36,9 @@ args = parser.parse_args()
 
 UngappedSeqs = []
 for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
-  seq.seq = seq.seq.replace("-", "")
+  seq.seq = ungap(seq.seq)
   if args.q_mark:
-    seq.seq = seq.seq.replace("?", "")
+    seq.seq = ungap(seq.seq, "?")
   if args.trim_missing_ends:
     SeqAsStr = str(seq.seq)
     SeqAsStr = sub("^[Nn?]+", "", SeqAsStr)

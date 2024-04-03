@@ -22,7 +22,7 @@ import sys
 from Bio import SeqIO
 from Bio import Seq
 import itertools
-from AuxiliaryFunctions import PropagateNoCoverageChar, IUPACdict
+from AuxiliaryFunctions import PropagateNoCoverageChar, IUPACdict, ungap
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -80,7 +80,7 @@ for ConsensusBase, RefBase in zip(ConsensusAsString, RefAsString):
     exit(1)
 
 # Ungap, and rename if desired.
-consensus.seq = Seq.Seq(NewConsensus).replace("-", "")
+consensus.seq = ungap(Seq.Seq(NewConsensus))
 if args.output_seq_name != None:
   consensus.id = args.output_seq_name
 consensus.description = ''

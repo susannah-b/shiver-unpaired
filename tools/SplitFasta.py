@@ -13,6 +13,7 @@ import argparse
 import os
 import sys
 from Bio import SeqIO
+from AuxiliaryFunctions import ungap
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -68,7 +69,7 @@ for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
 
   # Gap strip if desired.
   if args.gap_strip:
-    seq.seq = seq.seq.replace("-", "")
+    seq.seq = ungap(seq.seq)
 
   SeqDict[FilenameSafeID] = seq
 

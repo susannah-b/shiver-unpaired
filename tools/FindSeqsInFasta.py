@@ -18,6 +18,7 @@ import os
 import sys
 from Bio import SeqIO
 import collections
+from AuxiliaryFunctions import ungap
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -183,13 +184,14 @@ for seq in SeqsWeWant:
       exit(1)
     seq.seq = seq.seq[LeftCoord-1:RightCoord]
   if args.gap_strip:
-    seq.seq = seq.seq.replace("-", "").replace("?", "")
+    seq.seq = ungap(seq.seq)
+    seq.seq = ungap(seq.seq, "?")
 
 # Skip too-short sequences if desired
 if args.min_length:
   NewSeqsWeWant = []
   for seq in SeqsWeWant:
-    if len(seq.seq.replace("-", "").replace("?", "")) >= args.min_length:
+    if len(ungap(ungap(seq.seq), "?")) >= args.min_length:
       NewSeqsWeWant.append(seq)
   SeqsWeWant = NewSeqsWeWant
 

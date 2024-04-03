@@ -16,6 +16,7 @@ import argparse
 import os
 import sys
 from Bio import SeqIO
+from AuxiliaryFunctions import ungap
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -50,7 +51,7 @@ def FastaFileToSeqDict(FastaFile):
       '; sequence names ought to be unique. Quitting.', file=sys.stderr)
       exit(1)
     if args.ignore_gaps:
-      seq.seq = seq.seq.replace("-", "")
+      seq.seq = ungap(seq.seq)
     SeqAsString = str(seq.seq)
     if not args.case_sensitive:
       SeqAsString = SeqAsString.upper()

@@ -15,6 +15,7 @@ import sys
 import string
 import re
 from Bio import SeqIO
+from AuxiliaryFunctions import ungap
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):
@@ -105,12 +106,12 @@ for file_ in args.FastaFile:
       continue
 
     if not args.include_gaps:
-      seq.seq = seq.seq.replace("-", "")
+      seq.seq = ungap(seq.seq)
       if not args.fragments:
-        seq.seq = seq.seq.replace("?", "")
+        seq.seq = ungap(seq.seq, "?")
     if args.ignore_n:
-        seq.seq = seq.seq.replace("n", "")
-        seq.seq = seq.seq.replace("N", "")
+        seq.seq = ungap(seq.seq, "n")
+        seq.seq = ungap(seq.seq, "N")
     if args.ignore_lower_case:
       seq.seq = ''.join(_x for _x in seq.seq if not _x.islower())
     if args.fragments:

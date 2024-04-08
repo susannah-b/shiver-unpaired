@@ -26,6 +26,7 @@ Code_CutAlignedContigs="$ToolsDir/CutAlignedContigs.py"
 Code_PrintSeqLengths="$ToolsDir/PrintSeqLengths.py"
 Code_AddSNPsToSeqs="$ToolsDir/AddAllPossibleSNPsToSeqs.py"
 Code_KeepBestLinesInDataFile="$ToolsDir/KeepBestLinesInDataFile.py"
+Code_ConvertFastqToFasta="$ToolsDir/ConvertFastqToFasta.py"
 
 # For quitting if files don't exist.
 function CheckFilesExist {

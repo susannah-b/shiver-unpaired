@@ -37,6 +37,7 @@ FloatComparisonTolerance = 1e-6
 
 import os.path
 import sys
+import pandas as pd
 import collections
 import argparse
 from AuxiliaryFunctions import ReadSequencesFromFile, PropagateNoCoverageChar
@@ -244,6 +245,16 @@ EndOfLastContig = max(AllContigEnds)
 #GappiestContigName, GapFraction = \
 #sorted(ContigGapFractions.items(), key=lambda x:x[1], reverse=True)[0]
 
+# Make a dataframe for the contigs, sorted by decreasing length and breaking
+# ties (i.e. contigs with the same length) by sorting by name. This is their 
+# order of priority for use in constructing the reference.
+df_contigs = pd.DataFrame.from_dict(ContigStartsAndEnds, orient = 'index')
+df_contigs.columns = ["start", "end"]
+df_contigs['length'] = [ContigLengths[_name] for _name in df_contigs.index]
+df_contigs['name'] = df_contigs.index
+df_contigs.sort_values(['length', 'name'], ascending=[False, True],
+inplace = True)
+
 # Flatten the contigs.
 # Repeat the gap character until the start of the first contig.
 # Then at each position: if all contigs agree on what's there, use that;
@@ -259,16 +270,17 @@ for position in range(StartOfFirstContig,EndOfLastContig+1):
   if len(BasesHere) == 1:
     BaseHere = DictOfBasesHere.values()[0]
   else:
-    LengthOfLongestDesiredContig = 0
-    for ContigName in DictOfBasesHere:
-      StartOfContig, EndOfContig = ContigStartsAndEnds[ContigName]
-      if StartOfContig <= position <= EndOfContig and \
-      ContigLengths[ContigName] > LengthOfLongestDesiredContig:
+    FoundContig = False
+    for ContigName in df_contigs.index:
+      StartOfContig = df_contigs.loc[ContigName, "start"]
+      EndOfContig = df_contigs.loc[ContigName, "end"]
+      if StartOfContig <= position <= EndOfContig:
         ThisContigsBase = DictOfBasesHere[ContigName]
         if not args.always_use_sequence or ThisContigsBase != GapChar:
           BaseHere = ThisContigsBase
-          LengthOfLongestDesiredContig = ContigLengths[ContigName]
-    if LengthOfLongestDesiredContig == 0:
+          FoundContig = True
+          break
+    if not FoundContig:
       print('Malfunction of', sys.argv[0] + ": we failed to figure out what",
       "base to use from the contigs at ", position+1, 'in', AlignmentFile + \
       '. Please report to Chris Wymant. Quitting.', file=sys.stderr)
@@ -434,11 +446,14 @@ if all(item[3] < FloatComparisonTolerance for item in ListOfRefsAndScores):
   'is an error.\nQuitting.', file=sys.stderr)
   exit(1)
 
-# Sort the references - the ones closest to the contigs first.
-ListOfRefsAndScores = sorted(ListOfRefsAndScores, key=lambda x:x[3], \
-reverse=True)
-
-BestRefName, BestRefStart, BestRefEnd, BestRefScore = ListOfRefsAndScores[0]
+# Make a dataframe for the references, sorted by decreasing similarity to the 
+# contigs and breaking ties by sorting by name. This is their order of priority
+# for use in constructing the reference.
+df_references = pd.DataFrame(ListOfRefsAndScores,
+columns = ['RefName', 'StartOfRef', 'EndOfRef', 'FractionalAgreement'])
+df_references.sort_values(['FractionalAgreement', 'RefName'], 
+ascending=[False, True], inplace = True)
+BestRefName, BestRefStart, BestRefEnd, BestRefScore = df_references.iloc[0]
 
 if args.print_best_score:
   print(BestRefScore, BestRefName)
@@ -473,7 +488,8 @@ if args.summarise_contigs_2:
 # construct becomes as long as the alignment.
 ElongatedRef = RefDict[BestRefName]
 ElongatedRefStart, ElongatedRefEnd = BestRefStart, BestRefEnd
-for RefName, StartOfRef, EndOfRef, NumBasesAgreeing in ListOfRefsAndScores[1:]:
+for index, row in df_references[1:].iterrows():
+  RefName, StartOfRef, EndOfRef, NumBasesAgreeing = row
   if NumBasesAgreeing == 0 or \
   (ElongatedRefStart == 0 and ElongatedRefEnd == AlignmentLength-1):
     break

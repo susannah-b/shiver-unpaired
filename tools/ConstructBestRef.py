@@ -533,6 +533,6 @@ print('Info: using', BestRefName, '(elongated with other longer references if',
 
 with open(args.OutputFile, 'w') as f:
   f.write('>ContigsFlattenedWith_'+BestRefName + '\n' + \
-  insert_newlines(ConstructedRef) + '\n>' + BestRefName + '_elongated' + \
+  insert_newlines(ConstructedRef) + '\n>' + BestRefName + '_elongated\n' + \
   insert_newlines(ElongatedRef) + '\n')
 

@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from six.moves import range
+import argparse
+import os
+import sys
+import re
+from Bio import AlignIO, Seq
+import collections
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -19,14 +25,6 @@ characters before the sequence starts or after it finishes. Output is printed to
 stdout, suitable for redirection, in csv format (column 1 the seqeunce name,
 column 2 the sequence translated to these codes).
 '''
-
-import argparse
-import os
-import sys
-import re
-from Bio import AlignIO
-from Bio import Seq  
-import collections
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

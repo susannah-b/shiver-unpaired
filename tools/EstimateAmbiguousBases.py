@@ -1,6 +1,12 @@
 #!/usr/bin/env python2
 from __future__ import print_function
 from six.moves import range
+import argparse
+import os
+import sys
+from Bio import AlignIO, SeqIO
+import collections
+from AuxiliaryFunctions import IUPACdict
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -10,14 +16,6 @@ ExplanatoryMessage = '''This script estimates which of the possible bases (A, C,
 G or T) an IUPAC ambiguity code in a sequence alignment represents, by using the
 most common of the possibilities at that position in the alignment. Upper/lower
 case is preserved. Gaps are not changed, nor are "N" bases.'''
-
-import argparse
-import os
-import sys
-from Bio import AlignIO
-from Bio import SeqIO
-import collections
-from AuxiliaryFunctions import IUPACdict
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

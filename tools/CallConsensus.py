@@ -1,7 +1,13 @@
 #!/usr/bin/env python2
 from __future__ import print_function
-from six.moves import zip
-from six.moves import map
+from six.moves import zip, map
+import os.path
+import sys
+import itertools
+from AuxiliaryFunctions import ReverseIUPACdict2, PropagateNoCoverageChar
+import argparse
+from Bio import SeqIO, Seq
+from re import sub
 #
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -19,18 +25,6 @@ the reference used for mapping, as a pairwise alignment.
 # Gap characters in the base frequency file.
 GapChar = '-'
 ################################################################################
-
-
-# Import some modules we'll need.
-import os.path
-import sys
-import itertools
-from AuxiliaryFunctions import ReverseIUPACdict2, PropagateNoCoverageChar
-import argparse
-from Bio import SeqIO
-from Bio import Seq
-from re import sub
-
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

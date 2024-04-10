@@ -1,7 +1,11 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from __future__ import division
+from __future__ import print_function, division
 from six.moves import range
+import os
+import collections
+import sys
+import argparse
+import pysam
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -11,12 +15,6 @@ ExplanatoryMessage = '''This script finds, at each position in a bam file, the
 number and fraction of reads that are clipped from that position to their left
 or right end. Having many such reads is a warning sign that the reference and
 reads are so different that reads were not aligned correctly.'''
-
-import os
-import collections
-import sys
-import argparse
-import pysam
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

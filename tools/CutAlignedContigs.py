@@ -1,5 +1,15 @@
 #!/usr/bin/env python2
 from __future__ import print_function
+import os.path
+import sys
+import argparse
+import collections
+import re
+import itertools
+from Bio import SeqIO, AlignIO
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
+from ShiverFuncs import GetSeqStartAndEndPos, RemoveBlankColumns
 
 ## Author: Tanya Golubchik and Chris Wymant chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: written with funding from the ERC Advanced Grant PBDR-339251 
@@ -12,19 +22,6 @@ then applying a minimum length threshold for sequences (or parts of sequence) to
 keep. The intended usage is for a set contigs aligned to a set of references;
 the process of alignment may have introduced large gaps into the contigs that
 should not be interpreted as genuine deletions.'''
-
-
-import os.path
-import sys
-import argparse
-import collections
-import re
-import itertools
-from Bio import SeqIO
-from Bio import AlignIO
-from Bio.SeqRecord import SeqRecord
-from Bio.Seq import Seq
-from ShiverFuncs import GetSeqStartAndEndPos, RemoveBlankColumns
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

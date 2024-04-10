@@ -1,5 +1,8 @@
 #!/usr/bin/env python2
 from __future__ import print_function
+import os.path
+import sys
+from optparse import OptionParser
 #
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -11,11 +14,6 @@ from __future__ import print_function
 ## another fastq file. Alternatively the reads need not be sorted: see options.
 ## Usage:
 ## $ FindNamedReadsInSortedFastq.py AllReadsSorted.fastq ReadNamesIwant.txt
-
-# Import some modules we'll need.
-import os.path
-import sys
-from optparse import OptionParser
 
 # Define the arguments and options
 parser = OptionParser()

@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from six.moves import zip
+import argparse
+import os
+import sys
+from Bio import SeqIO, Seq
+import itertools
+from AuxiliaryFunctions import PropagateNoCoverageChar, IUPACdict, ungap
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -15,14 +21,6 @@ the consensus has an ambiguity code we take the first (in alphabetical order) of
 the bases A, C, G or T that that code represents; otherwise, we use the base (or
 gap) of the consensus. Output is printed to stdout suitable for redirection to a
 fasta file.''' 
-
-import argparse
-import os
-import sys
-from Bio import SeqIO
-from Bio import Seq
-import itertools
-from AuxiliaryFunctions import PropagateNoCoverageChar, IUPACdict, ungap
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

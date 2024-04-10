@@ -1,7 +1,13 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from __future__ import division
+from __future__ import print_function, division
 from six.moves import range
+import os
+import sys
+import argparse
+import pysam
+import subprocess
+from Bio import SeqIO
+from ShiverFuncs import CalculateReadIdentity
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -19,14 +25,6 @@ script separately on each bam file for which the relationship between coverage
 and proportion of contaminant reads is expected to be roughly the same (for
 example, over a data set sequenced in the same way), and then merge the results
 with ~/shiver/tools/LinkIdentityToCoverage_CombineBams.py.'''
-
-import os
-import sys
-import argparse
-import pysam
-import subprocess
-from Bio import SeqIO
-from ShiverFuncs import CalculateReadIdentity
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

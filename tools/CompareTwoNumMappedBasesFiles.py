@@ -1,7 +1,11 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from __future__ import division
+from __future__ import print_function, division
 from six.moves import range
+import os
+import collections
+import sys
+import argparse
+import numpy
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -14,12 +18,6 @@ $ ./SummariseBam.py bam1 -R ref1.fasta -I foo,bar > file1
 $ ./SummariseBam.py bam2 -R ref2.fasta -I foo,bar > file2
 Output is printed to stdout suitable for redirection to a csv file.
 '''
-
-import os
-import collections
-import sys
-import argparse
-import numpy
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

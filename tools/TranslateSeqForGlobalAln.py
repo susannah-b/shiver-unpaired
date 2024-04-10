@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from Bio import SeqIO, Seq
+import argparse
+import os
+import sys
+import collections
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -25,12 +30,8 @@ GapChar = '-'
 
 NoCoverageChar = '?'
 
-import argparse
-import os
-import sys
-import collections
-from Bio import SeqIO
-from Bio import Seq
+
+
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

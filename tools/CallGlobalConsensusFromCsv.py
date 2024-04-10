@@ -1,11 +1,16 @@
 #!/usr/bin/env python
-from __future__ import print_function
+from __future__ import print_function, division
+import argparse
+import os
+import sys
+from collections import Counter
+from re import sub
+from Bio import Seq, SeqIO
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
-from __future__ import division
 ExplanatoryMessage = '''This script finds the consensus sequence, i.e. the
 sequence defined by taking what is most common at each position, from a set of
 input sequences that are aligned in the csv format produced by
@@ -13,14 +18,6 @@ shiver/tools/MergeAlignmentsToCsv.py (i.e. each column after the first two
 corresponds to one of the input sequences; each row corresponds to one base in a
 reference sequence, and what each input sequence has at the position of that
 base can be a base, a gap or a kmer).'''
-
-import argparse
-import os
-import sys
-from collections import Counter
-from re import sub
-from Bio import Seq  
-from Bio import SeqIO  
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

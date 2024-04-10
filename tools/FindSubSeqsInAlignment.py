@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 from __future__ import print_function
-from six.moves import map
-from six.moves import range
+from six.moves import map, range
+import sys
+import argparse
+import os.path
+import collections
+from AuxiliaryFunctions import ReadSequencesFromFile, IUPACdict, BaseMatch
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251 
@@ -27,12 +31,6 @@ after a sequence ends are given as the final position in that sequence.
 # Characters that indicates a gap (missing base)
 GapChars = '-?'
 ################################################################################
-
-# Import what's needed
-import sys
-import argparse
-import os.path, collections
-from AuxiliaryFunctions import ReadSequencesFromFile, IUPACdict, BaseMatch
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

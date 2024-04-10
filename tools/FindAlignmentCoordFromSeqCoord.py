@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from six.moves import map
+import argparse
+import os
+import sys
+from Bio import AlignIO
+from ShiverFuncs import TranslateSeqCoordsToAlnCoords
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -10,12 +15,6 @@ ExplanatoryMessage = '''This alignment translates positions with respect to a
 named sequence to positions with respect to an alignment containing that
 sequence. e.g. if your named seq started like this in the alignment: --a-g...
 and you specified position 2, this script will tell you position 5.'''
-
-import argparse
-import os
-import sys
-from Bio import AlignIO
-from ShiverFuncs import TranslateSeqCoordsToAlnCoords
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

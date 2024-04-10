@@ -1,8 +1,14 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from __future__ import division
-from six.moves import zip
-from six.moves import range
+from __future__ import print_function, division
+from six.moves import zip, range
+import argparse
+import os
+import sys
+import itertools
+from Bio import AlignIO, Seq, SeqIO
+from collections import Counter, OrderedDict
+import numpy as np
+
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -14,17 +20,6 @@ calculates the sizes and positions of indels if those two sequences were aligned
 on their own, i.e. ignoring any position at which both sequences have a gap. We
 also ignore positions before max(start of seq 1, start of seq 2) and after
 min(end of seq 1, end of seq 2).'''
-
-import argparse
-import os
-import sys
-import itertools
-from Bio import AlignIO
-from Bio import Seq  
-from Bio import SeqIO  
-from collections import Counter, OrderedDict
-import numpy as np
-
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

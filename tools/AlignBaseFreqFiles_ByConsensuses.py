@@ -1,8 +1,12 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from __future__ import division
-from six.moves import map
-from six.moves import range
+from __future__ import print_function, division
+from six.moves import map, range
+import argparse
+import os
+import sys
+from Bio import AlignIO
+import itertools
+from AuxiliaryFunctions import CallAmbigBaseIfNeeded
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -21,13 +25,6 @@ MinFracToCall set to any negative value, and with the options
 --use-n-for-missing --keep-gaps-by-missing. The value of the MinCoverage
 argument you used there must be specified here. Output is printed to stdout
 suitable for redirection to a csv file.'''
-
-import argparse
-import os
-import sys
-from Bio import AlignIO
-import itertools
-from AuxiliaryFunctions import CallAmbigBaseIfNeeded
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

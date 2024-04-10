@@ -1,6 +1,13 @@
 #!/usr/bin/env python2
 from __future__ import print_function
 from six.moves import range
+import os.path
+import sys
+from inspect import currentframe, getframeinfo
+from itertools import groupby
+from operator import itemgetter
+from AuxiliaryFunctions import ReadSequencesFromFile, PropagateNoCoverageChar
+import argparse
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251 
@@ -32,13 +39,6 @@ GapChar = '-'
 # Wrap the sequence in the output fasta file to this length per line
 FastaSeqLineLength=50
 ################################################################################
-
-import os.path, sys
-from inspect import currentframe, getframeinfo
-from itertools import groupby
-from operator import itemgetter
-from AuxiliaryFunctions import ReadSequencesFromFile, PropagateNoCoverageChar
-import argparse
 
 parser = argparse.ArgumentParser(description='A script for aligning a '+\
 'sequence in a pair-wise alignment file to another alignment, by comparing '+\

@@ -492,8 +492,8 @@ if args.summarise_contigs_2:
 ElongatedRef = RefDict[BestRefName]
 ElongatedRefStart, ElongatedRefEnd = BestRefStart, BestRefEnd
 for index, row in df_references[1:].iterrows():
-  RefName, StartOfRef, EndOfRef, NumBasesAgreeing = row
-  if NumBasesAgreeing == 0 or \
+  RefName, StartOfRef, EndOfRef, FractionalAgreement = row
+  if FractionalAgreement == 0 or \
   (ElongatedRefStart == 0 and ElongatedRefEnd == AlignmentLength-1):
     break
   ThisRef = RefDict[RefName]

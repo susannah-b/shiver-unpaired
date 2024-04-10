@@ -1,8 +1,12 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from __future__ import division
-from six.moves import map
-from six.moves import range
+from __future__ import print_function, division
+from six.moves import map, range
+import argparse
+import os
+import sys
+import copy
+from Bio import SeqIO
+import collections
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk and Francois Blanquart who
 ## wrote the original version of this script in R. Thanks to Tanya Golubchick
@@ -20,13 +24,6 @@ Optionally, the contigs themselves can be supplied and correction is attempted:
 cutting the contigs where they have multiple hits and/or reverse-complementing
 them where hits are in the reverse direction.
 '''
-
-import argparse
-import os
-import sys
-import copy
-from Bio import SeqIO
-import collections
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

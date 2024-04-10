@@ -1,9 +1,11 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from __future__ import division
-from six.moves import zip
-from six.moves import map
-from six.moves import range
+from __future__ import print_function, division
+from six.moves import zip, map, range
+import argparse
+import os
+import sys
+from Bio import AlignIO
+import itertools
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -31,12 +33,6 @@ for one or both samples, this script is likely to be better, because an
 alignment of the references instead of the consensuses does not suffer from the
 ambiguity due to missing sequence. Output of this script is printed to stdout
 suitable for redirection to a csv file.'''
-
-import argparse
-import os
-import sys
-from Bio import AlignIO
-import itertools
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

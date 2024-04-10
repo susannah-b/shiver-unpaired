@@ -1,7 +1,11 @@
 #!/usr/bin/env python2
 from __future__ import print_function
-from six.moves import map
-from six.moves import range
+from six.moves import map, range
+import os.path
+import sys
+import collections
+import operator
+from AuxiliaryFunctions import ReadSequencesFromFile
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -27,9 +31,6 @@ from six.moves import range
 # The filename extension for reference genome files
 RefGenomeExtension = '.fasta'
 ################################################################################
-
-import os.path, sys, collections, operator
-from AuxiliaryFunctions import ReadSequencesFromFile
 
 # Check this file is called from the command line with two arguments
 if len(sys.argv) != 3:

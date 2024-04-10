@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 from __future__ import print_function
+import argparse
+import os
+import sys
+from collections import OrderedDict
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -15,11 +19,6 @@ This script emulates terminal commands like "sort MyData.csv -t, -k1,1 -k2,2 |
 sort -t, -k1,1 -u --merge" (here keeping one occurence of each unique value in
 field one, based on the value of field 2), which in my experience work on linux
 but fail on MacOS (see https://www.biostars.org/p/144569/#325003).'''
-
-import argparse
-import os
-import sys
-from collections import OrderedDict
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

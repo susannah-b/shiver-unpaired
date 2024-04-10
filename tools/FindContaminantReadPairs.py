@@ -1,5 +1,7 @@
 #!/usr/bin/env python2
 from __future__ import print_function
+import os.path
+import sys
 #
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -25,10 +27,6 @@ column_qacc = 1
 column_sacc = 2
 column_evalue = 4
 ################################################################################
-
-# Import some modules we'll need.
-import os.path
-import sys
 
 # Check that this script was called from the command line with two arguments.
 if len(sys.argv) != 5:

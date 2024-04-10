@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from six.moves import range
+import os
+import collections
+import sys
+import argparse
+import pysam
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -9,12 +14,6 @@ from six.moves import range
 ExplanatoryMessage = '''Gives the coverage - the depth/number of mapped reads at
 each position - for a bam file. Output printed to stdout suitable for
 redirection into a csv file.'''
-
-import os
-import collections
-import sys
-import argparse
-import pysam
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

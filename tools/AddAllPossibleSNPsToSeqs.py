@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from six.moves import range
+import argparse
+import os
+import sys
+from Bio import SeqIO, Seq
+import collections
+import copy
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -9,14 +15,6 @@ from six.moves import range
 ExplanatoryMessage = '''For each DNA sequence in an input fasta file, generate
 all possible sequences that differ by a single SNP (i.e. a change between an A,
 C, G or T).'''
-
-import argparse
-import os
-import sys
-from Bio import SeqIO
-from Bio import Seq
-import collections
-import copy
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

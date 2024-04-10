@@ -1,4 +1,8 @@
-from __future__ import print_function
+from __future__ import print_function, division
+import os
+import sys
+import collections
+from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -7,10 +11,6 @@ from __future__ import print_function
 ## a file into a dictionary, for reading in patient details from a file
 ## into a dictionary, and for checking if two bases match while allowing for one
 ## or both to be ambiguous.
-
-from __future__ import division
-import os, sys, collections
-from six.moves import range
 
 # A dictionary of what the IUPAC ambiguous letters mean
 IUPACdict = {}

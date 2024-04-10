@@ -1,8 +1,12 @@
 #!/usr/bin/env python2
-from __future__ import print_function
-from __future__ import division
-from six.moves import map
-from six.moves import range
+from __future__ import print_function, division
+from six.moves import map, range
+import os.path
+import sys
+import pandas as pd
+import collections
+import argparse
+from AuxiliaryFunctions import ReadSequencesFromFile, PropagateNoCoverageChar
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251 
@@ -37,13 +41,6 @@ ExciseUniqueInsertions = False
 ################################################################################
 
 FloatComparisonTolerance = 1e-6
-
-import os.path
-import sys
-import pandas as pd
-import collections
-import argparse
-from AuxiliaryFunctions import ReadSequencesFromFile, PropagateNoCoverageChar
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

@@ -1,11 +1,19 @@
 #!/usr/bin/env python
-from __future__ import print_function
+from __future__ import print_function, division
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import argparse
+import os
+import collections
+import sys
+import numpy as np
+import pandas as pd
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
 ##
 ## Overview:
-from __future__ import division
 ExplanatoryMessage = '''This script merges the output from running
 shiver/tools/LinkIdentityToCoverage.py on several (usually many) bam files,
 producing a csv file and a plot of how mean read identity varies with coverage.
@@ -19,22 +27,6 @@ XaxisLabel='coverage'
 YaxisLabel='mean read identity'
 colour = 'blue'
 ################################################################################
-
-import matplotlib
-matplotlib.use('Agg')
-
-import matplotlib.pyplot as plt
-import argparse
-import os
-import collections
-import sys
-import numpy as np
-try:
-  import pandas as pd
-except ImportError:
-  print("This script requires your python installation to have the pandas",
-  "module installed. Search for 'python pandas installation' or similar.")
-  raise
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

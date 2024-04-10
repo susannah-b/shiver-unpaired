@@ -1,15 +1,6 @@
 #!/usr/bin/env python
-from __future__ import print_function
-from __future__ import division
+from __future__ import print_function, division
 from six.moves import range
-
-## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
-## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
-##
-## Overview:
-ExplanatoryMessage = '''Prints the number of mapped bases for a bam file.
-'''
-
 import os
 import collections
 import sys
@@ -18,6 +9,13 @@ import numpy
 import pysam
 from Bio import SeqIO
 from ShiverFuncs import CalculateReadIdentity
+
+## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
+## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
+##
+## Overview:
+ExplanatoryMessage = '''Prints the number of mapped bases for a bam file.
+'''
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

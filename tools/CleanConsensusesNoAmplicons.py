@@ -2,6 +2,15 @@
 from __future__ import print_function
 from six.moves import range
 import six
+import argparse
+import os
+import sys
+from Bio import AlignIO, Seq, SeqIO 
+import collections
+import pandas
+import datetime
+from re import sub
+from ShiverFuncs import TranslateSeqCoordsToAlnCoords
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -15,18 +24,6 @@ using the base of the longest sequence (the most bases excluding N or gaps) if
 is not an N, otherwise the base of the second-longest sequence if it is not an
 N, etc. Then any gap character neighbouring an N is iteratively replaced by an
 N. Any wholly undetermined (purely N) sequences are removed.'''
-
-import argparse
-import os
-import sys
-from Bio import AlignIO
-from Bio import Seq  
-from Bio import SeqIO  
-import collections
-import pandas
-import datetime
-from re import sub
-from ShiverFuncs import TranslateSeqCoordsToAlnCoords
 
 # Define a function to check files exist, as a type for the argparse.
 def File(_file):

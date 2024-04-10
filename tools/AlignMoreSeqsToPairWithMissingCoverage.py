@@ -1,6 +1,16 @@
 #!/usr/bin/env python
 from __future__ import print_function
 from six.moves import zip
+import argparse
+import os
+import sys
+import re
+import copy
+from Bio import SeqIO, Seq
+import itertools
+import subprocess
+import collections
+from AuxiliaryFunctions import PropagateNoCoverageChar
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -15,18 +25,6 @@ mafft does not know what missing coverage is, hence the need for this program.
 How it works: we replace missing coverage by gaps, realign, match the consensus
 fragments after (which in general contain new gaps) with those before, then
 replace the appropriate gaps by missing coverage.'''
-
-import argparse
-import os
-import sys
-import re
-import copy
-from Bio import SeqIO
-from Bio import Seq
-import itertools
-import subprocess
-import collections
-from AuxiliaryFunctions import PropagateNoCoverageChar
 
 # Define a function to check files exist, as a type for the argparse.
 def File(MyFile):

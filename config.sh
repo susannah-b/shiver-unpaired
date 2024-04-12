@@ -79,8 +79,7 @@ ContigBlastArgs="-max_target_seqs 1 -word_size 17"
 # A value of 1 or greater means partially overlapping hits are never merged
 # (which is how shiver has always behaved). A value between 0 and 1 means they
 # may or may not be merged, depending on how strongly they overlap.
-# Pending imminent testing the current default is likely to be changed to 0.8.
-ContigMinBlastOverlapToMerge='2'
+ContigMinBlastOverlapToMerge='0.8'
 
 # If you have a more recent mafft installation that includes the --addfragments
 # option, we will use both --addfragments and --add to align the contigs to the

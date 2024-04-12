@@ -50,6 +50,8 @@ correction is not required, this file will not be created.''')
 parser.add_argument('-B', '--blast-output', help='''Use this to specify an
 output file into which the blast hits will be written after we have discarded
 the ones not being used (those contained wholly inside another one).''')
+parser.add_argument('--blast-output-only', action='store_true',
+help='''Exit after writing output to the file specified with --blast-output''')
 parser.add_argument('--overwrite', action='store_true',
 help='If the out file exists already, overwrite it instead of stopping.')
 parser.add_argument('-F', '--min-hit-frac', type=float, help='''Only relevant if
@@ -83,6 +85,13 @@ with this option we produce instead 1111AC and GT2222. The same results would be
 given if the ACGT was in neither hit (instead of both) and you are using
 --keep-non-hits: 1111ACGT and ACGT2222 without this option, 1111AC and GT2222
 with it.''')
+parser.add_argument('--use-blast-input-as-is', action='store_true', help='''
+Normally we process the blast input (for example skipping hits wholly contained
+inside another). Use this option to skip that processing, using the blast input
+file as it was provided. This is intended for use following a first run of this
+code with --blast-output used to specify a file that can then be provided for a
+second run. With this option, the positional argument 'OverlapFracToMerge' is
+ignored.''')
 args = parser.parse_args()
 
 # The --contigs and --out-file flags need each other.
@@ -90,6 +99,21 @@ MakeCorrections = args.contigs != None
 if MakeCorrections and args.out_file == None:
   print('The --contigs and --out-file flags need each other: use both or', \
   'neither. Quitting.', file=sys.stderr)
+  exit(1)
+
+# Sanity checks on options relating to blast input/output
+if args.blast_output_only and args.blast_output is None:
+  print('The --blast-output-only option requires the --blast-output option.',
+  'Quitting.', file=sys.stderr)
+  exit(1)
+if args.use_blast_input_as_is and not MakeCorrections:
+  print('The --use-blast-input-as-is option serves no purpose if the --contigs',
+  'option is not also used. Quitting.', file=sys.stderr)
+  exit(1)
+if args.use_blast_input_as_is and args.blast_output is not None:
+  print("It's silly to use the --blast-output option with the",
+  "--use-blast-input-as-is option, because we'd be writing to output the same",
+  "thing we're reading from input. Quitting.", file=sys.stderr)
   exit(1)
 
 # If we're writing output: use stdout if desired, otherwise check the output
@@ -263,92 +287,99 @@ def MergeStronglyOverlappingHits(hits, MinOverlap):
 
   return hits
 
-CorrectionsNeeded = False
-for contig, hits in HitDict.items():
-
-  # Where a contig has one hit contained entirely inside another, remove the
-  # sub-hit.
-  if len(hits) > 1:
-    SubHitIndices = []
-    for i, hit1 in enumerate(hits):
-      if i in SubHitIndices:
-        continue
-      qstart1, qend1 = hit1[5:7]
-      qmin1, qmax1 = min(qstart1, qend1), max(qstart1, qend1)
-      for j, hit2 in enumerate(hits[i+1:]):
-        j = i + j + 1 # offset & zero-based indexing
-        if j in SubHitIndices or i in SubHitIndices:
-          continue
-        qstart2, qend2 = hit2[5:7]
-        qmin2, qmax2 = min(qstart2, qend2), max(qstart2, qend2)
-        # If the hits start and end at the same place, only one should go:
-        if qmin1 == qmin2 and qmax1 == qmax2:
-          SubHitIndices.append(j)
-        elif qmin1 <= qmin2 and qmax1 >= qmax2:
-          SubHitIndices.append(j)
-        elif qmin1 >= qmin2 and qmax1 <= qmax2:
-          SubHitIndices.append(i)
-    assert len(SubHitIndices) == len(set(SubHitIndices)), \
-    'Internal error removing sub-hits. Please report to Chris Wymant.'
-    for i in sorted(SubHitIndices, reverse=True):
-      del HitDict[contig][i]
-    hits = HitDict[contig]
-
-    if DoHitMerging:
-      hits = MergeStronglyOverlappingHits(hits, args.OverlapFracToMerge)
-
-    # If we're only checking (not correcting) and there are multiple hits or
-    # a reverse hit or a too small hit, quit.
+# Process the blast hits if desired
+if not args.use_blast_input_as_is:
+  CorrectionsNeeded = False
+  for contig, hits in HitDict.items():
+  
+    # Where a contig has one hit contained entirely inside another, remove the
+    # sub-hit.
     if len(hits) > 1:
-      if not MakeCorrections:
-        print('Contig correction required (contig', contig, 'has multiple hits,',\
-        'after removing any that are fully contained within another). Quitting.',\
-        file=sys.stderr)
+      SubHitIndices = []
+      for i, hit1 in enumerate(hits):
+        if i in SubHitIndices:
+          continue
+        qstart1, qend1 = hit1[5:7]
+        qmin1, qmax1 = min(qstart1, qend1), max(qstart1, qend1)
+        for j, hit2 in enumerate(hits[i+1:]):
+          j = i + j + 1 # offset & zero-based indexing
+          if j in SubHitIndices or i in SubHitIndices:
+            continue
+          qstart2, qend2 = hit2[5:7]
+          qmin2, qmax2 = min(qstart2, qend2), max(qstart2, qend2)
+          # If the hits start and end at the same place, only one should go:
+          if qmin1 == qmin2 and qmax1 == qmax2:
+            SubHitIndices.append(j)
+          elif qmin1 <= qmin2 and qmax1 >= qmax2:
+            SubHitIndices.append(j)
+          elif qmin1 >= qmin2 and qmax1 <= qmax2:
+            SubHitIndices.append(i)
+      assert len(SubHitIndices) == len(set(SubHitIndices)), \
+      'Internal error removing sub-hits. Please report to Chris Wymant.'
+      for i in sorted(SubHitIndices, reverse=True):
+        del HitDict[contig][i]
+      hits = HitDict[contig]
+  
+      if DoHitMerging:
+        hits = MergeStronglyOverlappingHits(hits, args.OverlapFracToMerge)
+  
+      # If we're only checking (not correcting) and there are multiple hits or
+      # a reverse hit or a too small hit, quit.
+      if len(hits) > 1:
+        if (not MakeCorrections) and not args.blast_output_only:
+          print('Contig correction required (contig', contig, 'has multiple hits,',\
+          'after removing any that are fully contained within another). Quitting.',\
+          file=sys.stderr)
+          exit(1)
+        CorrectionsNeeded = True
+  
+    FirstHit = hits[0]
+    qseqid, sseqid, evalue, pident, qlen, qstart, qend, sstart, send = FirstHit
+  
+    # If there's a bit of the contig that doesn't blast and the user wants to
+    # discard such bits, correction is needed. However if we're just checking 
+    # whether correction is needed (i.e. not actually correcting the contigs), 
+    # don't quit just yet: the --min-hit-frac option is designed to allow some 
+    # flexibility so that we don't report that correction is necessary because 
+    # 0.001% of the contig fails blasting.
+    HitLength = qend - qstart + 1
+    if HitLength < qlen and not args.keep_non_hits and MakeCorrections:
+      CorrectionsNeeded = True
+  
+    # Quit if the hit fraction is too small, if desired.
+    HitFrac = float(HitLength) / qlen
+    if (not MakeCorrections) and not args.blast_output_only and \
+    HitFrac < args.min_hit_frac:
+      print('Contig correction required (the hit\n', \
+      ' '.join(map(str, FirstHit)), '\nfor contig', contig, 'has a hit fraction',\
+      HitFrac, "which is below the --min-hit-frac value of", \
+      str(args.min_hit_frac) + "). Quitting.", file=sys.stderr)
+      exit(1)
+  
+    # If reverse complementation is needed, correction is needed. Quit if desired.
+    if sstart > send:
+      if (not MakeCorrections) and not args.blast_output_only:
+        print('Contig correction required (the hit\n', \
+        ' '.join(map(str, FirstHit)), '\nfor contig', contig + \
+        "is in the reverse direction). Quitting.", file=sys.stderr)
         exit(1)
       CorrectionsNeeded = True
-
-  FirstHit = hits[0]
-  qseqid, sseqid, evalue, pident, qlen, qstart, qend, sstart, send = FirstHit
-
-  # If there's a bit of the contig that doesn't blast and the user wants to
-  # discard such bits, correction is needed. However if we're just checking 
-  # whether correction is needed (i.e. not actually correcting the contigs), 
-  # don't quit just yet: the --min-hit-frac option is designed to allow some 
-  # flexibility so that we don't report that correction is necessary because 
-  # 0.001% of the contig fails blasting.
-  HitLength = qend - qstart + 1
-  if HitLength < qlen and not args.keep_non_hits and MakeCorrections:
-    CorrectionsNeeded = True
-
-  # Quit if the hit fraction is too small, if desired.
-  HitFrac = float(HitLength) / qlen
-  if not MakeCorrections and HitFrac < args.min_hit_frac:
-    print('Contig correction required (the hit\n', \
-    ' '.join(map(str, FirstHit)), '\nfor contig', contig, 'has a hit fraction',\
-    HitFrac, "which is below the --min-hit-frac value of", \
-    str(args.min_hit_frac) + "). Quitting.", file=sys.stderr)
-    exit(1)
-
-  # If reverse complementation is needed, correction is needed. Quit if desired.
-  if sstart > send:
-    if not MakeCorrections:
-      print('Contig correction required (the hit\n', \
-      ' '.join(map(str, FirstHit)), '\nfor contig', contig + \
-      "is in the reverse direction). Quitting.", file=sys.stderr)
-      exit(1)
-    CorrectionsNeeded = True
-
-# Write the blast output if desired.
-if args.blast_output != None:
-  with open(args.blast_output, "w") as f:
-    for contig, hits in HitDict.items():
-      for hit in hits:
-        f.write(",".join(map(str, hit)) + "\n")
-
-# If no corrections are needed, quit successfully.
-if not CorrectionsNeeded:
-  print('No contig correction needed for', args.BlastFile + '.')
-  exit(0)
+  
+  # Write the blast output if desired.
+  if args.blast_output != None:
+    with open(args.blast_output, "w") as f:
+      for contig, hits in HitDict.items():
+        for hit in hits:
+          f.write(",".join(map(str, hit)) + "\n")
+  
+  if args.blast_output_only:
+    exit(0)
+          
+  # If no corrections are needed, quit successfully.
+  if not CorrectionsNeeded:
+    print('No contig correction needed for', args.BlastFile + '.')
+    exit(0)
+# end of blast hit processing
 
 # Read in the contigs
 ContigDict = collections.OrderedDict()

@@ -5,53 +5,100 @@ set -o pipefail
 # Exit upon error
 set -e
 
-UsageInstructions=$(echo '
-Arguments for this script:
-(1) the initialisation directory you created using the shiver_init.sh command;
-(2) the configuration file, containing all your parameter choices etc.;
+NumArgsPairedReads=8
+NumArgsUnpairedReads=$((NumArgsPairedReads - 1))
+UsageInstructions=$(echo "
+In normal usage this script requires either $NumArgsPairedReads or
+$NumArgsUnpairedReads arguments:\n
+(1) the initialisation directory you created using the shiver_init.sh command;\n
+(2) the configuration file, containing all your parameter choices etc.;\n
 (3) a fasta file of contigs (output from processing the short reads with an
-assembly program);
+assembly program);\n
 (4) A sample ID ("SID") used for naming the output from this script (a sensible
-choice might be the contig file name minus its path and extension);
-(5) the blast file created by the shiver_align_contigs.sh command;
+choice might be the contig file name minus its path and extension);\n
+(5) the blast file created by the shiver_align_contigs.sh command;\n
 (6) either the alignment of contigs to refs produced by the
 shiver_align_contigs.sh command, or a fasta file containing a single reference
-to be used for mapping;
-(7) the forward reads when mapping paired reads, or the single reads file for unpaired;
-(8) the reverse reads for paired reads, or for unpaired reads omit this argument
-')
+to be used for mapping;\n
+(7) the forward reads when mapping paired reads, or the single reads file for unpaired;\n
+(8) the reverse reads for paired reads, or for unpaired reads omit this argument.
+\nAlternatively call this script with one argument - '--help' or '-h' - to see
+this message. Alternatively call this script with three arguments - '--test', 
+then the configuration file, then either 'paired' or 'unpaired' - to just test 
+whether the configuration file is OK (including whether this script can call the 
+external programs it needs using commands given in the config file) and then
+exit. That third argument being 'paired' or 'unpaired' determines whether the
+config file is checked for suitability for use with paired or unpaired reads
+respectively.
+")
 
 ################################################################################
 # PRELIMINARIES
 
-# Check for the right number of arguments for paired or unpaired reads.
-PairedReadsArgs=8
-UnpairedReadsArgs=7
-if [[ "$#" -ne "$PairedReadsArgs" ]] && [[ "$#" -ne "$UnpairedReadsArgs" ]]; then
-  echo $UsageInstructions
-  echo "$#" 'arguments specified; for paired reads' "$PairedReadsArgs" 'are expected, or' \
-  "$UnpairedReadsArgs" 'for unpaired. Quitting' >&2
+# Print help & exit if desired
+# NB A && B || C is (A && B) || C; we nest to get A && (B || C)
+if [[ "$#" -eq 1 ]]; then
+  if [[ "$1" == '--help' ]] || [[ "$1" == '-h' ]]; then
+    echo -e $UsageInstructions
+    exit 0
+  fi
+fi
+
+# Check for the right number of arguments and whether we're testing.
+test=false
+if [[ "$#" -eq 3 ]] && [[ "$1" == '--test' ]]; then
+  if [[ "$3" == 'paired' ]] || [[ "$3" == 'unpaired' ]]; then
+    test=true
+  fi
+fi
+if ! $test && [[ "$#" -ne "$NumArgsPairedReads" ]] &&
+[[ "$#" -ne "$NumArgsUnpairedReads" ]]; then
+  echo -e $UsageInstructions
+  echo 'Invalid set of arguments specified. Quitting' >&2
   exit 1
 fi
 
-# Assign paired or unpaired reads to variables
-PairedReadsArgs=8
-UnpairedReadsArgs=7
-if [ "$#" -eq "$PairedReadsArgs" ]; then
-  reads2="$8"
-  Paired=true
-elif [ "$#" -eq "$UnpairedReadsArgs" ]; then
-  Paired=false
+ConfigFile="$2"
+
+# Determine whether we're considering paired or unpaired reads
+if $test; then
+  if [[ "$3" == 'paired' ]]; then
+    Paired=true
+  else
+    Paired=false
+  fi
+else
+  if [ "$#" -eq "$NumArgsPairedReads" ]; then
+    Paired=true
+  else
+    Paired=false
+  fi
 fi
 
-# Assign shared arguments between paired and unpaired reads
+# Source the shiver funcs, check the config file exists, check (and source) it
+ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$ThisDir"/'shiver_funcs.sh'
+CheckFilesExist "$ConfigFile" 
+CheckConfig "$ConfigFile" false false true "$Paired" || \
+{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
+
+# Quit if only testing the config file
+if $test; then
+  echo "No problems relevant for this script were detected in $ConfigFile." \
+  "Quitting successfully."
+  exit 0
+fi
+
+# Assign remaining arguments to variables
 InitDir="$1"
-ConfigFile="$2"
 RawContigsFile="$3"
 SID="$4"
 ContigBlastFile="$5"
 FastaFile="$6"
 reads1="$7"
+if $Paired; then
+  reads2="$8"
+fi
 
 # Check InitDir exists. Remove a trailing slash, if present.
 if [ ! -d "$InitDir" ]; then
@@ -65,18 +112,12 @@ ExistingRefAlignment="$InitDir"/'ExistingRefAlignment.fasta'
 adapters="$InitDir"/'adapters.fasta'
 primers="$InitDir"/'primers.fasta'
 
-# Source the shiver funcs, check files exist, source the config file, check it.
-ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$ThisDir"/'shiver_funcs.sh'
-CheckFilesExist "$ConfigFile" "$reads1" "$RawContigsFile" \
+CheckFilesExist "$reads1" "$RawContigsFile" \
 "$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
 "$primers"
 if $Paired; then
   CheckFilesExist "$reads2"
 fi
-
-CheckConfig "$ConfigFile" false false true "$Paired" || \
-{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 # Check the primer + SNPs file exists, if it is needed.
 if [[ "$TrimPrimerWithOneSNP" == "true" ]]; then

@@ -3,34 +3,64 @@
 set -u
 set -o pipefail
 
-UsageInstructions=$(echo '
-Arguments for this script:
-(1) an output directory for the initialisation files.
-(2) the configuration file, containing all your parameter choices etc.;
-(3) your chosen alignment of references;
-(4) a fasta file of the adapters used in sequencing;
-(5) a fasta file of the primers used in sequencing.
-')
-
-# Check for the right number of arguments. Assign them to variables.
 NumArgsExpected=5
-if [ "$#" -ne "$NumArgsExpected" ]; then
-  echo $UsageInstructions
-  echo "$#" 'arguments specified;' "$NumArgsExpected" 'expected. Quitting' >&2
+UsageInstructions=$(echo "
+In normal usage this script requires $NumArgsExpected arguments:\n
+(1) an output directory for the initialisation files.\n
+(2) the configuration file, containing all your parameter choices etc.;\n
+(3) your chosen alignment of references;\n
+(4) a fasta file of the adapters used in sequencing;\n
+(5) a fasta file of the primers used in sequencing.
+\nAlternatively call this script with one argument - '--help' or '-h' - to see
+this message. Alternatively call this script with two arguments - '--test' then
+the configuration file - to just test whether the configuration file is OK
+(including whether this script can call the external programs it needs using
+commands given in the config file) and then exit.
+")
+
+# Print help & exit if desired
+# NB A && B || C is (A && B) || C; we nest to get A && (B || C)
+if [[ "$#" -eq 1 ]]; then
+  if [[ "$1" == '--help' ]] || [[ "$1" == '-h' ]]; then
+    echo -e $UsageInstructions
+    exit 0
+  fi
+fi
+
+# Check for the right number of arguments and whether we're testing.
+test=false
+if [[ "$#" -eq 2 ]] && [[ "$1" == '--test' ]]; then
+  test=true
+fi
+if ! $test && [ "$#" -ne "$NumArgsExpected" ]; then
+  echo -e $UsageInstructions
+  echo 'Invalid set of arguments specified. Quitting' >&2
   exit 1
 fi
-OutDir="$1"
+
 ConfigFile="$2"
+
+# Source the shiver funcs, check the config file exists, check (and source) it
+ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$ThisDir"/'shiver_funcs.sh'
+CheckFilesExist "$ConfigFile"
+CheckConfig "$ConfigFile" true false false false || \
+{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
+
+# Quit if only testing the config file
+if $test; then
+  echo "No problems relevant for this script were detected in $ConfigFile." \
+  "Quitting successfully."
+  exit 0
+fi
+
+# Assign remaining arguments to variables
+OutDir="$1"
 RefAlignment="$3"
 adapters="$4"
 primers="$5"
 
-# Source the shiver funcs, check files exist, source the config file, check it.
-ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$ThisDir"/'shiver_funcs.sh'
-CheckFilesExist "$ConfigFile" "$RefAlignment"
-CheckConfig "$ConfigFile" true false false false || \
-{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
+CheckFilesExist "$RefAlignment" "$adapters" "$primers"
 
 # If OutDir does not exist, try to create it.
 if [ ! -d "$OutDir" ]; then

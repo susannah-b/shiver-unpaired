@@ -10,7 +10,6 @@ from Bio import AlignIO, Seq, SeqIO
 import collections
 from re import sub
 import numpy as np
-import matplotlib.pyplot as plt
 from ShiverFuncs import TranslateSeqCoordsToAlnCoords
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk

@@ -3,32 +3,67 @@
 set -u
 set -o pipefail
 
-UsageInstructions=$(echo '
-Arguments for this script:
-(1) the initialisation directory you created using the shiver_init.sh command;
-(2) the configuration file, containing all your parameter choices etc.;
+NumArgsExpected=4
+UsageInstructions=$(echo "
+In normal usage this script requires $NumArgsExpected arguments:\n
+(1) the initialisation directory you created using the shiver_init.sh command;\n
+(2) the configuration file, containing all your parameter choices etc.;\n
 (3) a fasta file of contigs (output from processing the short reads with an
-assembly program);
-(4) A sample ID ("SID") used for naming the output from this script (a sensible
+assembly program);\n
+(4) A sample ID ('SID') used for naming the output from this script (a sensible
 choice might be the contig file name minus its path and extension).
-If this script completes successfully it will produce a .blast file (detailing
+\nAlternatively call this script with one argument - '--help' or '-h' - to see
+this message. Alternatively call this script with two arguments - '--test' then
+the configuration file - to just test whether the configuration file is OK
+(including whether this script can call the external programs it needs using
+commands given in the config file) and then exit.\n\nIn normal usage,
+if this script completes successfully it will produce a .blast file (detailing
 the contigs that have blast hits). If the .blast file is not empty it will
 produce a fasta file of those contigs with hits and another fasta file of
 these contigs aligned to the refereces; if cutting and/or reversing of contigs
 is necessary, two more fasta files are produced - the cut/reversed contigs on
 their own and also aligned to references (i.e. there will be two files of the
 contigs on their own and two files of the contigs aligned to references).
-')
+")
 
-# Check for the right number of arguments. Assign them to variables.
-NumArgsExpected=4
-if [ "$#" -ne "$NumArgsExpected" ]; then
-  echo $UsageInstructions
-  echo "$#" 'arguments specified;' "$NumArgsExpected" 'expected. Quitting' >&2
+# Print help & exit if desired
+# NB A && B || C is (A && B) || C; we nest to get A && (B || C)
+if [[ "$#" -eq 1 ]]; then
+  if [[ "$1" == '--help' ]] || [[ "$1" == '-h' ]]; then
+    echo -e $UsageInstructions
+    exit 0
+  fi
+fi
+
+# Check for the right number of arguments and whether we're testing.
+test=false
+if [[ "$#" -eq 2 ]] && [[ "$1" == '--test' ]]; then
+  test=true
+fi
+if ! $test && [ "$#" -ne "$NumArgsExpected" ]; then
+  echo -e $UsageInstructions
+  echo 'Invalid set of arguments specified. Quitting' >&2
   exit 1
 fi
-InitDir="$1"
+
 ConfigFile="$2"
+
+# Source the shiver funcs, check the config file exists, check (and source) it
+ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$ThisDir"/'shiver_funcs.sh'
+CheckFilesExist "$ConfigFile"
+CheckConfig "$ConfigFile" false true false false || \
+{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
+
+# Quit if only testing the config file
+if $test; then
+  echo "No problems relevant for this script were detected in $ConfigFile." \
+  "Quitting successfully."
+  exit 0
+fi
+
+# Assign remaining arguments to variables
+InitDir="$1"
 ContigFile="$3"
 SID="$4"
 
@@ -41,13 +76,7 @@ InitDir=$(cd "$InitDir"; pwd)
 
 BlastDatabase="$InitDir/ExistingRefsBlastDatabase"
 RefAlignment="$InitDir/ExistingRefAlignment.fasta"
-
-# Source the shiver funcs, check files exist, source the config file, check it.
-ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$ThisDir"/'shiver_funcs.sh'
-CheckFilesExist "$ContigFile" "$RefAlignment"
-CheckConfig "$ConfigFile" false true false false || \
-{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
+CheckFilesExist "$RefAlignment" "$ContigFile"
 
 # Print how this script was called, and what the config file parameter values
 # were.

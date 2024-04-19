@@ -1,6 +1,27 @@
 #!/usr/bin/env bash
 
-# CodonCorrectionInit.sh must be run once before using this script
+# CodonCorrection.sh is a script designed to call the program 'VIRULIGN' which pairwise aligns viral sequences in a codon-correct manner. Using a set of provided
+# references known to be codon-correct and a list of their gene coordinates (see the CodonCorrectionInit.sh), the script will extract the selected genes from the 
+# sample and the reference determined to be the closest BLAST match. This is done per individual gene, meaning the reference can be different for each. Each gene
+# and the corresponding reference is then fed into VIRULIGN, which will correct the gene sequence by adding 'N' bases to preserve the reading frame in the event of 
+# insertions or deletions relative to the reference. The results of this can be viewed in the [Nucl/AminoAcids/Mutations/Mutations]_corrected files depending on 
+# the options chosen. If the 'Mutations' option is used, a text file listing frameshifts will be produced for subsequent analysis. 
+
+# CodonCorrectionInit.sh must be run once before running this script
+
+# Explanation of the virulign export options:
+# Within this script, there are four different options for the format of the virulign output, which are set in the third argument of the CodonCorrection.sh command.
+# Multiple output formats can be generated simultaneously when separated by ',', or use 'all' to generate all four. Each output file will be generated per chosen gene.
+  # 1. Nucleotides: will generate a FASTA file of the target nucleotide sequences, with the sample sequence aligned to the reference sequence. This is set to always
+  #    be generated as it allows CodonCorrection.sh to check that the sample sequence has not been truncated by VIRULIGN (an issue I observed with some sequences - in 
+  #    this event the reference sequence is artificially extended using 'N'.).
+  # 2. AminoAcids: will generate a FASTA file of the target amino acid sequences, with the sample sequence aligned to the reference sequence. 
+  # 3. Mutations: will output for each gene a list of amino acids changes compared to the reference sequence. This must be enabled in order to generate the file listing
+  #    frameshifts.
+  # 4. MutationTable: will create a CSV file where each mutation present at a specific position is given as a separate column in Boolean representation. The CSV file is 
+  #    annotated according to the numerical position in the protein
+
+# Currently only handles uninterrupted genes GAG POL VIF VPR VPU ENV NEF
 
 set -u
 set -o pipefail
@@ -9,23 +30,21 @@ set -e
 UsageInstructions="Arguments for this script:
 (1) A sample file containing the sequence to be corrected as the first sequence;
 (2) The filepath for the virulign binaries
-(3) The export options for virulign separated by ',' and enclosed by double quotes. One of more of Mutations, MutationTable, \
-Nucleotides, or Amino Acids, or use 'all' to generate all four.
-(4) The chosen genes to analyse for the sample separated by ',' and enclosed by double quotes. \
-One or more of gag, pol, env, vpr, vif, vpu, or nef, or use 'all' to analyse all.
+(3) The export options for virulign separated by ',' and enclosed by double quotes. One of more of Mutations, MutationTable, Nucleotides, or Amino Acids, \
+or use 'all' to generate all four.
+(4) The chosen genes to analyse for the sample separated by ',' and enclosed by double quotes. One or more of gag, pol, env, vpr, vif, vpu, or nef, \
+or use 'all' to analyse all.
 (5) The init directory.
 (6) The directory where output files will be created.
+(7) OPTIONAL - The number corresponding to how close the BLAST match should be for this run. E.g. the top match is 1, second highest is 2, etc. Default is 1.
 "
-# Write help text to explain the different export options
 
-# Source config - improve to not rely on specific filepath
-source "$HOME/shiver/config.sh"
-
-### Check arguments
+# Check arguments
 ExpectedArgs=6
-if [[ $# -ne "$ExpectedArgs" ]]; then
+OptionalArgs=7
+if [[ $# -ne "$ExpectedArgs" ]] && [[ "$#" -ne "$OptionalArgs" ]]; then
   echo "$UsageInstructions"
-  echo "Incorrect number of arguments provided, expected:" "$ExpectedArgs". "Quitting." >&2
+  echo "Incorrect number of arguments provided, expected:" "$ExpectedArgs" "or" "$OptionalArgs" "arguments if selecting which BLAST match number to use." "Quitting." >&2
   exit 1
 else
   SampleFile=$1
@@ -34,34 +53,50 @@ else
   GenesToAnalyse=$4
   InitDir=$5
   OutputDir=$6
+  if [[ $# -eq 6 ]]; then
+    BLASTMatch=1
+  elif [[ $# -eq 7 ]]; then
+    BLASTMatch=$7
+  fi
 fi
 
-# Colours
-RED="\033[91m"
-BLUE="\033[94m"
-YELLOW="\033[93m"
-GREEN="\033[92m"
-GREY="\033[37m"
-END="\033[0m"
-
-# Other variables
+# Find shiver files
+ToolsDir="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
+shiver="$(dirname "$ToolsDir")" # shiver file location
+source "$shiver"/'config.sh'
+PythonFuncs="$shiver"/'tools/CC_Python_funcs.py'
 ReferenceFile="$InitDir/CC_References.fasta"
 GeneCoordInfo="$InitDir/CC_Coords.fasta"
-HXB2File="$HOME/shiver/info/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta" # set up for $shiver
-PythonFuncs="$HOME/shiver/tools/CC_Python_funcs.py" # for full implementation add this to shiver init so i can have one variable for CC.sh and CC Init
+HXB2File="$shiver"/'info/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta'
+AlignMoreSeqsTool="$shiver"/'tools/AlignMoreSeqsToPairWithMissingCoverage.py'
+
+# Colours # Can be removed as they don't work in the cluster. For now I've set a variable in the config to disable them
+if [[ "$EnableColours" == "true" ]]; then
+  RED="\033[91m"
+  BLUE="\033[94m"
+  YELLOW="\033[93m"
+  GREEN="\033[92m"
+  GREY="\033[37m"
+  END="\033[0m"
+else
+  RED=""
+  BLUE=""
+  YELLOW=""
+  GREEN=""
+  GREY=""
+  END=""
+fi
 
 # Check init script has been run
 if [[ ! -s "$ReferenceFile" ]] || [[ ! -s "$GeneCoordInfo" ]]; then
-  echo "Reference file and coordinates file are not found in the init directory. Please run CodonCorrectionInit.sh before running this script. Quitting." >&2
+  echo "Reference file and/or the coordinates file are not found in the init directory. Please run CodonCorrectionInit.sh before running this script. Quitting." >&2
   exit 1
 fi
 
 # Check if file exists
-# Call as a function and do for all
 if ! [[ -f "$SampleFile" ]]; then
   echo "The provided sample file '$SampleFile' does not exist. Check the file path is correct."
   exit 1
-# also check other files
 fi
 
 # Check sample is a .fasta file
@@ -70,18 +105,24 @@ if [[ "$SampleFile" != *.fasta ]]; then
   exit 1
 fi
 
-# Count sequence number in sample
+# Count sequence number in sample 
 Sample_SeqNumber=$(grep '^>' "$SampleFile" | wc -l | awk '{$1=$1};1')
 if [[ "$Sample_SeqNumber" == 0 ]]; then
   echo "Reference file $ReferenceFile contains no sequences. Quitting." >&2
   exit 1
 fi
 
-# Determine whether to use mafft pairwise or AlignMoreSeqs - perhaps implement more rigourous checks later
+# Check HXB2 file exists within shiver
+if ! [[ -f "$HXB2File" ]]; then
+  echo "Unable to find the HXB2 file within shiver: $HXB2File. Quitting." >&2
+  exit 1
+fi
+
+# Determine whether to use mafft pairwise or AlignMoreSeqs
 if [[ "$Sample_SeqNumber" == 1 ]]; then
   SingleSequence=true # Will be funneled into mafft pairwise alignment
 elif [[ "$Sample_SeqNumber" == 2 ]]; then
-  SingleSequence=false # In this case expects remap consensus files (=2 sequences) and will do AlignMoreSeqs. Can develop this later for other file formats if needed
+  SingleSequence=false # In this case CC.sh expects remap consensus files (=2 sequences) and will use the AlignMoreSeqs tool which can handle missing coverage.
 else 
   echo "Unexpected number of sequences in the sample file. Expected 1 or 2. Quitting." >&2
   exit 1
@@ -102,26 +143,46 @@ if [[ -d "$OutputDir" ]]; then
   exit 1
 fi
 mkdir -p "$OutputDir" && cd "$OutputDir" ||
-{ echo "Could not mkdir then cd to $OutputDir. Quitting." >&2 ; exit 1 ; }
+{ echo "Unable to change directory to $OutputDir. Quitting." >&2 ; exit 1 ; }
 
-# IMPORTANT: Gene Coords must be set up in the correct format. My scripts use gene fragments to determine gene coordinates
-# from complete genomes and make a specific .txt, however I haven't integrated this into the CodonCorrection script. 
-# If just providing a set of references with this tool, then perhaps parts could be simplified to reflect this
+# Determine VIRULIGN options
+Nucleotides=false
+AminoAcids=false
+Mutations=false
+MutationTable=false
 
-### Other variables
-# Set up for $shiver
-AlignMoreSeqsTool=~/shiver/tools/AlignMoreSeqsToPairWithMissingCoverage.py
-# Extracting the sample ID from the fasta
-SequenceName_shell=$(head -n 1 "$SampleFile" | sed 's/>//')
+VirulignOptionsHelp="CodonCorrection.sh can run VIRULIGN with four distinct output formats. To specify \
+which, pass up to four of the following options to CodonCorrection.sh enclosed by double quotes and separated by commas.
+See the VIRULIGN tutorial for more information on these options.
+(1) Nucleotides: An aligned sequence of corrected nucleotides.
+(2) AminoAcids: An aligned sequence of corrected amino acids.
+(3) Mutations: A list of amino acids changes compared to the reference sequence, including frameshifts.
+(4) MutationTable: A CSV file where each mutation present at a specific position is given as a separate column in Boolean representation.
+"
 
-# Check config and other shiver scripts for variables to work from if needed
-
-# Add red to all the error messages, yellow to warnings, blue for standard messages, green for results
-
-###################################################################################
+# Select VIRULIGN options
+VirulignOutput=("Nucleotides" "AminoAcids" "Mutations" "MutationTable")
+if [[ "$VirulignOptions" == "all" ]]; then 
+  Nucleotides=true
+  AminoAcids=true
+  Mutations=true
+  MutationTable=true
+else
+  # Select alignment output based on VirulignOptions args
+  IFS=',' read -ra listed_options <<< "$VirulignOptions"
+  for option in "${listed_options[@]}"; do
+    # Could convert to all upper/lowercase here (and change variable names) for consistency
+    if [[ " ${VirulignOutput[*]} " == *" $option "* ]]; then
+      eval "${option}=true"
+    else
+      echo "Error: '$option' is not a valid option. Valid options are Nucleotides, AminoAcids, Mutations, MutationTable. Quitting."
+      echo "$VirulignOptionsHelp"
+      exit 1
+    fi
+  done
+fi
 
 ### Determine which genes to correct
-
 GAG=false
 POL=false
 VIF=false
@@ -158,6 +219,11 @@ else
   done
 fi
 
+# Extracting the sample ID from the sample fasta file
+SequenceName_shell=$(head -n 1 "$SampleFile" | sed 's/>//')
+
+###################################################################################
+
 # Print chosen genes
 listed_genes=()
 for gene in "${genes[@]}"; do
@@ -173,10 +239,9 @@ else
   exit 1
 fi
 
-# Align reference to sample
-# todo check hxb2 file exists
+# Function to align the sample to the chosen reference
+  # Both mafft options are set to quiet to avoid obfuscating error messages, but this can be switched off by removing the '---quiet' options below
 function align_to_sample {
-  # Creates temp_ files from within the AlignMoreSeqs script that will be overwritten if batch processing 
   AlignmentRef="$1"
   AlignmentAppend="$2"
 
@@ -187,11 +252,11 @@ function align_to_sample {
   fi
 
   if [[ "$SingleSequence" == 'true' ]]; then
-    # Carry out a mafft pairwise alignment due to no missing coverage in SID_remap_ref files
-    "$mafft" --add "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
+    # Carry out a mafft pairwise alignment - this assumes that single sequences do not contains the '?' characters found within shiver output files 
+    "$mafft" --quiet --add "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
   else
     # Capable of handling sequence with unknown coverage in parts. Requires two sequences in the starting sample .fasta
-    "$python2" "$AlignMoreSeqsTool" "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
+    "$python2" "$AlignMoreSeqsTool" --x-mafft "$mafft --quiet" "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
   fi
 
 }
@@ -200,7 +265,7 @@ function align_to_sample {
 align_to_sample "$HXB2File" "_HXB2Aligned.fasta" || { echo "Problem aligning sample with reference HXB2. Quitting." >&2; exit 1; }
 HXB2_Alignment=temp_"$SequenceName_shell$AlignmentAppend"
 
-# Extract approximate sample genes using HXB2 as a reference
+# Extract approximate sample genes using HXB2 as a reference - only used to BLAST to reference genes before more precise sample extraction
 $python2 "$PythonFuncs" ExtractWithHXB2 --AlignmentFile "$HXB2_Alignment" --SingleSeq "$SingleSequence" || { echo "CodonCorrection.sh was unable to extract the sample gene sequences. Quitting." >&2; exit 1; }
 
 # Check if genes have entered MissingCoverage.txt, and if so omit from further processing
@@ -212,29 +277,30 @@ for gene in "${genes[@]}"; do
   fi
 done
 
-# BLASTn the sample sequences to the corresponding gene database
-
+# BLASTn the sample sequences to the corresponding gene database TODO
 function blastn_to_genes() {
+  MaxTargets="$BLASTMatch" # Ensures that enough targets are listed - can be set to a static value instead of an arg, or a minimum of N.
   for gene in "${genes[@]}"; do
     if [[ "${!gene}" = true ]]; then
       BLASTn_Database="$InitDir/BLASTnDB_${gene}"
       BLAST_Gene=/"$OutputDir"/temp_preBLAST_Sample_Gene_"${gene}".fasta
       BLAST_Output=blastn_"${gene}".out
       # Run BLASTn
-      blastn -query "$BLAST_Gene" -db "$BLASTn_Database"/"${gene}" -outfmt \
-      "10 qseqid qseq evalue sseqid pident qlen qstart qend sstart send frames" -out "$BLAST_Output" -max_target_seqs 1 \
+      "$BlastNcommand" -query "$BLAST_Gene" -db "$BLASTn_Database"/"${gene}" -outfmt \
+      "10 qseqid qseq evalue sseqid pident qlen qstart qend sstart send bitscore" -out "$BLAST_Output" -max_target_seqs "$MaxTargets" \
       || { echo "Failed to execute BLASTn command. Quitting." >&2; return 1; }
       # TODO add headers to the blast output - could do after processing just for ease of reading
       
-      # Assign reference name per gene based on the highest pident
-      ExtractMatch="$(awk -F',' '{print $5, $0}' "$BLAST_Output" | sort -rn | head -n 1 | awk -F',' '{print $4}')"
+      # Assign the nth closest reference name per gene, where n is the specified nth closest match (1 is 1st, 2 is 2nd, etc.)
+      ExtractMatch="$(awk -F',' '{print $11, $0}' "$BLAST_Output" | sort -rn | awk -F',' -v rank="$BLASTMatch" 'NR==rank {print $4}' | sed 's/^[[:space:]]*//')"
+      # awk -F',' '{print $11, $0}' "$BLAST_Output" | sort -rn # TESTING
       ExtractSeqName=${ExtractMatch%????}
-      # Is pident an accurate way to find the closest match? Is evalue better? Also doesn't account for fragment length
+
       # Assign a reference variable for each gene
       GeneRef="ref_$gene"
       eval "$GeneRef=$ExtractSeqName"
       # List reference to shell
-      echo -e "${GREEN}Closest annotatable ${gene} reference: ${!GeneRef}${END}"
+      echo -e "${GREEN}Reference used for ${gene}: ${!GeneRef}${END}"
     fi
   done
   return 0
@@ -263,7 +329,6 @@ done
   # Sample genes have been extracted with HXB2 already (although perhaps less accurately as it just uses HXB2 to align and extract) 
   # and the reference genes were extracted as part of the init. Because this script is already written I'm keeping it for the updated 
   # gene-by-gene processing, but it could be modified/removed due to those preexisting files.
-  # Can align_to_sample/mafft be set to quiet? The printing to terminal can obfuscate error messages
 for gene in "${genes[@]}"; do
   if [[ "${!gene}" = true ]]; then
     ReferenceGenome="ref_genome_$gene"
@@ -278,46 +343,7 @@ for gene in "${genes[@]}"; do
   fi
 done
 
-# Check references are divisible by three - i.e. readable as codons TODO
-
 ###################################################################################
-
-# Determine VIRULIGN options
-Nucleotides=false
-AminoAcids=false
-Mutations=false
-MutationTable=false
-
-VirulignOptionsHelp="CodonCorrection.sh can run VIRULIGN with four distinct output formats. To specify \
-which, pass up to four of the following options to CodonCorrection.sh enclosed by double quotes and separated by commas.
-See the VIRULIGN tutorial for more information on these options.
-(1) Nucleotides: An aligned sequence of corrected nucleotides.
-(2) AminoAcids: An aligned sequence of corrected amino acids.
-(3) Mutations: A list of amino acids changes compared to the reference sequence, including frameshifts.
-(4) MutationTable: A CSV file where each mutation present at a specific position is given as a separate column in Boolean representation.
-"
-
-# Select VIRULIGN options
-VirulignOutput=("Nucleotides" "AminoAcids" "Mutations" "MutationTable")
-if [[ "$VirulignOptions" == "all" ]]; then 
-  Nucleotides=true
-  AminoAcids=true
-  Mutations=true
-  MutationTable=true
-else
-  # Select alignment output based on VirulignOptions args
-  IFS=',' read -ra listed_options <<< "$VirulignOptions"
-  for option in "${listed_options[@]}"; do
-    # Could convert to all upper/lowercase here (and change variable names) for conistency
-    if [[ " ${VirulignOutput[*]} " == *" $option "* ]]; then # Are * necessary for my data? For this and genes
-      eval "${option}=true"
-    else
-      echo "Error: '$option' is not a valid option. Valid options are Nucleotides, AminoAcids, Mutations, MutationTable. Quitting."
-      echo "$VirulignOptionsHelp"
-      exit 1
-    fi
-  done
-fi
 
 # Print chosen virulign options
 listed_options=()
@@ -334,8 +360,6 @@ else
 fi
 
 # Override for Nucleotides - in order to correctly analyse length this is always set to true
-# TODO should be incorporated more elegantly into the code (currently listed options wont print it, add documentation for being true, 
-# adjust options - cannot be removed entirely in the event you only want Nucl as argument cannot be empty)
 Nucleotides=true
 
 # Initialise variables
@@ -348,9 +372,11 @@ function run_virulign {
   export_alphabet_func="$1"
   export_kind_func="$2"
   FileAppend_func="$3"
-  # Setting a max value for frameshifts arbitrarily due to frameshift errors occuring in highly variable genes
-  # could be adjusted or change based on which gene is being analysed - eg ENV
-  MaxFrameshifts=100
+  # Setting a max value for frameshifts arbitrarily due to frameshift errors occuring in highly variable genes - although in the gene I tested the same "Frameshift Error"
+  # occured within VIRULIGN regardless of this value.
+  MaxFrameshifts=50
+  GapExtensionPenalty=3.3 # default virulign is 3.3
+  GapOpenPenalty=10.0 # default virulign is 10.0
 
   # Find sample and reference files
   for gene in "${genes[@]}"; do
@@ -362,13 +388,12 @@ function run_virulign {
       if [[ -n "$SampleGene" ]]; then
         # Run VIRULIGN
         v_output=$( { $VirulignLocation $ReferenceGene $SampleGene --exportKind $export_kind_func --exportAlphabet $export_alphabet_func --exportReferenceSequence yes \
-          --exportWithInsertions yes --maxFrameShifts $MaxFrameshifts; } 2>&1 > HIV_${gene}$FileAppend_func )
+          --exportWithInsertions yes --gapExtensionPenalty $GapExtensionPenalty --gapOpenPenalty $GapOpenPenalty --maxFrameShifts $MaxFrameshifts; } 2>&1 > HIV_${gene}$FileAppend_func )
         echo -e "${GREY}$v_output${END}"
 
         # Check for errors
         ErrorFile="FailedAlignment.txt"
         touch "$ErrorFile"
-
         if echo "$v_output" | grep -qi 'error'; then
           error_line=$(echo "$v_output" | grep -i 'error')
           if ! grep -qF "$error_line" "$ErrorFile"; then
@@ -382,8 +407,9 @@ function run_virulign {
   done
 }
 
+# Function to call the run_virulign function with the chosen VIRULIGN options
 function call_virulign {
-  ### Define virulign command options based on chosen output options
+  # Define virulign command options based on chosen output options
   for option in "${VirulignOutput[@]}"; do
     if [[ "${!option}" == "true" ]]; then
       # Set variables for each virulign output option
@@ -420,16 +446,10 @@ function call_virulign {
 
     fi
   done
-
-  # Check options are set correctly # Possibly no longer useful 
-  if [[ -z $export_alphabet || -z $export_kind || -z $FileAppend ]]; then
-      echo -e "${RED}Error: One or more options are not set. Quitting.${END}"
-      exit 1
-  fi
 }
 
 # Call virulign with chosen options
-call_virulign || { echo "Problem calling virulign. Quitting." >&2; exit 1; } # More descriptive vs run function
+call_virulign || { echo "Problem calling virulign with the selected options. Quitting." >&2; exit 1; }
 
 
 # Check for single sequences in output (indicates failed as they should be paired)
@@ -504,40 +524,68 @@ for gene in "${genes[@]}"; do
 done
 
 # Function to add length to the reference
-  # Adds codon-correct number of N's to the reference file (currently just adds to same temp file, could be a separate file)
-  # Reasion for the function: For some samples if the reference is shorter than the sample sequence, VIRULIGN will prematurely truncate the sequence
-  # to be the same length as the reference. This can be negated by adding indeterminate 'N' bases to the reference. Ideally VIRULIGN would be adjusted 
-  # to not require this (I'm unable to find anything within the present options) - but I don't have the C++ code knowledge to correct this.
+  # Adds codon-correct number of N's to the temp reference file. For some samples if the reference is shorter than the sample sequence, VIRULIGN will prematurely 
+  # truncate the sequence to be the same length as the reference. This can be negated by adding generic 'N' bases to the reference. Ideally VIRULIGN would 
+  # be adjusted to not require this (I'm unable to find anything within the present options) - but I don't have the C++ knowledge to correct this.
 function add_length {
   LengthChange=$1
   Gene=$2
   ReferenceGene=$(find . -type f -name "temp_${!GeneRef}_${gene}_Reference_only.fasta")
   NsToAdd=""
 
+  # Extract the sample sequence from the first round of virulign correction
+  "$python2" "$PythonFuncs" ExtractSequence --OutputFile "temp_${SequenceName_shell}_${Gene}_Corrected.txt" --InputFile "HIV_${Gene}_Nucl_corrected.fasta" --SequenceNumber "2" || { echo "Problem extracting the corrected gene sequence. Quitting." >&2; return 1; }
+  # Determine if any bases are missing from the start of the virulign output by aligning the extracted and corrected gene
+  SampleAlignment="temp_${SequenceName_shell}_${Gene}_SampleAlignment.fasta"
+  "$mafft" --quiet --add "temp_${SequenceName_shell}_${Gene}_only.fasta" "temp_${SequenceName_shell}_${Gene}_Corrected.txt" > "$SampleAlignment"
+
+  # Count the gaps at the start of the corrected sequence (i.e. the shift in gene positions of the sample sequence)
+  PositionShift=0
+  PositionShift=$(awk 'NR==2 {if(match($0, /^[-]+/)) print RLENGTH; else print 0}' "$SampleAlignment")
   if [[ "$LengthChange" -lt 0 ]]; then
     echo -e "${YELLOW}The VIRULIGN-corrected $Gene sequence has a change in length of $LengthChange${END}"
     echo "${SequenceName_shell}_$Gene had a change in length of $LengthChange before correction.">> "$LengthFile"
-    # Convert to positive number
+    # Convert to positive number (length change is always negative for truncation issues)
     LengthChange=$((LengthChange * -1))
-    # Determine length of N string to add
-    if ((LengthChange % 3 == 0)); then
-      N_Number=$LengthChange
-    elif ((LengthChange % 3 == 1)); then
-      N_Number=$((LengthChange + 2))
-    elif ((LengthChange % 3 == 2)); then
-      N_Number=$((LengthChange + 1))
+    # Determine change in length at the end of the sequence
+    EndLength=$((LengthChange - PositionShift))
+    if [[ "$EndLength" != 0 ]]; then
+      # Determine length of N string to add
+      if ((EndLength % 3 == 0)); then
+        N_Number=$EndLength
+      elif ((EndLength % 3 == 1)); then
+        N_Number=$((EndLength + 2))
+      elif ((EndLength % 3 == 2)); then
+        N_Number=$((EndLength + 1))
+      fi
+      # Create N string
+      for ((i=0; i<N_Number; i++)); do
+        NsToAdd+="N"
+      done
+      echo "$(cat $ReferenceGene)$NsToAdd" > "$ReferenceGene"
     fi
-    # Create N string
-    for ((i=0; i<N_Number; i++)); do
-      NsToAdd+="N"
-    done
-    echo "$(cat $ReferenceGene)$NsToAdd" > $ReferenceGene
 
-    # Delete old virulign results - could also just be renamed
-    rm -f "HIV_${Gene}_Nucl_corrected.fasta"
-    rm -f "HIV_${Gene}_AminoAcids_corrected.fasta"
-    rm -f "HIV_${Gene}_Mutations.csv"
-    rm -f "HIV_${Gene}_MutationTable.csv"
+    # Add length to the start of the sequence
+    if [[ "$PositionShift" != 0 ]]; then
+      NsToAdd=""
+      for ((i=0; i<PositionShift; i++)); do
+        NsToAdd+="N"
+      done
+      awk 'NR==2 {print "'"$NsToAdd"'" $0; next} 1' "$ReferenceGene" > temp_file && mv temp_file "$ReferenceGene"
+    fi
+
+    # OPTION 1: Delete old results
+    # Delete old virulign results - For testing purposes files are renamed as below, can revert to deletion
+    # rm -f ./HIV_${Gene}_Nucl_corrected.fasta
+    # rm -f ./HIV_${Gene}_AminoAcids_corrected.fasta
+    # rm -f ./HIV_${Gene}_Mutations.csv
+    # rm -f ./HIV_${Gene}_MutationTable.csv
+
+    # OPTION 2: Rename virulign results
+    mv -f ./HIV_${Gene}_Nucl_corrected.fasta ./HIV_${Gene}_Nucl_corrected_OLD.fasta
+    mv -f ./HIV_${Gene}_AminoAcids_corrected.fasta ./HIV_${Gene}_AminoAcids_corrected_OLD.fasta
+    mv -f ./HIV_${Gene}_Mutations.csv ./HIV_${Gene}_Mutations_OLD.csv
+    mv -f ./HIV_${Gene}_MutationTable.csv ./HIV_${Gene}_MutationTable_OLD.csv
     
     # Set all other gene variables to false in order to re-run virulign with only the modified gene references
     local GAG=false
@@ -552,7 +600,6 @@ function add_length {
       eval "${Gene}=true"
     fi
 
-
     # Call virulign again to analyse using new reference lengths 
     call_virulign || { echo "Problem calling virulign after length correction. Quitting." >&2; return 1; }
   fi
@@ -561,17 +608,21 @@ function add_length {
 
 # Compare sequence length of the extracted sample to final corrected sequence
 if [[ "$Nucleotides" == "true" ]]; then
-  LengthFile="FailedLengthSeqs.txt"
+  LengthFile="CorrectedLengthSeqs.txt"
   for gene in "${genes[@]}"; do
     GeneRef="ref_$gene"
     if [[ "${!gene}" = true ]]; then
       SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
-      # Determine lengths - ignore gaps and N to determine only 'real' changes in lengths, ie false truncation/extension
+      # Determine lengths - ignore gaps and added Ns to determine only 'real' changes in lengths, ie false truncation/extension
       if [[ -s "HIV_${gene}_Nucl_corrected.fasta" ]] && [[ -f "$SampleGene" ]]; then
         extracted_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; \
         next} found { gsub("-", "", $0); len+=length($0) } END{print len}' "$SampleGene") # add error checks to these if failed
+        # Find the number of pre-existing N's in the sample gene
+        ExistingNs=$(tail -n +2 "$SampleGene" | tr -cd 'Nn' | wc -c | awk '{print $1+0}')
         v_output_sample_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; \
         next} found { gsub("-", "", $0); gsub("N", "", $0); len+=length($0) } END{print len}' "HIV_${gene}_Nucl_corrected.fasta")
+        v_output_sample_seq_length=$((v_output_sample_seq_length + ExistingNs))
+        # Calculate difference in sequence length and add length if needed
         seq_difference=$((v_output_sample_seq_length - extracted_seq_length))
         if [[ "$seq_difference" -lt 0 ]]; then
           add_length "$seq_difference" "${gene}" || { echo "Problem adding length to reference files. Quitting." >&2; exit 1; }
@@ -584,12 +635,10 @@ fi
 # Error message for truncated/extended sequences
 if [[ -s $LengthFile ]]; then
   echo -e "${YELLOW}Virulign output files for truncated sample sequences have been deleted. Virulign has been run again with the reference sequence extended for those genes. Ignore the added \
-terminal N bases in subsequent analysis - the unmodified reference sequence remains in ${SequenceName_shell}_Reference_GenesExtracted.fasta${END}"
+terminal N bases in subsequent analysis - the unmodified reference sequence remains in ${SequenceName_shell}_Reference_GenesExtracted.fasta.
+As a result of this some positional/mutation information for the reference sequence may be incorrect due to artifical bases being added - eg X mutations in the reference.${END}"
   echo -e "${YELLOW}Check $LengthFile for details of which sequences had their references extended.${END}"
-# not sure if this is generated if no length issues; if so, remove it
 fi
-
-# improve readibility of printed errors/output
 
 # Check if any alignments failed
 if [[ -s "$ErrorFile" ]]; then
@@ -599,8 +648,6 @@ else
 fi
 
 # Print frameshift info to file
-# TODO if sequence_name already in file return error
-# Could be set up to return more meaningful info
 if [[ ! -f "Frameshifts.txt"  ]] && [[ "$Mutations" == "true" ]]; then
   echo "Sequence Name, Frameshift quantity, Mutations" > Frameshifts.txt
 fi
@@ -612,7 +659,7 @@ if [[ -f "Frameshifts.txt" ]] && [[ "$Mutations" == "true" ]]; then
       frameshift_info=$(awk -F ',' 'NR==3 {print $1 ", " $4 ", " $7}' "HIV_${gene}_Mutations.csv")
       frameshift_number=$(echo "$frameshift_info" | awk -F', ' '{print $2}')
       # Check if frameshifts are present and that the alignment has not failed
-      if [[ "$frameshift_number" != "0" && $(grep -c "${SequenceName_shell}_${gene}" "$ErrorFile") -eq 0 ]]; then
+      if [[ "$frameshift_number" != "0" && (! -f "$ErrorFile" || $(grep -c "${SequenceName_shell}_${gene}" "$ErrorFile") -eq 0) ]]; then
         echo "$frameshift_info" >> Frameshifts.txt
       fi
     fi
@@ -629,9 +676,19 @@ if [[ -f "Frameshifts.txt"  ]] && [[ "$Mutations" == "true" ]]; then
   fi
 fi
 
-# Delete temp_ files
-# could add a config variable with optional keep temp files, or for some
-# rm -f temp_* 
+# Identify indels
+if [[ -f "Frameshifts.txt" ]]; then
+  OutputCSV="Frameshifts.csv"
+  for gene in "${genes[@]}"; do
+  GeneRef="ref_$gene"
+  SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
+    if [[ "${!gene}" = true ]]; then
+      "$python2" "$PythonFuncs" CategoriseIndels --InputFile "HIV_${gene}_Nucl_corrected.fasta" --OutputCSV "$OutputCSV" --Gene "${gene}" \
+      --SequenceName "${SequenceName_shell}" --ReferenceName "${!GeneRef}" --GeneCoordInfo "$GeneCoordInfo" --GenomeFile "$ReferenceFile" \
+      --AlignmentFile "$HXB2_Alignment" --ExtractedGeneFile "$SampleGene" || { echo "Problem finding indel positions. Quitting." >&2; exit 1; }
+    fi
+  done
+fi
 
 # Warn if some genes have missing coverage
 if [[ -s "MissingCoverage.txt" ]]; then
@@ -639,25 +696,15 @@ if [[ -s "MissingCoverage.txt" ]]; then
 fi
 
 # Delete temporary files
-  # Currently just a true/false in the code. Could be added as an arg or set in shiver_config
-DeleteTemp=true
+# Check that the directory is correct before deleting
 if [[ "$DeleteTemp" == "true" ]]; then
-  rm temp_*
+  CurrentDir=$(pwd)
+  if [[ "$CurrentDir" = "$OutputDir" ]]; then
+    rm ./temp_*
+    echo "Deleting temporary files. Set DeleteTemp to false in config if choosing to keep these files."
+  else
+    echo "The current directory is not the expected Output Directory '$OutputDir'. Aborting deletion."
+  fi
+else
+  echo "Temporary files have not been deleted. To do so, set DeleteTemp to true in the config."
 fi
-
-# After correcting the gene, do we update the full genome consensus?
-
-# Potentially just for testing but check the new sequence BLASTXs
-# old code for blastx template below
-# blastx -query ~/codon-awareness/Sample/test2_shifted.fasta -db blast_db_pol \
-# -outfmt "10 qseqid qseq evalue sseqid pident qlen qstart qend sstart send" \
-# -out POL_sequence_blasted.out -max_target_seqs 1
-
-# TODO after: remap to this (i.e. feed into shiver so name files accordingly) verify that 
-# the .bam produced is more correct than previously, verify that protein is more correct 
-  # could rename the shiver-generated remap file and name my new one the same thing to replace it to preserve shiver code
-
-# Had to set up chmod for first time running. is this a problem for future use in other machines?
-
-# output of virulign: if nucl corrected contains one sequence return as failed
-

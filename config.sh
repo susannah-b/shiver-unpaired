@@ -237,11 +237,19 @@ AlignContigsToConsensus=false
 # With the default value of false, the reads in their state just before mapping 
 # (after any trimming of primers or adapters or low-quality bases, and after
 # removal of suspected contaminant reads) will have 'temp_' prepended to their
-# filenames so that they removed by the "rm temp*" command that you probably
+# filenames so that they removed by configthe "rm temp*" command that you probably
 # want to run after shiver to get rid of temporary files. Changing the value to
 # true means the reads in that state don't have 'temp_' prepended to their
 # filenames - handy if you want to keep them. (By request of shiver-pro Tanya!)
 KeepPreMappingReads=false
+
+# CodonCorrection.sh variables:
+# The genes that can be analysed by VIRULIGN:
+genes=("GAG" "POL" "VIF" "VPR" "VPU" "ENV" "NEF")
+# Shall we delete temporary files within the CodonCorrection.sh output? 
+DeleteTemp=false
+# Should key messages in the CodonCorrection output be printed in colour?
+EnableColours=true
 
 # Suffixes we'll append to the sample ID for output files.
 # If you change the extension (whatever follows the dot) you might break

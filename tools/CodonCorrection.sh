@@ -269,15 +269,17 @@ HXB2_Alignment=temp_"$SequenceName_shell$AlignmentAppend"
 "$python" "$PythonFuncs" ExtractWithHXB2 --AlignmentFile "$HXB2_Alignment" --SingleSeq "$SingleSequence" || { echo "CodonCorrection.sh was unable to extract the sample gene sequences. Quitting." >&2; exit 1; }
 
 # Check if genes have entered MissingCoverage.txt, and if so omit from further processing
-for gene in "${genes[@]}"; do
-  if [[ "${!gene}" = true ]]; then
-    if grep -q "$SequenceName_shell"_"${gene}" "MissingCoverage.txt"; then
-        eval "$gene=false"
+if [[ -s "MissingCoverage.txt" ]]; then
+  for gene in "${genes[@]}"; do
+    if [[ "${!gene}" = true ]]; then
+      if grep -q "$SequenceName_shell"_"${gene}" "MissingCoverage.txt"; then
+          eval "$gene=false"
+      fi
     fi
-  fi
-done
+  done
+fi
 
-# BLASTn the sample sequences to the corresponding gene database TODO
+# BLASTn the sample sequences to the corresponding gene database
 function blastn_to_genes() {
   MaxTargets="$BLASTMatch" # Ensures that enough targets are listed - can be set to a static value instead of an arg, or a minimum of N.
   for gene in "${genes[@]}"; do
@@ -289,11 +291,9 @@ function blastn_to_genes() {
       "$BlastNcommand" -query "$BLAST_Gene" -db "$BLASTn_Database"/"${gene}" -outfmt \
       "10 qseqid qseq evalue sseqid pident qlen qstart qend sstart send bitscore" -out "$BLAST_Output" -max_target_seqs "$MaxTargets" \
       || { echo "Failed to execute BLASTn command. Quitting." >&2; return 1; }
-      # TODO add headers to the blast output - could do after processing just for ease of reading
       
       # Assign the nth closest reference name per gene, where n is the specified nth closest match (1 is 1st, 2 is 2nd, etc.)
       ExtractMatch="$(awk -F',' '{print $11, $0}' "$BLAST_Output" | sort -rn | awk -F',' -v rank="$BLASTMatch" 'NR==rank {print $4}' | sed 's/^[[:space:]]*//')"
-      # awk -F',' '{print $11, $0}' "$BLAST_Output" | sort -rn # TESTING
       ExtractSeqName=${ExtractMatch%????}
 
       # Assign a reference variable for each gene

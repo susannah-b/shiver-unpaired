@@ -8,8 +8,8 @@ Sequences from HIV Easily Reconstructed.
 
 shiver is a tool for assembling viral genomes by mapping reads (fragments of genetic sequence) to a custom reference sequence constructed using contigs specifc to each sample.
 This reduces the biased loss of information that occurs from mapping to a reference that differs from the sample.
-From the mapped reads, base frequencies are calculated, and a consensus sequence is called.  
-The method, its performance and scientific context are discussed [here](https://doi.org/10.1093/ve/vey007); please cite this if you find shiver, or our discussion of the relevant issues, helpful.
+From the mapped reads, base frequencies are calculated, and a consensus sequence is called.
+The method, its performance and scientific context are discussed [here](https://doi.org/10.1093/ve/vey007); please cite this if you find shiver, or our explanation of the relevant issues, helpful.
 If you use shiver, please cite the paper for shiver and the papers of shiver's dependencies: details [here](docs/CitationDetails.bib).
 
 shiver runs natively on Linux and Mac OS, but not Windows.

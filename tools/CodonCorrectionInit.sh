@@ -89,7 +89,7 @@ if [[ "$GC_FirstLine" != *"$GeneCoord_Header"* ]]; then
 fi
 
 # Extract each gene to make a BLAST database for each
-$python2 "$PythonFuncs" MakeReferenceDatabase --InitDir "$OutputDirInit" --GeneCoordInfo "$GeneCoordInfo" --GenomeFile "$ReferenceFasta" \
+$python "$PythonFuncs" MakeReferenceDatabase --InitDir "$OutputDirInit" --GeneCoordInfo "$GeneCoordInfo" --GenomeFile "$ReferenceFasta" \
 || { echo "CodonCorrectionInit.sh was unable to extract the reference gene sequences. Quitting." >&2; exit 1; }
 
 # Copy reference file and gene coordinates file to working directory

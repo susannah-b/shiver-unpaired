@@ -256,7 +256,7 @@ function align_to_sample {
     "$mafft" --quiet --add "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
   else
     # Capable of handling sequence with unknown coverage in parts. Requires two sequences in the starting sample .fasta
-    "$python2" "$AlignMoreSeqsTool" --x-mafft "$mafft --quiet" "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
+    "$python" "$AlignMoreSeqsTool" --x-mafft "$mafft --quiet" "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
   fi
 
 }
@@ -266,7 +266,7 @@ align_to_sample "$HXB2File" "_HXB2Aligned.fasta" || { echo "Problem aligning sam
 HXB2_Alignment=temp_"$SequenceName_shell$AlignmentAppend"
 
 # Extract approximate sample genes using HXB2 as a reference - only used to BLAST to reference genes before more precise sample extraction
-$python2 "$PythonFuncs" ExtractWithHXB2 --AlignmentFile "$HXB2_Alignment" --SingleSeq "$SingleSequence" || { echo "CodonCorrection.sh was unable to extract the sample gene sequences. Quitting." >&2; exit 1; }
+"$python" "$PythonFuncs" ExtractWithHXB2 --AlignmentFile "$HXB2_Alignment" --SingleSeq "$SingleSequence" || { echo "CodonCorrection.sh was unable to extract the sample gene sequences. Quitting." >&2; exit 1; }
 
 # Check if genes have entered MissingCoverage.txt, and if so omit from further processing
 for gene in "${genes[@]}"; do
@@ -313,7 +313,7 @@ blastn_to_genes || { echo "Problem BLASTing sample genes to the corresponding ge
 for gene in "${genes[@]}"; do
   if [[ "${!gene}" = true ]]; then
     GeneRef="ref_$gene"
-    "$python2" "$PythonFuncs" ExtractRefFromFasta --ReferenceName "${!GeneRef}" --GenomeFile "$ReferenceFile" --Gene "$gene" || { echo "CodonCorrection.sh was unable to extract the reference sequence from the list of references. Quitting." >&2; exit 1; }
+    "$python" "$PythonFuncs" ExtractRefFromFasta --ReferenceName "${!GeneRef}" --GenomeFile "$ReferenceFile" --Gene "$gene" || { echo "CodonCorrection.sh was unable to extract the reference sequence from the list of references. Quitting." >&2; exit 1; }
   fi
 done
 
@@ -339,7 +339,7 @@ for gene in "${genes[@]}"; do
 
    # Run python script to extract the final sample and reference genes
      # Names of output files could be confusing? Rename if needed
-   "$python2" "$PythonFuncs" ExtractRefandSample --AlignmentToRef "$ReferenceAlignment" --SingleSeq "$SingleSequence" --ReferenceName "${!GeneRef}" --GeneCoordInfo "$GeneCoordInfo" --Gene "${gene}" || { echo "CodonCorrection.sh was unable to extract the genes for reference and sample. Quitting." >&2; exit 1; }
+   "$python" "$PythonFuncs" ExtractRefandSample --AlignmentToRef "$ReferenceAlignment" --SingleSeq "$SingleSequence" --ReferenceName "${!GeneRef}" --GeneCoordInfo "$GeneCoordInfo" --Gene "${gene}" || { echo "CodonCorrection.sh was unable to extract the genes for reference and sample. Quitting." >&2; exit 1; }
   fi
 done
 
@@ -534,7 +534,7 @@ function add_length {
   NsToAdd=""
 
   # Extract the sample sequence from the first round of virulign correction
-  "$python2" "$PythonFuncs" ExtractSequence --OutputFile "temp_${SequenceName_shell}_${Gene}_Corrected.txt" --InputFile "HIV_${Gene}_Nucl_corrected.fasta" --SequenceNumber "2" || { echo "Problem extracting the corrected gene sequence. Quitting." >&2; return 1; }
+  "$python" "$PythonFuncs" ExtractSequence --OutputFile "temp_${SequenceName_shell}_${Gene}_Corrected.txt" --InputFile "HIV_${Gene}_Nucl_corrected.fasta" --SequenceNumber "2" || { echo "Problem extracting the corrected gene sequence. Quitting." >&2; return 1; }
   # Determine if any bases are missing from the start of the virulign output by aligning the extracted and corrected gene
   SampleAlignment="temp_${SequenceName_shell}_${Gene}_SampleAlignment.fasta"
   "$mafft" --quiet --add "temp_${SequenceName_shell}_${Gene}_only.fasta" "temp_${SequenceName_shell}_${Gene}_Corrected.txt" > "$SampleAlignment"
@@ -683,7 +683,7 @@ if [[ -f "Frameshifts.txt" ]]; then
   GeneRef="ref_$gene"
   SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
     if [[ "${!gene}" = true ]]; then
-      "$python2" "$PythonFuncs" CategoriseIndels --InputFile "HIV_${gene}_Nucl_corrected.fasta" --OutputCSV "$OutputCSV" --Gene "${gene}" \
+      "$python" "$PythonFuncs" CategoriseIndels --InputFile "HIV_${gene}_Nucl_corrected.fasta" --OutputCSV "$OutputCSV" --Gene "${gene}" \
       --SequenceName "${SequenceName_shell}" --ReferenceName "${!GeneRef}" --GeneCoordInfo "$GeneCoordInfo" --GenomeFile "$ReferenceFile" \
       --AlignmentFile "$HXB2_Alignment" --ExtractedGeneFile "$SampleGene" || { echo "Problem finding indel positions. Quitting." >&2; exit 1; }
     fi

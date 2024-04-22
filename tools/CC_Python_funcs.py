@@ -17,7 +17,7 @@ parser.add_argument('--InitDir', help='The location chosen for the init director
 parser.add_argument('--GeneCoordInfo', help='Gene coordinate information file') # be more descriptive of format
 parser.add_argument('--GenomeFile', help='Fasta file of all the references as complete genomes (as opposed to individual genes).')
 parser.add_argument('--AlignmentFile', help='Fasta file containing the HXB2 sequence included with shiver aligned to the sample.')
-parser.add_argument('--SingleSeq', help='Set to true or fasle in CC.sh depending on number of sequences in the sample file.')
+parser.add_argument('--SingleSeq', help='Set to true or false in CC.sh depending on number of sequences in the sample file.')
 parser.add_argument('--ReferenceName', help='Name of the reference that BLASTs to the gene')
 parser.add_argument('--Gene', help='The current gene being processed')
 parser.add_argument('--AlignmentToRef', help='Fasta file containing the reference sequence for each gene aligned to the sample genome.')
@@ -34,16 +34,16 @@ function_name = args.FunctionName
 
 # MakeReferenceDatabase uses the whole genome reference file to  extract individual genes to a separate fasta file based on gene type
 def MakeReferenceDatabase(InitDir, GeneCoordInfo, GenomeFile):
-  print ('Now extracting reference genes from database')
+  print('Now extracting reference genes from database')
   # Parse the whole genome sequences
   try:
     with open(GenomeFile, 'r') as genome_handle:
       genome_records = SeqIO.to_dict(SeqIO.parse(genome_handle, "fasta"))
   except IOError:
-    print('Error: Could not open file {}'.format(GenomeFile))
+    print(('Error: Could not open file {}'.format(GenomeFile)))
     return 1
   except ValueError:
-    print('Error: File {} is not in the expected format'.format(GenomeFile))
+    print(('Error: File {} is not in the expected format'.format(GenomeFile)))
     return 1
 
   # Assign gene info per sequence in coordinates file
@@ -54,10 +54,6 @@ def MakeReferenceDatabase(InitDir, GeneCoordInfo, GenomeFile):
       for line in file:
         gene_info = line.strip().split(',')
         if len(gene_info) != 15:
-          print('length of geneinfo:', len(gene_info))
-          print('geneinfo:', gene_info)
-          print('line:', line)
-          print('gene info 16:', gene_info[15])
           print('Error: The gene coordinate file has an unexpected number of fields. Quitting.')
           return 1
         CoordRefName = gene_info[0]      
@@ -75,11 +71,11 @@ def MakeReferenceDatabase(InitDir, GeneCoordInfo, GenomeFile):
         if CoordRefName in genome_records:
           GenomeSeq = genome_records[CoordRefName].seq
         else:
-          print ('Sequence {} not found in genome file. Quitting'.format(CoordRefName))
+          print(('Sequence {} not found in genome file. Quitting'.format(CoordRefName)))
           return 1
 
         # Extract reference sequence for each gene
-        for gene_class, (gene_start, gene_end) in gene_loci[CoordRefName].items():
+        for gene_class, (gene_start, gene_end) in list(gene_loci[CoordRefName].items()):
           OutputFile = os.path.join(InitDir, 'ReferenceGenes_{}.fasta'.format(gene_class))
           try:
             with open(OutputFile, 'a') as output_file:
@@ -94,20 +90,20 @@ def MakeReferenceDatabase(InitDir, GeneCoordInfo, GenomeFile):
                     ref_start = i
                   if ref_pos == gene_end:
                     ref_end = i
-                    gene_sequence = GenomeSeq[ref_start:ref_end + 1].ungap('-')
+                    gene_sequence = GenomeSeq[ref_start:ref_end + 1].replace("-", "")
                     output_file.write('>' + CoordRefName + '_' + gene_class + '\n' + str(gene_sequence) + '\n')    
                     break
           except IOError:
-            print('Error: Could not open file {}'.format(OutputFile))
+            print(('Error: Could not open file {}'.format(OutputFile)))
             return 1
           except ValueError:
-            print('Error: File {} is not in the expected format'.format(OutputFile))
+            print(('Error: File {} is not in the expected format'.format(OutputFile)))
             return 1
   except IOError:
-    print('Error: Could not open file {}'.format(GeneCoordInfo))
+    print(('Error: Could not open file {}'.format(GeneCoordInfo)))
     return 1
   except ValueError:
-    print('Error: File {} is not in the expected format'.format(GeneCoordInfo))
+    print(('Error: File {} is not in the expected format'.format(GeneCoordInfo)))
     return 1
   return 0
 
@@ -146,7 +142,7 @@ def ExtractWithHXB2(AlignmentFile, SingleSeq):
 
   # Gene extraction for sample sequence
   if hxb2_loci:
-    for gene, (gene_start, gene_end) in hxb2_loci.items():
+    for gene, (gene_start, gene_end) in list(hxb2_loci.items()):
       OutputFile = "temp_preBLAST_Sample_Gene_{}.fasta".format(gene) # is this correct?
       try:
         with open(OutputFile, 'w') as output_file:
@@ -155,7 +151,7 @@ def ExtractWithHXB2(AlignmentFile, SingleSeq):
             consensus_start = 0
             consensus_end = 0
             sequence_pos = 0
-            for i in xrange(RefSequenceLength): # try ennumerate as above, and/or set sequence to a variable
+            for i in range(RefSequenceLength): # try ennumerate as above, and/or set sequence to a variable
               if HXB2Alignment[RefSequenceNumber][i] != '-':
                 sequence_pos += 1
               if sequence_pos == gene_start:
@@ -166,19 +162,19 @@ def ExtractWithHXB2(AlignmentFile, SingleSeq):
 
             # Write the gene sequence to file unless it contains '?'
             if consensus_start is not None and consensus_end is not None:
-              gene_sequence = HXB2Alignment[0].seq[consensus_start:consensus_end + 1].ungap('-')
+              gene_sequence = HXB2Alignment[0].seq[consensus_start:consensus_end + 1].replace("-", "")
               if '?' in gene_sequence:
-                print('Gene {} contains \'?\' characters indicating missing coverage. Skipping.'.format(gene))
+                print(('Gene {} contains \'?\' characters indicating missing coverage. Skipping.'.format(gene)))
                 with open('MissingCoverage.txt', 'a') as file:
                   file.write(SequenceName + '_' + gene + '\n')
                 continue
               else:
                 output_file.write('>' + SequenceName + '_' + gene + '\n' + str(gene_sequence) + '\n')
       except IOError:
-        print('Error: Could not open file {}'.format(OutputFile))
+        print(('Error: Could not open file {}'.format(OutputFile)))
         return 1
       except ValueError:
-        print('Error: File {} is not in the expected format'.format(OutputFile))
+        print(('Error: File {} is not in the expected format'.format(OutputFile)))
         return 1
         
   return 0
@@ -200,14 +196,14 @@ def ExtractRefFromFasta(ReferenceName, GenomeFile, Gene):
           found = True
           break
   except IOError:
-    print('Error: Could not open file {}'.format(GenomeFile))
+    print(('Error: Could not open file {}'.format(GenomeFile)))
     return 1
   except ValueError:
-    print('Error: File {} is not in the expected format'.format(GenomeFile))
+    print(('Error: File {} is not in the expected format'.format(GenomeFile)))
     return 1
 
   if not found:
-    print('Reference sequence {} was not found within the provided reference file {}.'.format(ReferenceName, GenomeFile))
+    print(('Reference sequence {} was not found within the provided reference file {}.'.format(ReferenceName, GenomeFile)))
   
   return 0
 
@@ -260,19 +256,19 @@ def ExtractRefandSample(AlignmentToRef, SingleSeq, ReferenceName, GeneCoordInfo,
             gene_start = int(gene_info[13])
             gene_end = int(gene_info[14])
           else:
-            print ('Could not match gene name to any of the expected inputs. Quitting')
+            print('Could not match gene name to any of the expected inputs. Quitting')
             return 1
           break
         else:
           continue
       if gene_start is None or gene_end is None:
-        print ('Could not match the reference sequence to any within the reference file. Quitting.')
+        print('Could not match the reference sequence to any within the reference file. Quitting.')
         return 1
   except IOError:
-    print('Error: Could not open file {}'.format(GeneCoordInfo))
+    print(('Error: Could not open file {}'.format(GeneCoordInfo)))
     return 1
   except ValueError:
-    print('Error: File {} is not in the expected format'.format(GeneCoordInfo))
+    print(('Error: File {} is not in the expected format'.format(GeneCoordInfo)))
     return 1
 
   # Gene extraction for reference sequence
@@ -281,7 +277,7 @@ def ExtractRefandSample(AlignmentToRef, SingleSeq, ReferenceName, GeneCoordInfo,
       ref_pos = 0
       ref_start = 0
       ref_end = 0
-      for i in xrange(RefSequenceLength):
+      for i in range(RefSequenceLength):
         if ReferenceAlignment[RefSequenceNumber][i] != '-':
           ref_pos += 1
         if ref_pos == gene_start:
@@ -292,16 +288,16 @@ def ExtractRefandSample(AlignmentToRef, SingleSeq, ReferenceName, GeneCoordInfo,
 
       if ref_start is not None and ref_end is not None:
         # Write the reference sequence to a file
-        reference_sequence = ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1].ungap('-')
+        reference_sequence = ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1].replace("-", "")
         output_file.write('>' + ReferenceAlignment[RefSequenceNumber].id + '_' + Gene + '\n' + str(reference_sequence) + '\n')
       else:
-        print ('Unable to extract the reference coordinates. Quitting.')
+        print('Unable to extract the reference coordinates. Quitting.')
         return 1
   except IOError:
-    print('Error: Could not open file {}'.format(ref_output_file_name))
+    print(('Error: Could not open file {}'.format(ref_output_file_name)))
     return 1
   except ValueError:
-    print('Error: File {} is not in the expected format'.format(ref_output_file_name))
+    print(('Error: File {} is not in the expected format'.format(ref_output_file_name)))
     return 1
 
   # Gene extraction for sample sequence
@@ -312,7 +308,7 @@ def ExtractRefandSample(AlignmentToRef, SingleSeq, ReferenceName, GeneCoordInfo,
       consensus_end = None
       sequence_pos = 0
       indel_difference = 0
-      for i in xrange(RefSequenceLength):
+      for i in range(RefSequenceLength):
         if ReferenceAlignment[RefSequenceNumber][i] != '-':
           sequence_pos += 1
         if sequence_pos == gene_start:
@@ -327,32 +323,32 @@ def ExtractRefandSample(AlignmentToRef, SingleSeq, ReferenceName, GeneCoordInfo,
         sample_gaps = gene_sequence_gapped.count('-')
         indel_difference =  (consensus_end + 1 - consensus_start - sample_gaps) - (gene_end + 1 - gene_start)
         if indel_difference != 0:
-          print ('Change in length of {} in {}_{} relative to the reference'.format(indel_difference, SequenceName, Gene)) # This can be removed if not useful, it was mostly used when I was debugging length issues
+          print(('Change in length of {} in {}_{} relative to the reference'.format(indel_difference, SequenceName, Gene))) # This can be removed if not useful, it was mostly used when I was debugging length issues
 
         # Write the gene sequence to file unless it contains '?'
-        gene_sequence = ReferenceAlignment[0].seq[consensus_start:consensus_end + 1].ungap('-')
+        gene_sequence = ReferenceAlignment[0].seq[consensus_start:consensus_end + 1].replace("-", "")
         if '?' in gene_sequence:
-          print ('Gene {} contains \'?\' characters indicating missing coverage. Skipping.'.format(gene))
+          print(('Gene {} contains \'?\' characters indicating missing coverage. Skipping.'.format(gene)))
           with open('MissingCoverage.txt', 'a') as file:
             file.write(SequenceName + '_' + Gene + '\n')
         else:
           output_file.write('>' + SequenceName + '_' + Gene + '\n' + str(gene_sequence) + '\n')
 
         # Write the sample gene start to a file for later use in indel position calculation
-        gene_start_full_genome = len(ReferenceAlignment[0].seq[0:consensus_start + 1].ungap('-'))
-        with open('temp_GeneStarts.csv', 'ab') as csvfile:
+        gene_start_full_genome = len(ReferenceAlignment[0].seq[0:consensus_start + 1].replace("-", ""))
+        with open('temp_GeneStarts.csv', 'a', newline='') as csvfile:
           fieldnames = ['Sequence', 'Gene', 'GeneStart']
           writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
           if csvfile.tell() == 0:
             writer.writeheader()
           writer.writerow({'Sequence': SequenceName, 'Gene': Gene, 'GeneStart': gene_start_full_genome})
       else:
-        print ('Unable to extract sample coordinates for {}.'.format(Gene)) 
+        print(('Unable to extract sample coordinates for {}.'.format(Gene))) 
   except IOError:
-    print('Error: Could not open file {}'.format(output_file_name))
+    print(('Error: Could not open file {}'.format(output_file_name)))
     return 1
   except ValueError:
-    print('Error: File {} is not in the expected format'.format(output_file_name))
+    print(('Error: File {} is not in the expected format'.format(output_file_name)))
     return 1
 
   # Extract the sample sequences to individual fastas for VIRULIGN processing
@@ -364,10 +360,10 @@ def ExtractRefandSample(AlignmentToRef, SingleSeq, ReferenceName, GeneCoordInfo,
       with open(individual_file, 'w') as file:
         file.write('>' + str(record.id) + '\n' + str(record.seq))
     except IOError:
-      print('Error: Could not open file {}'.format(individual_file))
+      print(('Error: Could not open file {}'.format(individual_file)))
       return 1
     except ValueError:
-      print('Error: File {} is not in the expected format'.format(individual_file))
+      print(('Error: File {} is not in the expected format'.format(individual_file)))
       return 1
 
   # Extract the reference sequences to individual fastas for VIRULIGN processing
@@ -379,14 +375,14 @@ def ExtractRefandSample(AlignmentToRef, SingleSeq, ReferenceName, GeneCoordInfo,
       with open(individual_file, 'w') as file:
         file.write('>' + str(record.id) + '\n' + str(record.seq))
     except IOError:
-      print('Error: Could not open file {}'.format(individual_file))
+      print(('Error: Could not open file {}'.format(individual_file)))
       return 1
     except ValueError:
-      print('Error: File {} is not in the expected format'.format(individual_file))
+      print(('Error: File {} is not in the expected format'.format(individual_file)))
 
   # Return error if the [Sample]_GenesExtracted.fasta file is empty
   if os.path.getsize(multi_fasta_sample) == 0:
-    print('{} is empty. This can happen if all genes being analysed have missing coverage (? characters). Check MissingCoverage.txt. Now quitting.'.format(multi_fasta_sample))
+    print(('{} is empty. This can happen if all genes being analysed have missing coverage (? characters). Check MissingCoverage.txt. Now quitting.'.format(multi_fasta_sample)))
     return 1
   
   return 0
@@ -403,10 +399,10 @@ def ExtractSequence(OutputFile, InputFile, SequenceNumber):
       Sequence=InputFasta[int(SequenceNumber) - 1]
       SeqIO.write(Sequence, file, 'fasta')
   except IOError:
-    print('Error: Could not open file {}'.format(InputFile))
+    print(('Error: Could not open file {}'.format(InputFile)))
     return 1
   except ValueError:
-    print('Error: File {} is not in the expected format'.format(InputFile))
+    print(('Error: File {} is not in the expected format'.format(InputFile)))
     return 1
   return 0
 
@@ -433,10 +429,10 @@ def CategoriseIndels(InputFile, OutputCSV, Gene, SequenceName, ReferenceName, Ge
           if base == 'N' or base == 'n':
             SampleNs.append(int(sequence_pos))
   except IOError:
-    print('Error: Could not open file {}'.format(ExtractedGeneFile))
+    print(('Error: Could not open file {}'.format(ExtractedGeneFile)))
     return 1
   except ValueError:
-    print('Error: File {} is not in the expected format'.format(ExtractedGeneFile))
+    print(('Error: File {} is not in the expected format'.format(ExtractedGeneFile)))
     return 1
       
   try:
@@ -474,7 +470,7 @@ def CategoriseIndels(InputFile, OutputCSV, Gene, SequenceName, ReferenceName, Ge
                 elif (i - gap_count) % 3 == 1:
                   IndelModifier = 1 # (position 1 is an inserted base so indel pos needs to be adjusted by 1 - eg BNN/BNB)
                 else:
-                  if (i - 2) is N and (sample_pos -2) not in SampleNs:
+                  if (i - 2) == 'N' and (sample_pos -2) not in SampleNs:
                     continue # (if NBN then the third N should not be classified as a separate indel)
                   else:
                     IndelModifier = 2 # (first two bases are inserted so indel pos needs to be adjusted by 2 - i.e. BBN)
@@ -497,18 +493,14 @@ def CategoriseIndels(InputFile, OutputCSV, Gene, SequenceName, ReferenceName, Ge
                       genome_indel_pos = int(gene_start_pos) - 1 + int(indel_pos)
                   indels["Indel{}".format(i)].update({"GenomePosition": genome_indel_pos})
               except IOError:
-                print('Error: Could not open file {}'.format('temp_GeneStarts.csv'))
+                print(('Error: Could not open file {}'.format('temp_GeneStarts.csv')))
                 return 1
               except ValueError:
-                print('Error: File {} is not in the expected format'.format('temp_GeneStarts.csv'))
+                print(('Error: File {} is not in the expected format'.format('temp_GeneStarts.csv')))
                 return 1  
               # Determine indel position relative to the full reference sample alignment - based on the last 'real' ref base so where gaps occur in the ref the position may be imprecise
               CorrectedAlignment = AlignIO.read(InputFile, 'fasta')
-              ref_indel_pos = len(CorrectedAlignment[0].seq[0:i].ungap('-')) # For the gene only, not genome
-              print('i value: {}'.format(i))
-              print('testing: ref_indel_pos: {}'.format(ref_indel_pos))
-              print('testing: indelmodifier: {}'.format(IndelModifier))
-              print(CorrectedAlignment[0].seq[0:i].ungap('-')) # testing - plus three to see indel codon
+              ref_indel_pos = len(CorrectedAlignment[0].seq[0:i].replace("-", "")) # For the gene only, not genome
               ref_gene_start_pos = None
               try:
                 with open(GeneCoordInfo, 'r') as file:
@@ -531,82 +523,81 @@ def CategoriseIndels(InputFile, OutputCSV, Gene, SequenceName, ReferenceName, Ge
                       elif Gene == "NEF":
                         ref_gene_start_pos = gene_info[13]
                       else:
-                        print ('Could not match gene name to any of the expected inputs. Quitting')
+                        print('Could not match gene name to any of the expected inputs. Quitting')
                         return 1
                       break
                     else:
                       continue
                   if ref_gene_start_pos is None:
-                    print ('Could not match the reference sequence to any within the reference file. Quitting.')
+                    print('Could not match the reference sequence to any within the reference file. Quitting.')
                     return 1
               except IOError:
-                print('Error: Could not open file {}'.format(GeneCoordInfo))
+                print(('Error: Could not open file {}'.format(GeneCoordInfo)))
                 return 1
               except ValueError:
-                print('Error: File {} is not in the expected format'.format(GeneCoordInfo))
+                print(('Error: File {} is not in the expected format'.format(GeneCoordInfo)))
                 return 1
               if ref_gene_start_pos is not None:
                 ref_genome_indel_pos = int(ref_gene_start_pos) - 1 + int(ref_indel_pos) # Not included in Frameshifts.csv
                 try: 
                   with open(GenomeFile, 'r') as file:
                     genome_records = SeqIO.to_dict(SeqIO.parse(file, "fasta"))
-                    for record_id, record in genome_records.items():
+                    for record_id, record in list(genome_records.items()):
                       if record_id == ReferenceName:
                         GlobalSeq = record.seq
                         sequence_pos = 0
-                        for j in xrange(len(GlobalSeq)):
+                        for j in range(len(GlobalSeq)):
                           if GlobalSeq[j] != '-':
                             sequence_pos += 1
                           if sequence_pos == ref_genome_indel_pos:
                             global_ref_indel_pos = int(j) + 1
                             indels["Indel{}".format(i)].update({"GlobalGenomeRefPosition": global_ref_indel_pos})
-                            print('testing: global_ref_indel_pos: {}'.format(global_ref_indel_pos))
                             break
 
                 except IOError:
-                  print('Error: Could not open file {}'.format(GenomeFile))
+                  print(('Error: Could not open file {}'.format(GenomeFile)))
                   return 1
                 except ValueError:
-                  print('Error: File {} is not in the expected format'.format(GenomeFile))
+                  print(('Error: File {} is not in the expected format'.format(GenomeFile)))
                   return 1
       
               else:
-                print ('Unable to find the reference gene start for {}. Quitting.'.format(Gene))
+                print(('Unable to find the reference gene start for {}. Quitting.'.format(Gene)))
               
               # Determine position relative to HXB2
               try:
                 with open(AlignmentFile, 'r') as file:
                   HXB2Alignment = AlignIO.read(file, 'fasta')
                   sequence_pos = 0
-                  for j in xrange(len(HXB2Alignment[0].seq)):
+                  for j in range(len(HXB2Alignment[0].seq)):
                     if HXB2Alignment[0][j] != '-':
                       sequence_pos += 1
                     if sequence_pos == genome_indel_pos:
                       hxb2_alignment_pos = j
-                      hxb2_indel_pos = len(HXB2Alignment[1].seq[0:int(hxb2_alignment_pos) + 1].ungap('-'))
+                      hxb2_indel_pos = len(HXB2Alignment[1].seq[0:int(hxb2_alignment_pos) + 1].replace("-", ""))
                       indels["Indel{}".format(i)].update({"HXB2Position": hxb2_indel_pos})
                       break
               except IOError:
-                print('Error: Could not open file {}'.format(AlignmentFile))
+                print(('Error: Could not open file {}'.format(AlignmentFile)))
                 return 1
               except ValueError:
-                print('Error: File {} is not in the expected format'.format(AlignmentFile))
+                print(('Error: File {} is not in the expected format'.format(AlignmentFile)))
                 return 1
               
       # Write indels to CSV
-      with open(OutputCSV, 'ab') as csvfile:
+      with open(OutputCSV, 'a', newline='') as csvfile:
         fieldnames = ['Sequence', 'Gene', 'IndelID', 'Type', 'GenePosition', 'GenomePosition', 'GlobalGenomeRefPosition', 'HXB2Position']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         if csvfile.tell() == 0:
           writer.writeheader()
-        for indel_id, data in indels.items():
+        for indel_id, data in list(indels.items()):
           writer.writerow({'Sequence': data['Sequence'], 'Gene': data['Gene'], 'IndelID': indel_id, 'Type': data['Type'], 'GenePosition': data['GenePosition'], 'GenomePosition': data['GenomePosition'], 'GlobalGenomeRefPosition': data['GlobalGenomeRefPosition'], 'HXB2Position': data['HXB2Position']})
 
   except IOError:
-    print('Error: Could not open file {}'.format(InputFile))
+    print(('Error: Could not open file {}'.format(InputFile)))
     return 1
   except ValueError:
-    print('Error: File {} is not in the expected format'.format(InputFile))
+    print(('Error: File {} is not in the expected format'.format(InputFile)))
     return 1
   return 0
 

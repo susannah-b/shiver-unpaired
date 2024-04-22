@@ -5,53 +5,100 @@ set -o pipefail
 # Exit upon error
 set -e
 
-UsageInstructions=$(echo '
-Arguments for this script:
-(1) the initialisation directory you created using the shiver_init.sh command;
-(2) the configuration file, containing all your parameter choices etc.;
+NumArgsPairedReads=8
+NumArgsUnpairedReads=$((NumArgsPairedReads - 1))
+UsageInstructions=$(echo "
+In normal usage this script requires either $NumArgsPairedReads or
+$NumArgsUnpairedReads arguments:\n
+(1) the initialisation directory you created using the shiver_init.sh command;\n
+(2) the configuration file, containing all your parameter choices etc.;\n
 (3) a fasta file of contigs (output from processing the short reads with an
-assembly program);
+assembly program);\n
 (4) A sample ID ("SID") used for naming the output from this script (a sensible
-choice might be the contig file name minus its path and extension);
-(5) the blast file created by the shiver_align_contigs.sh command;
+choice might be the contig file name minus its path and extension);\n
+(5) the blast file created by the shiver_align_contigs.sh command;\n
 (6) either the alignment of contigs to refs produced by the
 shiver_align_contigs.sh command, or a fasta file containing a single reference
-to be used for mapping;
-(7) the forward reads when mapping paired reads, or the single reads file for unpaired;
-(8) the reverse reads for paired reads, or for unpaired reads omit this argument
-')
+to be used for mapping;\n
+(7) the forward reads when mapping paired reads, or the single reads file for unpaired;\n
+(8) the reverse reads for paired reads, or for unpaired reads omit this argument.
+\nAlternatively call this script with one argument - '--help' or '-h' - to see
+this message. Alternatively call this script with three arguments - '--test', 
+then the configuration file, then either 'paired' or 'unpaired' - to just test 
+whether the configuration file is OK (including whether this script can call the 
+external programs it needs using commands given in the config file) and then
+exit. That third argument being 'paired' or 'unpaired' determines whether the
+config file is checked for suitability for use with paired or unpaired reads
+respectively.
+")
 
 ################################################################################
 # PRELIMINARIES
 
-# Check for the right number of arguments for paired or unpaired reads.
-PairedReadsArgs=8
-UnpairedReadsArgs=7
-if [[ "$#" -ne "$PairedReadsArgs" ]] && [[ "$#" -ne "$UnpairedReadsArgs" ]]; then
-  echo $UsageInstructions
-  echo "$#" 'arguments specified; for paired reads' "$PairedReadsArgs" 'are expected, or' \
-  "$UnpairedReadsArgs" 'for unpaired. Quitting' >&2
+# Print help & exit if desired
+# NB A && B || C is (A && B) || C; we nest to get A && (B || C)
+if [[ "$#" -eq 1 ]]; then
+  if [[ "$1" == '--help' ]] || [[ "$1" == '-h' ]]; then
+    echo -e $UsageInstructions
+    exit 0
+  fi
+fi
+
+# Check for the right number of arguments and whether we're testing.
+test=false
+if [[ "$#" -eq 3 ]] && [[ "$1" == '--test' ]]; then
+  if [[ "$3" == 'paired' ]] || [[ "$3" == 'unpaired' ]]; then
+    test=true
+  fi
+fi
+if ! $test && [[ "$#" -ne "$NumArgsPairedReads" ]] &&
+[[ "$#" -ne "$NumArgsUnpairedReads" ]]; then
+  echo -e $UsageInstructions
+  echo 'Invalid set of arguments specified. Quitting' >&2
   exit 1
 fi
 
-# Assign paired or unpaired reads to variables
-PairedReadsArgs=8
-UnpairedReadsArgs=7
-if [ "$#" -eq "$PairedReadsArgs" ]; then
-  reads2="$8"
-  Paired=true
-elif [ "$#" -eq "$UnpairedReadsArgs" ]; then
-  Paired=false
+ConfigFile="$2"
+
+# Determine whether we're considering paired or unpaired reads
+if $test; then
+  if [[ "$3" == 'paired' ]]; then
+    Paired=true
+  else
+    Paired=false
+  fi
+else
+  if [ "$#" -eq "$NumArgsPairedReads" ]; then
+    Paired=true
+  else
+    Paired=false
+  fi
 fi
 
-# Assign shared arguments between paired and unpaired reads
+# Source the shiver funcs, check the config file exists, check (and source) it
+ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$ThisDir"/'shiver_funcs.sh'
+CheckFilesExist "$ConfigFile" 
+CheckConfig "$ConfigFile" false false true "$Paired" || \
+{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
+
+# Quit if only testing the config file
+if $test; then
+  echo "No problems relevant for this script were detected in $ConfigFile." \
+  "Quitting successfully."
+  exit 0
+fi
+
+# Assign remaining arguments to variables
 InitDir="$1"
-ConfigFile="$2"
 RawContigsFile="$3"
 SID="$4"
 ContigBlastFile="$5"
 FastaFile="$6"
 reads1="$7"
+if $Paired; then
+  reads2="$8"
+fi
 
 # Check InitDir exists. Remove a trailing slash, if present.
 if [ ! -d "$InitDir" ]; then
@@ -65,18 +112,12 @@ ExistingRefAlignment="$InitDir"/'ExistingRefAlignment.fasta'
 adapters="$InitDir"/'adapters.fasta'
 primers="$InitDir"/'primers.fasta'
 
-# Source the shiver funcs, check files exist, source the config file, check it.
-ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$ThisDir"/'shiver_funcs.sh'
-CheckFilesExist "$ConfigFile" "$reads1" "$RawContigsFile" \
+CheckFilesExist "$reads1" "$RawContigsFile" \
 "$ContigBlastFile" "$FastaFile" "$RefList" "$ExistingRefAlignment" "$adapters" \
 "$primers"
 if $Paired; then
   CheckFilesExist "$reads2"
 fi
-
-CheckConfig "$ConfigFile" false false true "$Paired" || \
-{ echo "Problem with $ConfigFile. Quitting." >&2 ; exit 1 ; }
 
 # Check the primer + SNPs file exists, if it is needed.
 if [[ "$TrimPrimerWithOneSNP" == "true" ]]; then
@@ -87,7 +128,7 @@ if [[ "$TrimPrimerWithOneSNP" == "true" ]]; then
     "in the config file was set to false when you ran shiver_init.sh, and you"\
     "changed it to true afterwards? You can generate this file from your"\
     "primers by running" >&2
-    echo "$python2" "$Code_AddSNPsToSeqs $InitDir/primers.fasta"\
+    echo "$python" "$Code_AddSNPsToSeqs $InitDir/primers.fasta"\
     "$InitDir/PrimersWithSNPs.fasta" >&2
     echo "(Though be careful copying and pasting that if any file paths"\
     "contain whitespace.) Quitting." >&2
@@ -143,7 +184,7 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
 
   # Try to find the sequence in FastaFile in ExistingRefAlignment.
   RefName=$(awk '/^>/ {print substr($1,2)}' "$FastaFile")
-  "$python2" "$Code_FindSeqsInFasta" "$ExistingRefAlignment" -g -N "$RefName" > \
+  "$python" "$Code_FindSeqsInFasta" "$ExistingRefAlignment" -g -N "$RefName" > \
   "$RefFromAlignment" || \
   { echo "Could not find seq $RefName in $ExistingRefAlignment; that's OK," \
   'but after mapping we will not be able to produce a version of the' \
@@ -152,7 +193,7 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
 
   # Compare the sequence in FastaFile to the one in ExistingRefAlignment.
   if $RefIsInAlignment; then
-    equal=$("$python2" "$Code_CheckFastaFileEquality" "$RefFromAlignment" "$FastaFile") ||
+    equal=$("$python" "$Code_CheckFastaFileEquality" "$RefFromAlignment" "$FastaFile") ||
     { echo 'Problem running' "$Code_CheckFastaFileEquality"'. Quitting.' >&2 ; \
     exit 1 ; }
     if [[ "$equal" == "false" ]]; then
@@ -178,7 +219,7 @@ elif [ "$NumSeqsInFastaFile" -eq 1 ]; then
   # Extract those contigs that have a blast hit.
   NumHIVContigsOrig=$(wc -w "$HIVContigsListOrig" | awk '{print $1}')
   if [[ $NumHIVContigsOrig -gt 0 ]]; then
-    "$python2" "$Code_FindSeqsInFasta" "$RawContigsFile" -F "$HIVContigsListOrig" > \
+    "$python" "$Code_FindSeqsInFasta" "$RawContigsFile" -F "$HIVContigsListOrig" > \
     "$RawContigFile2" || \
     { echo 'Problem extracting the HIV contigs. Quitting.' >&2 ; exit 1 ; }
   fi
@@ -209,16 +250,16 @@ else
   # ContigToRefAlignment, and check that they are the same as in
   # ExistingRefAlignment. Also extract just the contigs, stripping gaps, ready
   # for later.
-  "$python2" "$Code_FindSeqsInFasta" "$ContigToRefAlignment" -F "$HIVContigsListUser" -v > \
+  "$python" "$Code_FindSeqsInFasta" "$ContigToRefAlignment" -F "$HIVContigsListUser" -v > \
   "$TempRefAlignment" &&
-  "$python2" "$Code_FindSeqsInFasta" "$ContigToRefAlignment" -F "$HIVContigsListUser" -g > \
+  "$python" "$Code_FindSeqsInFasta" "$ContigToRefAlignment" -F "$HIVContigsListUser" -g > \
   "$RawContigFile2" || { echo 'Problem separating the contigs and existing'\
   "refs in $ContigToRefAlignment. Quitting." >&2 ; exit 1 ; }
-  "$python2" "$Code_RemoveBlankCols" "$TempRefAlignment" > "$AlignmentForTesting" || \
+  "$python" "$Code_RemoveBlankCols" "$TempRefAlignment" > "$AlignmentForTesting" || \
   { echo "Problem removing pure-gap columns from $TempRefAlignment (which was"\
   "created by removing the contigs from $ContigToRefAlignment - that's"\
   "probably the problematic file). Quitting." >&2 ; exit 1; }
-  equal=$("$python2" "$Code_CheckFastaFileEquality" "$AlignmentForTesting" \
+  equal=$("$python" "$Code_CheckFastaFileEquality" "$AlignmentForTesting" \
   "$ExistingRefAlignment") || { echo "Problem running"\
   "$Code_CheckFastaFileEquality. Quitting." >&2 ; exit 1 ; }
   if [[ "$equal" == "false" ]]; then
@@ -235,7 +276,7 @@ else
 
   # Construct the tailored ref
   HIVcontigNames=$(cat "$HIVContigsListUser")
-  "$python2" "$Code_ConstructRef" "$ContigToRefAlignment" "$GappyRefWithExtraSeq" \
+  "$python" "$Code_ConstructRef" "$ContigToRefAlignment" "$GappyRefWithExtraSeq" \
   $HIVcontigNames || \
   { echo 'Failed to construct a ref from the alignment. Quitting.' >&2 ; \
   exit 1 ; }
@@ -244,7 +285,7 @@ else
   awk '/^>/{if(N)exit;++N;} {print;}' "$GappyRefWithExtraSeq" > "$RefWithGaps"
 
   # Remove any gaps from the reference
-  "$python2" "$Code_UngapFasta" "$RefWithGaps" > "$TheRef" || \
+  "$python" "$Code_UngapFasta" "$RefWithGaps" > "$TheRef" || \
   { echo 'Gap stripping code failed. Quitting.' >&2 ; exit 1 ; }
 
   RefName=$(awk '/^>/ {print substr($1,2)}' "$TheRef")
@@ -420,7 +461,7 @@ else
   # ...and now remove from these contigs those that are too short, leaving only
   # contaminants.
   if [ "$NumContaminantContigs" -gt 0 ]; then
-    "$python2" "$Code_FindSeqsInFasta" "$RawContigsFile" -F "$DiscardedContigNames" \
+    "$python" "$Code_FindSeqsInFasta" "$RawContigsFile" -F "$DiscardedContigNames" \
     --min-length "$MinContigLength" > "$RefAndContaminantContigs" ||
     { echo "Problem extracting contaminant contigs from $RawContigsFile." \
     "Quitting." >&2; exit 1; }
@@ -460,11 +501,11 @@ else
     { echo 'Problem creating a blast database. Quitting.' >&2 ; exit 1 ; }
 
     # Convert fastq to fasta.
-    "$fastaq" to_fasta "$reads1" "$reads1asFasta" || \
+    "$Code_ConvertFastqToFasta" "$reads1" "$reads1asFasta" || \
       { echo 'Problem converting the reads from fastq to fasta. Quitting.' >&2 ; \
       exit 1 ; }
     if $Paired; then
-      "$fastaq" to_fasta "$reads2" "$reads2asFasta" || \
+      "$Code_ConvertFastqToFasta" "$reads2" "$reads2asFasta" || \
       { echo 'Problem converting the reads from fastq to fasta. Quitting.' >&2 ; \
       exit 1 ; }
     fi
@@ -486,18 +527,18 @@ else
     # For multiple blast hits, keep the one with the highest evalue
     # TODO: test what blast does with fasta headers that have comments in them -
     # does it include them too?
-    "$python2" "$Code_KeepBestLinesInDataFile" "$reads1blast1" "$reads1blast2" || 
+    "$python" "$Code_KeepBestLinesInDataFile" "$reads1blast1" "$reads1blast2" || 
     { echo "Problem extracting the best blast hits using"\
     "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
     if $Paired; then
-      "$python2" "$Code_KeepBestLinesInDataFile" "$reads2blast1" "$reads2blast2" || 
+      "$python" "$Code_KeepBestLinesInDataFile" "$reads2blast1" "$reads2blast2" || 
       { echo "Problem extracting the best blast hits using"\
       "$Code_KeepBestLinesInDataFile. Quitting." >&2 ; exit 1 ; }
     fi
 
     if $Paired; then
       # Paired reads: Find the read pairs that blast best to something other than the reference.
-      "$python2" "$Code_FindContaminantReadPairs" "$reads1blast2" "$reads2blast2" \
+      "$python" "$Code_FindContaminantReadPairs" "$reads1blast2" "$reads2blast2" \
       "$RefName" "$BadReadsBaseName" && ls "$BadReadsBaseName"_1.txt \
       "$BadReadsBaseName"_2.txt > /dev/null 2>&1 || \
       { echo 'Problem finding contaminant read pairs using' \
@@ -583,12 +624,12 @@ else
       fi
 
       # Extract the non-contaminant read pairs
-      "$python2" "$Code_FindReadsInFastq" -v -s "$reads1" "$BadReadsBaseName"_1.txt > \
+      "$python" "$Code_FindReadsInFastq" -v -s "$reads1" "$BadReadsBaseName"_1.txt > \
       "$cleaned1reads" || \
       { echo 'Problem extracting the non-contaminant reads using' \
       "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
       if $Paired; then
-        "$python2" "$Code_FindReadsInFastq" -v -s "$reads2" "$BadReadsBaseName"_2.txt > \
+        "$python" "$Code_FindReadsInFastq" -v -s "$reads2" "$BadReadsBaseName"_2.txt > \
         "$cleaned2reads" || \
         { echo 'Problem extracting the non-contaminant reads using' \
         "$Code_FindReadsInFastq"'. Quitting.' >&2 ; exit 1 ; }
@@ -601,11 +642,11 @@ else
       # Map the contaminant reads to the reference, to measure how useful the
       # cleaning procedure was.
       if [[ "$MapContaminantReads" == "true" ]]; then
-        "$python2" "$Code_FindReadsInFastq" -s "$reads1" "$BadReadsBaseName"_1.txt > \
+        "$python" "$Code_FindReadsInFastq" -s "$reads1" "$BadReadsBaseName"_1.txt > \
         "$BadReadsBaseName"_1.fastq &&
         BamOnly=true
         if $Paired; then
-          "$python2" "$Code_FindReadsInFastq" -s "$reads2" "$BadReadsBaseName"_2.txt > \
+          "$python" "$Code_FindReadsInFastq" -s "$reads2" "$BadReadsBaseName"_2.txt > \
           "$BadReadsBaseName"_2.fastq || \
           { echo 'Problem extracting the contaminant reads using' \
           "$Code_FindReadsInFastq. Quitting." >&2 ; exit 1 ; }
@@ -659,13 +700,13 @@ fi
 # Add gaps and excise unique insertions, to allow this consensus to be added to
 # a global alignment with others.
 if $RefIsInAlignment; then
-  "$python2" "$Code_MergeAlignments" "$GlobalAlignExcisionFlag" -L "$CoordsDict" \
+  "$python" "$Code_MergeAlignments" "$GlobalAlignExcisionFlag" -L "$CoordsDict" \
   "$TempRefAlignment" "$consensus" > "$ConsensusForGlobalAln" ||
   { echo 'Problem translating the coordinates of the consensus for the'\
   'global alignment. Quitting.' >&2 ; exit 1 ; }
 
   # Add the global alignment coordinates to the base frequencies file.
-  "$python2" "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" -C "$CoordsDict" > \
+  "$python" "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" -C "$CoordsDict" > \
   "$BaseFreqsWGlobal" || { echo 'Problem adding the global alignment'\
   'coordinates to the base frequencies file. Quitting.' >&2 ; exit 1 ; }
 
@@ -682,7 +723,7 @@ if [[ "$remap" == "true" ]]; then
 
   # Fill in any gaps in the consensus with the corresponding part of the orginal
   # reference for mapping.
-  "$python2" "$Code_FillConsensusGaps" "$consensus" '--output-seq-name' \
+  "$python" "$Code_FillConsensusGaps" "$consensus" '--output-seq-name' \
   "$NewRefName" > "$NewRef" || { echo 'Problem'\
   'filling in gaps in the consensus with the corresponding part of the orginal'\
   'reference for mapping. Quitting.' >&2 ; exit 1 ; }

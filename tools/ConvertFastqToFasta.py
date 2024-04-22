@@ -11,9 +11,9 @@ from Bio import SeqIO
 if __name__ == "__main__":
 
   ## Overview:
-  ExplanatoryMessage = '''This script removes from a fasta file any sequences
-  which contain nothing but "-", "?" and "N" characters. Output is printed to
-  stdout, suitable for redirection to a new fasta file.'''
+  ExplanatoryMessage = '''This script converts sequence data from fastq format to
+  fasta format (discarding sequence quality information).
+  '''
   
   # Define a function to check files exist, as a type for the argparse.
   def File(MyFile):
@@ -24,18 +24,14 @@ if __name__ == "__main__":
   # Set up the arguments for this script
   ExplanatoryMessage = ExplanatoryMessage.replace('\n', ' ').replace('  ', ' ')
   parser = argparse.ArgumentParser(description=ExplanatoryMessage)
-  parser.add_argument('FastaFile', type=File)
+  parser.add_argument('InputFastqFile', type=File)
+  parser.add_argument('OutputFastaFile')
+  parser.add_argument('-O', '--overwrite-output-file', action='store_true')
   args = parser.parse_args()
   
-  OutSeqs = []
-  for seq in SeqIO.parse(open(args.FastaFile),'fasta'):
-    empty = True
-    for base in str(seq.seq):
-      if not base in ["?", "-", "N"]:
-        empty = False
-        break
-    if not empty:
-      OutSeqs.append(seq)
-      continue
+  if (not args.overwrite_output_file) and os.path.isfile(args.OutputFastaFile):
+    print(args.OutputFastaFile, 'exists already and --overwrite-output-file was',
+    'not specified. Exiting.', file=sys.stderr)
+    exit(1)  
   
-  SeqIO.write(OutSeqs, sys.stdout, "fasta")
+  SeqIO.convert(args.InputFastqFile, "fastq", args.OutputFastaFile, "fasta")

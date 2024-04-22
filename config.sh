@@ -15,7 +15,7 @@ MinContigHitFrac=0.9
 # What do you have to type into the command line to make these commands execute?
 # (If the binary file lives in a directory that is not included in your $PATH
 # variable, you will need to include the path here.)
-python2='python2'
+python='python3'
 BlastDBcommand='makeblastdb'
 BlastNcommand='blastn'
 smalt='smalt'
@@ -25,12 +25,20 @@ bowtie2_build='bowtie2-build'
 samtools='samtools'
 mafft='mafft'
 fastaq='fastaq'
-# If you've downloaded the trimmomatic executable file (ending in .jar), to run
-# it you probably need to type something like this:
-# java -jar path/to/where/it/lives/trimmomatic-0.36.jar
-# If someone else installed it for you (e.g. on MRC CLIMB) there may be an alias
-# which means you just type 'trimmomatic' to run it:
-trimmomatic="java -jar $HOME/Trimmomatic-0.39/trimmomatic-0.39.jar"
+# To be able to run trimmomatic simply typing 'trimmomatic' at the command line:
+# 1. copy the three lines below into a file named 'trimmomatic' (no file extension)
+# ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# TheBinary=$(ls "$ThisDir"/trimmomatic-*.jar)
+# java -jar "$TheBinary" "$@" || { echo "Problem running Trimmomatic."; exit 1; }
+# and remove the # character at the start of each line
+# 2. make that file executable, e.g. running the 'chmod u+x' command on it from
+# the command line
+# 3. move that file to the same directory that contains the trimmomatic java
+# file you have downloaded, usually named like trimmomatic-XXX.jar (with numbers
+# instead of XXX)
+# 4. Add that directory to your PATH variable (Google how to do this if needed).
+# After those four steps, you can leave the variable below set to 'trimmomatic'.
+trimmomatic='trimmomatic'
 # If you leave 'GiveHXB2coords', below, as 'true', we'll do pairwise alignment
 # of the mapping reference with HXB2. You may as well use mafft options to make
 # it more accurate (though slower).
@@ -79,8 +87,7 @@ ContigBlastArgs="-max_target_seqs 1 -word_size 17"
 # A value of 1 or greater means partially overlapping hits are never merged
 # (which is how shiver has always behaved). A value between 0 and 1 means they
 # may or may not be merged, depending on how strongly they overlap.
-# Pending imminent testing the current default is likely to be changed to 0.8.
-ContigMinBlastOverlapToMerge='2'
+ContigMinBlastOverlapToMerge='0.8'
 
 # If you have a more recent mafft installation that includes the --addfragments
 # option, we will use both --addfragments and --add to align the contigs to the

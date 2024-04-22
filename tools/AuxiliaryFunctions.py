@@ -1,4 +1,8 @@
-from __future__ import print_function
+from __future__ import print_function, division
+import os
+import sys
+import collections
+from six.moves import range
 
 ## Author: Chris Wymant, chris.wymant@bdi.ox.ac.uk
 ## Acknowledgement: I wrote this while funded by ERC Advanced Grant PBDR-339251
@@ -7,8 +11,6 @@ from __future__ import print_function
 ## a file into a dictionary, for reading in patient details from a file
 ## into a dictionary, and for checking if two bases match while allowing for one
 ## or both to be ambiguous.
-
-import os, sys, collections
 
 # A dictionary of what the IUPAC ambiguous letters mean
 IUPACdict = {}
@@ -60,7 +62,7 @@ def InterpretIUPAC(MyDict):
   for an ambiguity code key is divided equally between the letters involved in
   the ambiguity code.'''
 
-  keys = MyDict.keys()
+  keys = list(MyDict.keys())
   UpdatedDict = {}
   for UnambigLetter in acgt:
     if UnambigLetter in keys:
@@ -68,7 +70,7 @@ def InterpretIUPAC(MyDict):
 
   for AmbigLetter,TargetLetters in IUPACdict.items():
     if AmbigLetter in keys:
-      WeightPerTargetLetter = float(MyDict[AmbigLetter])/len(TargetLetters)
+      WeightPerTargetLetter = float(MyDict[AmbigLetter]) / len(TargetLetters)
       for TargetLetter in TargetLetters:
         if TargetLetter in UpdatedDict:
           UpdatedDict[TargetLetter] += WeightPerTargetLetter
@@ -88,7 +90,7 @@ def BaseMatch(base1,base2):
     return True
   if base1 in IUPACdict:
     if base2 in IUPACdict:
-      return any(i in IUPACdict[base1] for i in IUPACdict[base2])
+      return any(_i in IUPACdict[base1] for _i in IUPACdict[base2])
     return base2 in IUPACdict[base1]
   if base2 in IUPACdict:
     return base1 in IUPACdict[base2]
@@ -115,7 +117,7 @@ def CallAmbigBaseIfNeeded(bases, coverage, MinCovForUpper, BaseFreqFile):
       except KeyError:
         print('Unexpected set of bases', bases, 'found in', BaseFreqFile, \
         ', not found amonst those for which we have ambiguity codes, namely:', \
-        ' '.join(ReverseIUPACdict2.keys()) + '. Quitting.', file=sys.stderr)
+        ' '.join(list(ReverseIUPACdict2.keys())) + '. Quitting.', file=sys.stderr)
         raise
   if coverage < MinCovForUpper - 0.5:
     return BaseHere.lower()
@@ -165,7 +167,7 @@ def ReadSequencesFromFile(DataFile,IsAlignment=True):
     exit(1)
 
   # Check that the second argument is a bool
-  if type(IsAlignment) != type(True):
+  if not isinstance(IsAlignment, type(True)):
     print('Function ReadSequencesFromFile called with a second argument that',\
     'is not a bool.\nQuitting.', file=sys.stderr)
     exit(1)
@@ -213,7 +215,7 @@ def ReadSequencesFromFile(DataFile,IsAlignment=True):
 
 
   # Check all sequences have the same length, if they're supposed to
-  FirstSequenceName, FirstSequence = AllSequences.items()[0]
+  FirstSequenceName, FirstSequence = list(AllSequences.items())[0]
   SequenceLength = len(FirstSequence)
   if IsAlignment:
     for SequenceName, Sequence in AllSequences.items():
@@ -237,7 +239,7 @@ def ReadSequencesFromFile_ordered(DataFile,IsAlignment=True):
     exit(1)
 
   # Check that the second argument is a bool
-  if type(IsAlignment) != type(True):
+  if not isinstance(IsAlignment, type(True)):
     print('Function ReadSequencesFromFile called with a second argument that',\
     'is not a bool.\nQuitting.', file=sys.stderr)
     exit(1)
@@ -283,8 +285,8 @@ def ReadSequencesFromFile_ordered(DataFile,IsAlignment=True):
   FirstSeqName =AllSequences[0][0]
   FirstSeqLength = len(AllSequences[0][1])
   if IsAlignment:
-    OtherSeqs = [item[1] for item in AllSequences[1:]]
-    if not all(len(OtherSeq) == FirstSeqLength for OtherSeq in OtherSeqs):
+    OtherSeqs = [_item[1] for _item in AllSequences[1:]]
+    if not all(len(_OtherSeq) == FirstSeqLength for _OtherSeq in OtherSeqs):
       for [SeqName,seq] in AllSequences[1:]:
         if len(item[1]) != FirstSeqLength:
           print(SeqName, 'has length', len(seq), 'whereas', \
@@ -314,7 +316,7 @@ def ReadPatientFile(OneLinePerPatientOnly, filename):
       if CurrentLineNumber == 1:
 
         # Let the file itself choose the names of the fields. Strip whitespace.
-        fields = [field.strip() for field in line.split(',')]
+        fields = [_field.strip() for _field in line.split(',')]
         NumFields = len(fields)
 
         # Complain if any field except the first one is called 'ID'.
@@ -327,7 +329,7 @@ def ReadPatientFile(OneLinePerPatientOnly, filename):
 
         # Check all field names are unique
         CounterObject = collections.Counter(fields)
-        DuplicatedFieldNames = [i for i in CounterObject if CounterObject[i]>1]
+        DuplicatedFieldNames = [_i for _i in CounterObject if CounterObject[_i]>1]
         if len(DuplicatedFieldNames) != 0:
           for DuplicatedFieldName in DuplicatedFieldNames:
             print('The field name "'+ DuplicatedFieldName+\
@@ -345,7 +347,7 @@ def ReadPatientFile(OneLinePerPatientOnly, filename):
           data[i] = data[i].strip()
 
         # Ignore empty lines
-        if all(datum == '' for datum in data):
+        if all(_datum == '' for _datum in data):
           continue
 
         # Trim single or double quotes from around the patient ID
@@ -399,3 +401,17 @@ def ReadPatientFile(OneLinePerPatientOnly, filename):
 
   return AllPatientsDict
 
+
+def ungap(seq_object, gap_char = "-"):
+  '''Try both replace and ungap on seq objects, flexible to Biopython version'''
+  try:
+    seq_ungapped = seq_object.replace(gap_char, "")
+  except AttributeError:
+    try:
+      seq_ungapped = seq_object.ungap(gap_char)
+    except AttributeError:
+      print("shiver's ungap function called on a Biopython Seq object that has",
+      'neither a .replace() attribute nor an .ungap() attribute. Unexpected.',
+      "Quitting.", file=sys.stderr)
+      raise
+  return(seq_ungapped)

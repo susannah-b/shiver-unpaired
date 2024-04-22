@@ -1,5 +1,6 @@
-from __future__ import print_function
+from __future__ import print_function, division
 import sys
+from six.moves import range
 
 def CalculateReadIdentity(PysamRead, ReferenceSeq):
   '''Calculate the fractional agreement between a read and the ref sequence'''
@@ -28,7 +29,7 @@ def TranslateSeqCoordsToAlnCoords(seq, coords):
   translated to their positions in the gappy version of the sequence.
   e.g. called with the arguments "-a--cg-t-" and [1,2,3], we return [2,5,6].
   '''
-  TranslatedCoords = [-1 for coord in coords]
+  TranslatedCoords = [-1 for _coord in coords]
   PositionInSeq = 0
   for GappyPostitionMin1,base in enumerate(seq):
     if base != '-':
@@ -62,7 +63,7 @@ def RemoveBlankColumns(alignment, BlankChars="-", RemoveUninformative=False):
   any column that is 'uninformative' (all non-blank characters are the same).'''
 
   AlignmentLength = alignment.get_alignment_length()
-  for column in reversed(xrange(AlignmentLength)):
+  for column in reversed(range(AlignmentLength)):
     RemoveThisCol = True
     FirstBaseSeen = None
     for base in alignment[:, column]:

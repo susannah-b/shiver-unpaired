@@ -28,6 +28,18 @@ Code_AddSNPsToSeqs="$ToolsDir/AddAllPossibleSNPsToSeqs.py"
 Code_KeepBestLinesInDataFile="$ToolsDir/KeepBestLinesInDataFile.py"
 Code_ConvertFastqToFasta="$ToolsDir/ConvertFastqToFasta.py"
 
+# Only needed if GiveHXB2coords is set to true in the config file
+HXB2file=$(dirname "$ThisDir")'/data/external/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta'
+
+function CheckHXB2fileExists {
+  if [[ ! -f "$HXB2file" ]]; then
+    echo "The HXB2 sequence file, expected to be at $HXB2file, was not found." \
+    "This is an error because GiveHXB2coords in the config file was set to" \
+    "true. Quitting."
+    exit 1
+  fi
+}
+
 # For quitting if files don't exist.
 function CheckFilesExist {
   for argument in "$@"; do
@@ -675,32 +687,28 @@ function ProcessBam {
 
   # Generate a version of the base freqs file with HXB2 coordinates, if desired.
   if [[ "$GiveHXB2coords" == "true" ]]; then
-    HXB2file="$ThisDir/info/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta"
-    if [[ ! -f "$HXB2file" ]]; then
-      echo "Warning: the HXB2 sequence file, expected to be at $HXB2file, was"\
-      "not found. We will not generate a version of the base frequency file"\
-      "with HXB2 coordinates." >&2;
+
+    CheckHXB2fileExists
+
+    # Handle the possibility that the user's mapping reference is HXB2 - 
+    # give the two sequences distinct names.
+    cat "$LocalRef" > "$RefWHXB2unaln"
+    echo >> "$RefWHXB2unaln"
+    ShiverHXB2name=$(awk '/^>/ {print substr($1,2)}' "$HXB2file")
+    if [[ "$LocalRefName" == "$ShiverHXB2name" ]]; then
+      cat "$HXB2file" | sed \
+      's/>'"$ShiverHXB2name"'/>'"$ShiverHXB2name"'_ShiverCopy/' >> \
+      "$RefWHXB2unaln"
     else
-
-      # Handle the possibility that the user's mapping reference is HXB2 - 
-      # give the two sequences distinct names.
-      cat "$LocalRef" > "$RefWHXB2unaln"
-      echo >> "$RefWHXB2unaln"
-      ShiverHXB2name=$(awk '/^>/ {print substr($1,2)}' "$HXB2file")
-      if [[ "$LocalRefName" == "$ShiverHXB2name" ]]; then
-        cat "$HXB2file" | sed \
-        's/>'"$ShiverHXB2name"'/>'"$ShiverHXB2name"'_ShiverCopy/' >> \
-        "$RefWHXB2unaln"
-      else
-        cat "$HXB2file" >> "$RefWHXB2unaln"
-      fi
-
-      "$mafft" $MafftArgsForPairwise "$RefWHXB2unaln" > "$RefWHXB2aln" ||
-      { echo "Problem running $mafft $MafftArgsForPairwise" >&2 ; return 1 ; }
-      "$python" "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" --pairwise-aln \
-      "$RefWHXB2aln" > "$BaseFreqsWHXB2" ||
-      { echo "Problem running $Code_MergeBaseFreqsAndCoords" >&2 ; return 1 ; }
+      cat "$HXB2file" >> "$RefWHXB2unaln"
     fi
+
+    "$mafft" $MafftArgsForPairwise "$RefWHXB2unaln" > "$RefWHXB2aln" ||
+    { echo "Problem running $mafft $MafftArgsForPairwise" >&2 ; return 1 ; }
+    "$python" "$Code_MergeBaseFreqsAndCoords" "$BaseFreqs" --pairwise-aln \
+    "$RefWHXB2aln" > "$BaseFreqsWHXB2" ||
+    { echo "Problem running $Code_MergeBaseFreqsAndCoords" >&2 ; return 1 ; }
+
   fi
 
   # Call the consensuses
@@ -1119,6 +1127,11 @@ function CheckConfig {
         fi
       fi
     fi
+    
+    if [[ "$GiveHXB2coords" == "true" ]]; then
+      CheckHXB2fileExists
+    fi
+    
   fi
 
   # Check positive ints are positive ints

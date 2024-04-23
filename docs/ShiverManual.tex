@@ -30,13 +30,15 @@
 \end{figure}
 
 
-\shiv is a tool for mapping reads (fragments of genetic sequence) to a custom reference sequence constructed using {\it de novo} assembled contigs, in order to minimise the biased loss of information that occurs from mapping to a reference that differs from the sample.
+\shiv is a tool for mapping reads (fragments of genetic sequence) to a custom reference sequence constructed using contigs, in order to minimise the biased loss of information that occurs from mapping to a reference that differs from the sample.
 From the mapped reads, base frequencies are quantified, and a consensus sequence is called.
 \shiv was designed for HIV but has broader applicability; if you are using it for sequence data from organism X instead of HIV, mentally replace {\it HIV} by {\it X} when reading this manual.
 
 The method and its performance are discussed \href{https://doi.org/10.1093/ve/vey007}{\www{here}}; please cite this if you find \shiv helpful.
-If you use \shiv, please also cite the publications of its dependencies: \c{SAMtools}~\cite{Li08062009}, \c{MAFFT}~\cite{Katoh15072002}, \c{Trimmomatic}\cite{Bolger01082014}, \c{blast}~\cite{ALTSCHUL1990403}, and \c{BWA}~\cite{doi:10.1093/bioinformatics/btp698} or \c{bowtie}~\cite{Langmead2009} if you switched the default mapper from \c{smalt} (for which there is no publication to cite).
-Details of these are found in the file \c{CitationDetails.bib} in \shiv's \c{info} subdirectory.
+If you use \shiv, please cite the publications of its dependencies: \c{SAMtools}~\cite{Li08062009}, \c{MAFFT}~\cite{Katoh15072002}, \c{blast}~\cite{ALTSCHUL1990403}, \c{Biopython}~\cite{biopython}, \c{Trimmomatic}\cite{Bolger01082014} (only if you use \shiv's option to trim reads for adapters and quality), and \c{BWA}~\cite{doi:10.1093/bioinformatics/btp698} or \c{bowtie}~\cite{Langmead2009} (if you switched the default mapper from \c{smalt}, for which there is no publication to cite).
+If you install \shiv using  \c{bioconda}, please cite \c{bioconda}~\cite{Gruning2018-fj}.
+Details of these publications are in the file \c{CitationDetails.bib} in \shiv's \c{docs} subdirectory.
+Finally don't forget to cite whatever method you use to assemble contigs as input for \shiv.
 
 \shiv is run `through the command line' (or `in a terminal'), not by clicking on things in a graphical user interface.
 If you don't know how to run programs from the command line, you need to learn that first\footnote{These resources were recommended by the organisers of the Wellcome Genome Campus' {\it Genomics and Clinical Virology} course: \href{http://rik.smith-unna.com/command_line_bootcamp}{\www{http://rik.smith-unna.com/command\_line\_bootcamp}},\\
@@ -44,21 +46,15 @@ If you don't know how to run programs from the command line, you need to learn t
 \href{http://swcarpentry.github.io/shell-novice/}{\www{http://swcarpentry.github.io/shell-novice/}}.}.
 
 \shiv runs natively on Linux and Mac OS, but not Windows.
-To install the dependencies of \shiv follow \href{https://github.com/ChrisHIV/shiver/blob/master/info/InstallationNotes.sh}{\www{these}} instructions.
-Once the dependencies are installed, to run \shiv you only need to download its code from the \href{https://github.com/ChrisHIV/shiver}{\www{GitHub repository}}; after download no installation is required.
-If you have \href{https://www.virtualbox.org/wiki/Downloads}{\www{VirtualBox}} installed, you can run \href{https://www.dropbox.com/sh/j3pmmunhxlc7g1w/AABddPfc5dN9oVnP9vQfAZOta?dl=0}{\www{this}} Linux Ubuntu 16.04.03 virtual machine, which contains \shiv and all its dependencies.
-(A virtual machine is basically a self-contained copy an operating system and some extra software, which you can run on another operating system (including Windows).
-This virtual machine also contains our separate tool \href{https://github.com/BDI-pathogens/phyloscanner}{\www{\c{phyloscanner}}}, which allows you to infer and analyse phylogenies using mapped reads, for example those produced by \shiv).
-
-To update your \shiv code, in a terminal you need to change directory to where your \shiv code lives, and run the command \c{git pull}.
+For guidance on installing \shiv, see the readme file that displays at the \href{https://github.com/ChrisHIV/shiver}{GitHub repository}.
 
 If you have a problem getting the code to run or think you've found a bug, please create a \href{https://github.com/ChrisHIV/shiver/issues}{\www{\it New issue}} on the GitHub repository.
 
 Throughout this manual, I'll assume your \shiv code lives in \c{\path{~}/shiver/}.
 If you downloaded it somewhere else, e.g. \c{my/other/directory/shiver/}, simply replace every occurrence of \c{\path{~}/shiver/} in this manual by \c{my/other/directory/shiver/}; alternatively if you're feeling lazy, create a symbolic link to \c{my/other/directory/shiver}, call it \c{shiver}, and put it in your home directory.
 
-By default, to run a \shiv command, you have to tell the command line where the binary/executable file for that command is found, i.e. including its path, e.g. \c{\path{~}/shiver/shiver\char`_align\char`_contigs.sh}.
-If you don't want to type the path every time -- you want to be able to just type \sac -- you need to add the directory containing the \shiv code (\c{\path{~}/shiver/}) to your \c{PATH} environmental variable.
+By default, to run a \shiv command, you have to tell the command line where the binary/executable file for that command is found, i.e. including its path, e.g. \c{\path{~}/shiver/bin/shiver\char`_align\char`_contigs.sh}.
+If you don't want to type the path every time -- you want to be able to just type \sac -- you need to add the directory containing the \shiv binary files (\c{\path{~}/shiver/bin}) to your \c{PATH} environmental variable.
 Search on Google if you don't know how to do that.
 {\bf Do not} add `\texttt{sh }' before a \shiv command -- this forces your operating system to interpret the code as shell language (it's actually bash) and will result in a strange error.
 
@@ -74,7 +70,8 @@ If a command is split over multiple lines, you can copy all of them in one go th
 Before you begin processing a collection of samples there's an initialisation step: it should be run once only (i.e. not once for each sample).
 It requires:
 \begin{itemize}
-\item A \shiv configuration file; one of these with default values is \c{\path{~}/shiver/config.sh}.
+\item A \shiv configuration file, in which you can specify parameters, options etc. and tell \shiv what commands to use to call external programs.
+A configuration file with default values is provided in \c{\path{~}/shiver/bin/config.sh} (this file is not intended to be executed, only to be given as an argument for the other shiver binary files, but I put it in the \c{bin} directory for want of a better idea).
 Here it is needed only to tell \shiv how to run the program \c{blast}; you can change your mind about all the pipeline parameters contained in this file later on.
 The config file is discussed further in section \ref{sec:config}.  
 \item An alignment of your choice of existing reference genomes (lots of which are available to download from the \href{http://www.hiv.lanl.gov/content/sequence/NEWALIGN/align.html}{\www{LANL HIV database}}) called \c{MyRefAlignment.fasta}, say.  
@@ -86,7 +83,7 @@ Adapter sequence is trimmed out of reads, wherever it is found; afterwards PCR p
 
 Initialisation files will be put into a directory called \c{MyInitDir} if you run
 \begin{Verbatim}[samepage=true]
-$ ~/shiver/shiver_init.sh  MyInitDir  config.sh  MyRefAlignment.fasta  \
+$ ~/shiver/bin/shiver_init.sh  MyInitDir  config.sh  MyRefAlignment.fasta  \
   MyAdapters.fasta  MyPrimers.fasta
 \end{Verbatim}
 (remembering to skip that first \c{\$} character.)
@@ -99,7 +96,7 @@ There's an example of creating a new directory for each of a series of samples i
 
 \section{How to process a single sample} \label{sec:SingleSample}
 
-The input for each sample is (1) reads, and (2) contigs that were generated by running {\it de novo} assembly on those reads.
+The input for each sample is (1) reads, and (2) contigs that were assembled from those reads.
 \begin{enumerate}
 \item As of version 1.6.0, shiver can handle both {\it paired} reads (each fragment is sequenced forwards from one end and backwards from the other) and unpaired reads (one read is generated per fragment).
 \begin{itemize}
@@ -120,7 +117,7 @@ These contaminant contigs (if present) are used to help remove contaminant reads
 Processing a sample requires two commands.
 If your contigs are in a file \c{contigs.fasta}, the first command is  
 \begin{Verbatim}[samepage=true]
-$ ~/shiver/shiver_align_contigs.sh  MyInitDir  config.sh  contigs.fasta  SID
+$ ~/shiver/bin/shiver_align_contigs.sh  MyInitDir  config.sh  contigs.fasta  SID
 \end{Verbatim}
 replacing \c{SID} (`sample ID') by a name used for labelling all output files for this sample.
 This command will produce a file named \c{SID.blast} (detailing blast hits of your contigs to those existing references supplied for the initialisation).
@@ -142,7 +139,7 @@ Therefore both of these files should be inspected, the better one chosen, and ed
 
 With an alignment of contigs you're happy with, say \c{SID\char`_cut\char`_wRefs.fasta}, and if your paired reads are in files \c{reads\char`_1.fastq.gz} and \c{reads\char`_2.fastq.gz}, run
 \begin{Verbatim}[samepage=true]
-$ ~/shiver/shiver_map_reads.sh  MyInitDir  config.sh  contigs.fasta  SID  \
+$ ~/shiver/bin/shiver_map_reads.sh  MyInitDir  config.sh  contigs.fasta  SID  \
   SID.blast  SID_cut_wRefs.fasta  reads_1.fastq.gz  reads_2.fastq.gz
 \end{Verbatim}
 or if you have unpaired reads, replacing \c{reads\char`_1.fastq.gz reads\char`_2.fastq.gz} by your single file of reads.
@@ -222,19 +219,18 @@ If something I said above was confusing, don't struggle -- let me know and I'll 
 \section{The Fully Automatic Version Of \texttt{shiver}}
 
 As we discussed in section 2.5 of the supplementary material of the publication, it is possible to run an alternative version of \shiv that proceeds from the start to the end without the break in the middle.
-This is done using the command \c{\path{~}/shiver/shiver\char`_full\char`_auto.sh}, but it is not recommended.
-Using \c{\path{~}/shiver/shiver\char`_align\char`_contigs.sh} followed by \c{\path{~}/shiver/shiver\char`_map\char`_reads.sh} is better.
-
+This is done using the command \c{\path{~}/shiver/bin/deprecated/shiver\char`_full\char`_auto.sh}, but it is not recommended.
+Using \c{\path{~}/shiver/bin/shiver\char`_align\char`_contigs.sh} followed by \\\c{\path{~}/shiver/bin/shiver\char`_map\char`_reads.sh} is better.
+The reason for shiver running using two steps is to allow visual inspection of the file of contigs aligned to existing references, to identify problems that arise fairly regularly when aligning many diverse genetic sequences using algorithms.
+Even if you're not doing this visual check, using \c{\path{~}/shiver/bin/shiver\char`_align\char`_contigs.sh} then proceeding automatically to \c{\path{~}/shiver/bin/shiver\char`_map\char`_reads.sh} (using the file named like \c{SID\char`_cut\char`_wRefs.fasta} if it exists, otherwise \c{SID\char`_raw\char`_wRefs.fasta}) is expected to be better.
 
 \section{Example Input Data Included With \texttt{shiver}}
 
-Inside your \shiv directory is the \c{ExampleInput} subdirectory, containing what its name suggests:
+Inside your \shiv directory is the \c{data/example\char`_input} subdirectory, containing what its name suggests:
 \begin{itemize}
 \item \c{MysteryHIV\char`_1.fastq} and \c{MysteryHIV\char`_2.fastq}: forwards and reverse reads simulated started from a mystery HIV sequence.
 There are unrealistically few reads compared to real Illumina data; the idea was to keep file sizes small.
 \item \c{MysteryHIV\char`_contigs.fasta}: contigs that I have created manually, that illustrate \shiv's removal of contaminant contigs and correction of genuine contigs.
-\c{\path{~}/shiver/shiver\char`_full\char`_auto.sh} will refuse to process these, because the contigs require correction and it only proceeds to completion when the contigs require no correction.
-\c{MysteryHIV\char`_contigs\char`_SuitableForFullAuto.fasta} contains contigs that do not require correction, and can be processed by \c{\path{~}/shiver/shiver\char`_full\char`_auto.sh}.
 \item \c{adapters\char`_Illumina.fasta}: default Illumina adapters.
 {\bf Do not} assume these are what's needed for your sequence data -- instead ask your sequencing team to provide the adapter sequences they used.
 \item \c{primers\char`_GallEtAl2012.fasta}: the PCR primers of reference~\cite{Gall01122012} (which were used for sequencing our data).
@@ -294,7 +290,7 @@ $ for ContigFile in contigs/*.fasta; do
   # Make, and change into, an empty directory for processing this contig file
   mkdir AlignmentOutput_"$SID"  
   cd AlignmentOutput_"$SID"  
-  ~/shiver/shiver_align_contigs.sh ../MyInitDir ../config.sh "$ContigFile" "$SID"
+  ~/shiver/bin/shiver_align_contigs.sh ../MyInitDir ../config.sh "$ContigFile" "$SID"
   cd ..
 done
 \end{Verbatim}
@@ -325,7 +321,7 @@ $ for ContigFile in contigs/*.fasta; do
   alignment=../CheckedContigAlignments/"$SID"_wRefs.fasta
   reads1=../reads/"$SID"_1.fastq.gz
   reads2=../reads/"$SID"_2.fastq.gz
-  ~/shiver/shiver_map_reads.sh ../MyInitDir ../config.sh "$ContigFile" \
+  ~/shiver/bin/shiver_map_reads.sh ../MyInitDir ../config.sh "$ContigFile" \
   "$SID" "$BlastFile" "$alignment" "$reads1" "$reads2"
   cd
 done
@@ -362,7 +358,7 @@ The reason for this, if you're interested, is that the alignment of the first-ro
 
 \shiv will exit prematurely in the event of a problem, as you would hope.
 An exit status of 3 is reserved for situations where there is an absence of data to work with, rather than an error as such; in a big heterogeneous data set some samples may contain no HIV.
-\sac will return an exit status of 3 if and only if there are no contigs after extraction of those thought to be HIV and contig correction (which may decrease the length of contigs below a threshold for inclusion).
+\sac will return an exit status of 3 if and only if there are no contigs after extraction of those thought to be HIV and after contig correction (which may decrease the length of contigs below a threshold for inclusion).
 \smr will exit with status 3 if and only if:
 \begin{itemize}
 \item the reads file (or files, for paired reads) is empty at the start, or
@@ -374,7 +370,7 @@ Any other problems that prevent \shiv from running to satisfactory completion sh
 %The motivation for a special exit status in this collection of cases is to make your life easier when scripting application of \shiv to a large dataset that may contain samples that are devoid of HIV sequence: it indicates that there's nothing to be done for this sample, instead of an error to be investigated.
 
 For samples devoid of HIV contigs, \sac will exit with status 3 as discussed and will not produce a \c{SID\char`_raw\char`_wRefs.fasta} file.
-If you have total confidence in your {\it de novo} assembler, you could choose to dismiss such samples as total sequencing failure -- that would be reasonable.
+If you have total confidence in your assembly method for generating contigs, you could choose to dismiss such samples as total sequencing failure -- that would be reasonable.
 On the other hand, perhaps there are enough HIV reads that a partial consensus could be called, but the assembler just failed to build any contigs out of them.
 Because of this possibility, in place of the alignment-of-contigs-to-existing-references argument that's given to \smr, you can supply a fasta file containing a single sequence: that sequence will be used as the reference for mapping, instead of one constructed from the contigs.
 If that sequence is one of the existing references you provided at the initialisation step, \shiv knows how to do the coordinate translation necessary to produce a \c{SID\char`_MinCov\char`_X\char`_Y\char`_ForGlobalAln.fasta} file; if not, that file will not be produced, but you'll still get the \c{SID\char`_MinCov\char`_X\char`_Y.fasta} file.

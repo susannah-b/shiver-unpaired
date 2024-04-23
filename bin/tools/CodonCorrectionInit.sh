@@ -6,8 +6,8 @@ set -o pipefail
 # Find shiver files
 ToolsDir="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
 shiver="$(dirname "$ToolsDir")" # shiver file location
-source "$shiver"/'config.sh'
-PythonFuncs="$shiver"/'tools/CC_Python_funcs.py'
+source "$shiver"/'bin/config.sh'
+PythonFuncs="$shiver"/'bin/tools/CC_Python_funcs.py'
 
 # This script is to be run once prior to the use of CodonCorrection.sh. The current version of the init assumes the presence of a whole genome 
 # reference file and a list of gene coordinates in the exact correct format - header included. 

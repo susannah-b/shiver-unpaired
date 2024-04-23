@@ -63,12 +63,12 @@ fi
 # Find shiver files
 ToolsDir="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
 shiver="$(dirname "$ToolsDir")" # shiver file location
-source "$shiver"/'config.sh'
-PythonFuncs="$shiver"/'tools/CC_Python_funcs.py'
+source "$shiver"/'bin/config.sh'
+PythonFuncs="$shiver"/'bin/tools/CC_Python_funcs.py'
 ReferenceFile="$InitDir/CC_References.fasta"
 GeneCoordInfo="$InitDir/CC_Coords.fasta"
-HXB2File="$shiver"/'info/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta'
-AlignMoreSeqsTool="$shiver"/'tools/AlignMoreSeqsToPairWithMissingCoverage.py'
+HXB2File="$shiver"/'data/external/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta'
+AlignMoreSeqsTool="$shiver"/'bin/tools/AlignMoreSeqsToPairWithMissingCoverage.py'
 
 # Colours # Can be removed as they don't work in the cluster. For now I've set a variable in the config to disable them
 if [[ "$EnableColours" == "true" ]]; then

@@ -18,8 +18,9 @@ bowtie2_build='bowtie2-build'
 samtools='samtools'
 mafft='mafft'
 fastaq='fastaq'
-# To be able to run trimmomatic simply typing 'trimmomatic' at the command line:
-# 1. copy the three lines below into a file named 'trimmomatic' (no file extension)
+# If shiver is installed with conda, you can run trimmomatic simply typing
+# 'trimmomatic' at the command line. Otherwise, to be able to do that,
+# 1. in a file named 'trimmomatic' (no file extension) copy the next three lines:
 # ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # TheBinary=$(ls "$ThisDir"/trimmomatic-*.jar)
 # java -jar "$TheBinary" "$@" || { echo "Problem running Trimmomatic."; exit 1; }

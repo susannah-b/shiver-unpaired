@@ -62,13 +62,15 @@ fi
 
 # Find shiver files
 ToolsDir="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
-shiver="$(dirname "$ToolsDir")" # shiver file location
-source "$shiver"/'bin/config.sh'
-PythonFuncs="$shiver"/'bin/tools/CC_Python_funcs.py'
+shiver="$(cd "$(dirname "${BASH_SOURCE[0]}" )"/../.. && pwd)"
+DataDir="$shiver"/'data'
+shiver_bin="$(dirname "$ToolsDir")"
+source "$shiver_bin"/'config.sh'
+PythonFuncs="$shiver_bin"/'tools/CC_Python_funcs.py'
 ReferenceFile="$InitDir/CC_References.fasta"
 GeneCoordInfo="$InitDir/CC_Coords.fasta"
-HXB2File="$shiver"/'data/external/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta'
-AlignMoreSeqsTool="$shiver"/'bin/tools/AlignMoreSeqsToPairWithMissingCoverage.py'
+HXB2File="$DataDir"/'external/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta'
+AlignMoreSeqsTool="$shiver_bin"/'tools/AlignMoreSeqsToPairWithMissingCoverage.py'
 
 # Colours # Can be removed as they don't work in the cluster. For now I've set a variable in the config to disable them
 if [[ "$EnableColours" == "true" ]]; then
@@ -256,6 +258,11 @@ function align_to_sample {
     "$mafft" --quiet --add "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
   else
     # Capable of handling sequence with unknown coverage in parts. Requires two sequences in the starting sample .fasta
+    echo "AlignmentRef: $AlignmentRef" # testing
+    echo "SampleFile: $SampleFile"
+    echo "OutputAlignment: $OutputAlignment"
+    echo "mafft: $mafft"
+    echo "AlignMoreSeqsTool: $AlignMoreSeqsTool"
     "$python" "$AlignMoreSeqsTool" --x-mafft "$mafft --quiet" "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
   fi
 

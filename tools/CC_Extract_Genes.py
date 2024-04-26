@@ -109,15 +109,7 @@ if gene_loci:
           sample_gaps = gene_sequence_gapped.count('-')
           indel_difference =  (consensus_end + 1 - consensus_start - sample_gaps) - (gene_end + 1 - gene_start)
           if indel_difference != 0:
-            print ('{} Indel(s) detected in {} for {}.'.format(indel_difference, SequenceName, gene)) # Not necessarily 'indels' but +/- bases relative to reference. Probably remove after testing
-            # TESTING
-            print ('consensus_start = {}'.format(consensus_start))
-            print ('consensus_end = {}'.format(consensus_end))
-            print ('sample_gaps = {}'.format(sample_gaps))
-            print ('gene_start = {}'.format(gene_start))
-            print ('gene_end = {}'.format(gene_end))
-            print ('gene_reference_gaps[gene] = {}'.format(gene_reference_gaps[gene]))
-            print ('indel_difference = {}'.format(indel_difference))
+            print ('Change in length of {} in {}_{} relative to the reference'.format(indel_difference, SequenceName, gene))
 
           # Write the gene sequence to file unless it contains '?'
           gene_sequence = ReferenceAlignment[0].seq[consensus_start:consensus_end + 1].ungap('-')

@@ -54,7 +54,7 @@ with open(GeneCoordInfo, 'r') as file:
       }
       break
 
-# Gene Extraction for reference sequence
+# Gene extraction for reference sequence
 if gene_loci:
   with open(ref_output_file_name, 'w') as output_file:
     for gene, (gene_start, gene_end) in gene_loci.items():
@@ -73,6 +73,10 @@ if gene_loci:
               ref_end = i
               break
           if ref_start is not None and ref_end is not None:
+            # Count gaps for indel calculation
+            reference_sequence_gapped = ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1]
+            reference_gaps = reference_sequence_gapped.count('-')
+            # Write the reference sequence to a file
             reference_sequence = ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1].ungap('-')
             output_file.write('>' + ReferenceAlignment[RefSequenceNumber].id + '_' + gene + '\n' + str(reference_sequence) + '\n')
 
@@ -96,17 +100,16 @@ if gene_loci:
           if sequence_pos == gene_end: 
             consensus_end = i
             break
-        indel_difference =  (consensus_end + 1 - consensus_start) - (gene_end + 1 - gene_start)
-        if indel_difference != 0:
-          # TESTINH
-          print ('gene_start:{}'.format(gene_start))
-          print ('gene_end:{}'.format(gene_end))
-          print ('consensus_start:{}'.format(consensus_start))
-          print ('consensus_end:{}'.format(consensus_end))
-          print ('{} Indel(s) detected in {} for {}.'.format(indel_difference, SequenceName, gene))
 
-        # Write the gene sequence to file unless it contains '?'
         if consensus_start is not None and consensus_end is not None:
+          # Calculate indel size
+          gene_sequence_gapped = ReferenceAlignment[0].seq[consensus_start:consensus_end + 1]
+          sample_gaps = gene_sequence_gapped.count('-')
+          indel_difference =  (consensus_end + 1 - consensus_start - sample_gaps) - (gene_end + 1 - gene_start - reference_gaps)
+          if indel_difference != 0:
+            print ('{} Indel(s) detected in {} for {}.'.format(indel_difference, SequenceName, gene))
+
+          # Write the gene sequence to file unless it contains '?'
           gene_sequence = ReferenceAlignment[0].seq[consensus_start:consensus_end + 1].ungap('-')
           if '?' in gene_sequence:
             print ('Gene {} contains \'?\' characters indicating missing coverage. Skipping.'.format(gene))

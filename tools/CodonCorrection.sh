@@ -38,6 +38,15 @@ else
   OutputDir=$7
 fi
 
+# Colours
+RED="\033[91m"
+BLUE="\033[94m"
+YELLOW="\033[93m"
+GREEN="\033[92m"
+GREY="\033[37m"
+END="\033[0m"
+
+
 # Other variables
 ReferenceFile="$InitDir/CC_References.fasta"
 
@@ -134,6 +143,8 @@ SequenceName_shell=$(head -n 1 "$SampleFile" | sed 's/>//')
 
 # Check config and other shiver scripts for variables to work from if needed
 
+# Add red to all the error messages, yellow to warnings, blue for standard messages, green for results
+
 ###################################################################################
 
 ### Determine which genes to correct
@@ -183,7 +194,7 @@ for gene in "${genes[@]}"; do
 done
 
 if [ "${#listed_genes[@]}" -gt 0 ]; then
-  echo "Outputting files for chosen options: ${listed_genes[@]}"
+  echo -e "${BLUE}Outputting files for chosen options: ${listed_genes[@]} ${END}"
 else
   echo "No genes selected for codon correction. Quitting."
   exit 1
@@ -224,7 +235,7 @@ blast_output="blastn.out"
 # Is this an accurate way to find the closest match? Is evalue better? Also doesn't account for fragment length
 RefSequenceName_shell=$(awk -F',' 'NR > 1 {print $5, $0}' "$blast_output" | sort -rn | head -n 1 | awk -F',' '{print $4}')
 
-echo "Closest annotatable reference:" "$RefSequenceName_shell"
+echo -e "${GREEN}Closest annotatable reference:" "$RefSequenceName_shell${END}"
 
 # Extract the sequence from the reference file
 Python_Extract_Reference="
@@ -338,9 +349,9 @@ for option in "${VirulignOutput[@]}"; do
   fi
 done
 if [ "${#listed_options[@]}" -gt 0 ]; then
-  echo "Outputting files for chosen options: ${listed_options[@]}"
+  echo -e "${BLUE}Outputting files for chosen options: ${listed_options[@]} ${END}"
 else
-  echo "Problem with chosen virulign options. Quitting." >&2
+  echo -e "${RED}Problem with chosen virulign options. Quitting.${END}" >&2
   exit 1
 fi
 
@@ -370,7 +381,7 @@ function run_virulign {
         # Run VIRULIGN
         v_output=$( { $VirulignLocation $ReferenceGene $SampleGene --exportKind $export_kind_func --exportAlphabet $export_alphabet_func --exportReferenceSequence yes \
           --exportWithInsertions yes --maxFrameShifts $MaxFrameshifts $FailedDebug_func; } 2>&1 > HIV_${gene}$FileAppend_func )
-        echo "$v_output"
+        echo -e "${GREY}$v_output${END}"
 
         # Check for errors
         ErrorFile="FailedAlignment.txt"
@@ -420,7 +431,7 @@ function call_virulign {
       esac
   
       if [[ -z $export_alphabet || -z $export_kind || -z $FileAppend ]]; then
-          echo "Error: One or more options are not set. Quitting."
+          echo -e "${RED}Error: One or more options are not set. Quitting.${END}"
           exit 1
       fi
 
@@ -432,7 +443,7 @@ function call_virulign {
 
   # Check options are set correctly # Possibly no longer useful 
   if [[ -z $export_alphabet || -z $export_kind || -z $FileAppend ]]; then
-      echo "Error: One or more options are not set. Quitting."
+      echo -e "${RED}Error: One or more options are not set. Quitting.${END}"
       exit 1
   fi
 }
@@ -449,7 +460,7 @@ if [[ "$Nucleotides" == "true" ]]; then
       if [ "$sequence_num" -lt 2 ]; then
         # Set gene value to false so it's not used for subsequent analysis
         eval "$gene=false"
-        echo "Due to failed alignment ${gene} will be omitted from further processing."
+        echo -e "${YELLOW}Due to failed alignment ${gene} will be omitted from further processing.${END}"
         # If not already in the failed alignments error file, then note the error
         if ! grep -qE "^${SequenceName_shell}_${gene}" "$ErrorFile"; then
           echo "${SequenceName_shell}_${gene} did not produce an alignment due to an unspecified error." >> "$ErrorFile"
@@ -472,7 +483,7 @@ function add_length {
   NsToAdd=""
 
   if [ "$LengthChange" -lt 0 ]; then
-    echo "The VIRULIGN-corrected $Gene sequence has a change in length of $LengthChange"
+    echo -e "${YELLOW}The VIRULIGN-corrected $Gene sequence has a change in length of $LengthChange${END}"
     echo "${SequenceName_shell}_$Gene had a change in length of $LengthChange before correction.">> "$LengthFile"
     # Convert to positive number
     LengthChange=$((LengthChange * -1))
@@ -539,9 +550,9 @@ fi
 
 # Error message for truncated/extended sequences
 if [[ -s $LengthFile ]]; then
-  echo "Virulign output files for truncated sample sequences have been deleted. Virulign has been run again with the reference sequence extended for those genes. Ignore the added \
-terminal N bases in subsequent analysis - the unmodified reference sequence remains in ${SequenceName_shell}_Reference_GenesExtracted.fasta"
-  echo "Check $LengthFile for details of which sequences had their references extended."
+  echo -e "${YELLOW}Virulign output files for truncated sample sequences have been deleted. Virulign has been run again with the reference sequence extended for those genes. Ignore the added \
+terminal N bases in subsequent analysis - the unmodified reference sequence remains in ${SequenceName_shell}_Reference_GenesExtracted.fasta${END}"
+  echo -e "${YELLOW}Check $LengthFile for details of which sequences had their references extended.${END}"
 # not sure if this is generated if no length issues; if so, remove it
 fi
 
@@ -566,7 +577,7 @@ if [[ -f "Frameshifts.txt"  ]] && [[ "$Mutations" == "true" ]]; then
     fi
   done
 elif [[ "$Mutations" == "false" ]]; then
-  echo "To list frameshifts found in the sample enable the 'Mutations' virulign option."
+  echo -e "${BLUE}To list frameshifts found in the sample enable the 'Mutations' virulign option.${END}"
 fi
 
 # delete frameshifts.txt if only contains header? 
@@ -577,7 +588,7 @@ fi
 
 # Check if any alignments failed
 if [[ -s "$ErrorFile" ]]; then
-  echo "Not all alignments were successful, check $ErrorFile"
+  echo -e "${YELLOW}Not all alignments were successful, check $ErrorFile${END}"
 fi
 
 # Delete Failed directory if empty
@@ -585,12 +596,12 @@ fi
 # However - I haven't found a sequence that didn't enter failed even when the output looks right. 
 # In my last test the only sample sequence that entered (in addition to the reference genes) was the one without an alignment error
 if [ -d FailedVIRULIGN ]; then
-  rmdir FailedVIRULIGN || echo "Some sequences failed to align correctly. Check FailedVIRULIGN."
+  rmdir FailedVIRULIGN || echo -e "${YELLOW}Some sequences failed to align correctly. Check FailedVIRULIGN.${END}"
 fi
 
 # Warn if some genes have missing coverage
 if [[ -s "MissingCoverage.txt" ]]; then
-  echo "Some genes were not analysed due to missing coverage, check 'MissingCoverage.txt'."
+  echo -e "${YELLOW}Some genes were not analysed due to missing coverage, check 'MissingCoverage.txt'.${END}"
 fi
 
 

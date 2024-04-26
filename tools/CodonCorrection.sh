@@ -8,44 +8,102 @@ set -e
 
 UsageInstructions="Arguments for this script:
 (1) A sample file containing the sequence to be corrected as the first sequence;
-(2) A reference file containing all codon-correct/annotatable references;
-(3) A file of gene coordinates - NB this requires specific formatting/order (see note in code)
-(4) The filepath for the virulign binaries
-(5) The export options for virulign separated by ',' and enclosed by double quotes. One of more of Mutations, MutationTable, \
+(2) A file of gene coordinates - NB this requires specific formatting/order (see note in code)
+(3) The filepath for the virulign binaries
+(4) The export options for virulign separated by ',' and enclosed by double quotes. One of more of Mutations, MutationTable, \
 Nucleotides, or Amino Acids, or use 'all' to generate all four.
-(6) The chosen genes to analyse for the sample separated by ',' and enclosed by double quotes. \
+(5) The chosen genes to analyse for the sample separated by ',' and enclosed by double quotes. \
 One or more of gag, pol, env, vpr, vif, vpu, or nef, or use 'all' to analyse all.
+(6) The init directory.
+(7) The directory where output files will be created.
 "
-
 # Write help text to explain the different export options
 
+# Source config - improve to not rely on specific filepath
+source "$HOME/shiver/config.sh"
+
 ### Check arguments
-ExpectedArgs=6
+ExpectedArgs=7
 if [ $# -ne "$ExpectedArgs" ]; then
   echo "$UsageInstructions"
   echo "Incorrect number of arguments provided, expected:" "$ExpectedArgs". "Quitting." >&2
   exit 1
 else
   SampleFile=$1
-  ReferenceFile=$2
-  GeneCoordInfo=$3
-  VirulignLocation=$4
-  VirulignOptions=$5 # VirulignOptions and GenesToAnalyse aren't actually used in the rest of the code so far, only $5 and $6
-  GenesToAnalyse=$6
+  GeneCoordInfo=$2
+  VirulignLocation=$3
+  VirulignOptions=$4
+  GenesToAnalyse=$5
+  InitDir=$6
+  OutputDir=$7
 fi
 
+# Other variables
+ReferenceFile="$InitDir/CC_References.fasta"
+
 # Check init script has been run
-BLASTnDB_Path=~/shiver/CodonCorrectionReferences/BLASTnDB
+BLASTnDB_Path="$InitDir/BLASTnDB"
 if [[ ! -d "$BLASTnDB_Path" ]]; then
   echo "No BLASTn database found. Please run CodonCorrectionInit.sh before running this script. Quitting." >&2
   exit 1
 fi
 
-# Check each arg is valid and as expected
-  # sample file should contain at least 1 sequence and be a .fasta
-  # reference file should be a .fasta
-  # check gene coordinates is a .txt with a header of data in the right order
-  # test virulign
+# Check if file exists
+# Call as a function and do for all
+if ! [ -f "$SampleFile" ]; then
+  echo "The provided sample file '$SampleFile' does not exist. Check the file path is correct."
+  exit 1
+# also check other files
+fi
+
+# Check sample and reference are .fasta files
+if [[ "$SampleFile" != *.fasta ]]; then 
+  echo "Sample file $SampleFile is not a fasta file. Quitting." >&2
+  exit 1
+fi
+# Check reference file is a .fasta
+if [[ "$ReferenceFile" != *.fasta ]]; then 
+  echo "Reference file $ReferenceFile is not a fasta file. Quitting." >&2
+  exit 1
+fi
+
+### Check the sample and reference files
+# Count sequence number in reference and sample
+Ref_SeqNumber=$(grep '^>' "$ReferenceFile" | wc -l | awk '{$1=$1};1')
+if [[ "$Ref_SeqNumber" == 0 ]]; then
+  echo "Reference file $ReferenceFile contains no sequences. Quitting." >&2
+  exit 1
+fi
+Sample_SeqNumber=$(grep '^>' "$SampleFile" | wc -l | awk '{$1=$1};1')
+if [[ "$Sample_SeqNumber" == 0 ]]; then
+  echo "Reference file $ReferenceFile contains no sequences. Quitting." >&2
+  exit 1
+fi
+# Determine whether to use mafft pairwise or AlignMoreSeqs - perhaps implement more rigourous checks later
+if [[ "$Sample_SeqNumber" == 1 ]]; then
+  SingleSequence=true # Will be funneled into mafft pairwise alignment
+elif [[ "$Sample_SeqNumber" == 2 ]]; then
+  SingleSequence=false # In this case expects remap consensus files (=2 sequences) and will do AlignMoreSeqs. Can develop this later for other file formats if needed
+else 
+  echo "Unexpected number of sequences in the sample file. Expected 1 or 2. Quitting." >&2
+  exit 1
+fi
+
+# Check GeneCoordInfo
+if [[ "$GeneCoordInfo" != *.txt ]]; then 
+  echo "Gene coordinates file in unexpected format. Please provide as a .txt file. Quitting." >&2
+  exit 1
+fi
+# Check header is as expected
+# Not strictly necessary for function but ensures the gene info is formatted in the correct way. But maybe overly strict.
+GC_FirstLine=$(head -n 1 "$GeneCoordInfo")
+GeneCoord_Header="Sequence_name, gag_start, gag_end, pol_start, pol_end, vif_start, vif_end, vpr_start, \
+vpr_end, vpu_start, vpu_end, env_start, env_end, nef_start, nef_end"
+if [[ "$GC_FirstLine" != *"$GeneCoord_Header"* ]]; then
+  echo -e "Expected the gene coordinates file to have the header: '$GeneCoord_Header'\nPlease supply the gene coordinate \
+  data in the correct format. Quitting" >&2
+  exit 1
+fi
 
 # Check VIRULIGN exists
 if [[ ! -f "$VirulignLocation" ]]; then
@@ -53,45 +111,30 @@ if [[ ! -f "$VirulignLocation" ]]; then
   exit 1
 fi
 
+# Check VIRULIGN
+"$VirulignLocation" &> /dev/null || echo "Error running VIRULIGN. Check the program is installed correctly." >&2
+
+# cd to $OutputDir
+if [[ -d "$OutputDir" ]]; then
+  echo "$OutputDir exists already; quitting to prevent overwriting." >&2
+  exit 1
+fi
+mkdir -p "$OutputDir" && cd "$OutputDir" ||
+{ echo "Could not mkdir then cd to $OutputDir. Quitting." >&2 ; exit 1 ; }
+
 # IMPORTANT: Gene Coords must be set up in the correct format. My scripts use gene fragments to determine gene coordinates
 # from complete genomes and make a specific .txt, however I haven't integrated this into the CodonCorrection script. 
 # If just providing a set of references with this tool, then perhaps parts could be simplified to reflect this
 
 ### Other variables
-# I think shiver assumes it's in ~/shiver so this would also work..? 
+# Set up for $shiver
 AlignMoreSeqsTool=~/shiver/tools/AlignMoreSeqsToPairWithMissingCoverage.py
 # Extracting the sample ID from the fasta
 SequenceName_shell=$(head -n 1 "$SampleFile" | sed 's/>//')
 
-# Temp for testing
-cd ~/shiver
-# Create directory to store results
-if [ ! -e "CodonCorrection" ]; then
-  mkdir CodonCorrection
-else
-  echo "Using CodonCorrection folder - testing only" # temporary
-  # should be proper error message/handling to not overwrite
-  # addend SID? or other method to handle identical files for batch processing
-  # echo "CodonCorrection file already exists, empty and delete to avoid overwriting."
-  # exit 1
-  # Could use separate user-defined identifier in command eg shiver
-fi
-
-# Not necessary for function but keeps results contained - can be changed
-cd CodonCorrection
-
 # Check config and other shiver scripts for variables to work from if needed
 
 ###################################################################################
-
-# Check if file exists
-if ! [ -f "$SampleFile" ]; then
-  echo "The provided sample file does not exist. Check the file path is correct."
-  exit 1
-# else check .fasta
-# also check other files
-# not necessarily for this one but check some have right amount of sequences etc
-fi
 
 ### Determine which genes to correct
 
@@ -106,7 +149,7 @@ NEF=false
 genes=("GAG" "POL" "VIF" "VPR" "VPU" "ENV" "NEF")
 
 # Switch on all genes if command set to "all"
-if [[ "$6" == "all" ]]; then
+if [[ "$GenesToAnalyse" == "all" ]]; then
   GAG=true
   POL=true
   VIF=true
@@ -116,7 +159,7 @@ if [[ "$6" == "all" ]]; then
   NEF=true
 else
   # Switch on the corresponding gene variable for each listed gene
-  IFS=',' read -ra listed_genes <<< "$6"
+  IFS=',' read -ra listed_genes <<< "$GenesToAnalyse"
   for gene_name in "${listed_genes[@]}"; do
       # Convert gene name to uppercase
       gene_upper=$(echo "$gene_name" | tr '[:lower:]' '[:upper:]')
@@ -146,14 +189,9 @@ else
   exit 1
 fi
 
-# Temporary set variable for remap testing - incorporate as argument/auto-detect later
-# variable name tbd
-# set to false because mafft pairwise align needs to be set up, AlignTool requires 2 seqs
-Remap=false
-
 
 ### Extract sample and reference sequences for virulign processing
-# Extract the first sequence in the file - for MinCov files there will be a second GapsFilled file (ignore this)
+# Extract the first sequence in the file - for MinCov files there will be a second GapsFilled file
 Python_Extract_Sample="
 from Bio import SeqIO
 import sys
@@ -164,18 +202,20 @@ sample_seq = next(input_sequences)
 SeqIO.write([sample_seq], sample_seq_file, 'fasta')
 "
 
-python2 -c "$Python_Extract_Sample" "$SampleFile"
+"$python2" -c "$Python_Extract_Sample" "$SampleFile" || { echo "CodonCorrection.sh was unable \
+to extract the sample sequence. Quitting." >&2; exit 1; }
 
 SampleSequence="temp_SampleSequence.fasta"
 SampleSequenceNoQuery="temp_SampleSequence_QueryRemoved.fasta"
 
-# Replace '?' with 'N' from the sequence for BLAST (unable to blast to ? characters)
-# 
+# Replace '?' with 'N' within the sequence for BLAST (unable to blast to ? characters)
 sed '/^>/!s/?/N/g' "$SampleSequence" > "$SampleSequenceNoQuery"
 
 # BLASTn the target sequence to the possible references
-blastn -query "$SampleSequenceNoQuery" -db ~/shiver/CodonCorrectionReferences/BLASTnDB/CC_whole_genome -outfmt \
-"10 qseqid qseq evalue sseqid pident qlen qstart qend sstart send frames" -out blastn.out -max_target_seqs 1 
+BLASTn_Database="$InitDir/BLASTnDB"
+blastn -query "$SampleSequenceNoQuery" -db "$BLASTn_Database"/CC_whole_genome -outfmt \
+"10 qseqid qseq evalue sseqid pident qlen qstart qend sstart send frames" -out blastn.out -max_target_seqs 1 \
+|| { echo "Failed to execute BLASTn command. Quitting." >&2; exit 1; }
 # Change to do top 3-5 then evaluate
 
 blast_output="blastn.out"
@@ -207,7 +247,8 @@ if not found:
   print('Reference sequence {} was not found win the provided reference file {}.'.format(Ref_Name, Ref_File))
 "
 
-python2 -c "$Python_Extract_Reference" "$RefSequenceName_shell" "$ReferenceFile"
+"$python2" -c "$Python_Extract_Reference" "$RefSequenceName_shell" "$ReferenceFile" || { echo "CodonCorrection.sh was unable \
+to extract the reference sequence. Quitting." >&2; exit 1; }
 
 # Assign the individual reference file - consists of the full genome sample
 ReferenceGenome=temp_Reference_Genome.fasta
@@ -215,15 +256,20 @@ ReferenceGenome=temp_Reference_Genome.fasta
 ###################################################################################
 
 ### Align reference to sample
-# Creates temp_ files which within the AlignMoreSeqs script that will be overwritten if batch processing 
-# Can just be a simple pairwise mafft align for remap files (use Remap variable to determine)
-python2 "$AlignMoreSeqsTool" "$ReferenceGenome" "$SampleFile" > "$SequenceName_shell"_AlignedSeqs.fasta
+# Creates temp_ files from within the AlignMoreSeqs script that will be overwritten if batch processing 
+if [[ "$SingleSequence" == 'true' ]]; then
+  # Carry out a mafft pairwise alignment due to no missing coverage in SID_remap_ref files
+  # mafft can use the "$mafft" variable if used within shiver
+  # options??
+  mafft --add "$ReferenceGenome" "$SampleFile" > "$SequenceName_shell"_AlignedSeqs.fasta
+else
+  # Capable of handling sequence with unknown coverage in parts. Requires two sequences in the starting sample .fasta
+  "$python2" "$AlignMoreSeqsTool" "$ReferenceGenome" "$SampleFile" > "$SequenceName_shell"_AlignedSeqs.fasta
+fi
 
 ReferenceAlignment="$SequenceName_shell"_AlignedSeqs.fasta
 
-# Definitely better ways to use python within bash but this is easier for testing currently
-  # Will create a separate .py later in development
-# Also needs splitting into functions
+# python also needs splitting into functions
 # Add file overwrite checks
 # The [...]_Reference_Genes_Extracted.fasta is named after the sample it was generated for, but the
   # individual genes are named after the actual reference. Change this to make it clearer or keep as is?
@@ -231,262 +277,23 @@ ReferenceAlignment="$SequenceName_shell"_AlignedSeqs.fasta
   # once making files for individual genes it seems clearer to separate by actual ID as there's more of them 
   # (also they're intended as temp files)
 
-Python_Extract_Genes="""
-import sys
-import os
-from Bio import AlignIO
-from Bio import SeqIO
+# Call python script to extract individual genes from the reference and sample
+# Set up shiver location properly
+CC_Extract_Genes="$HOME/shiver/tools/CC_Extract_Genes.py"
 
-# Determine position of reference sequence in alignment file
-# add check for RefSequenceNumber is not 0 later
-Remap_check = sys.argv[11]
-RefSequenceNumber = 0
-if Remap_check == 'true':
-  RefSequenceNumber = 1
-else:
-  RefSequenceNumber = 2
-
-# Assign variables
-ReferenceAlignment = AlignIO.read(sys.argv[1], 'fasta')
-SequenceName = ReferenceAlignment[0].id
-RefSequenceLength = len(ReferenceAlignment[RefSequenceNumber])
-RefSequenceName = sys.argv[2]
-GeneCoordInfo = sys.argv[3]
-GAG_check = sys.argv[4]
-POL_check = sys.argv[5]
-VIF_check = sys.argv[6]
-VPR_check = sys.argv[7]
-VPU_check = sys.argv[8]
-ENV_check = sys.argv[9]
-NEF_check = sys.argv[10]
-output_file_name = '{}_GenesExtracted.fasta'.format(SequenceName)
-ref_output_file_name = '{}_Reference_GenesExtracted.fasta'.format(SequenceName)
-
-
-
-# The following python code contains lots of gap variables etc, most of this actually isn't
-# needed so I removed the parts that adjust gene length based on this, but the rest of the
-# code still remains in the script. Can be later removed and some parts (eg enumerate) consensus_num_gaps
-# can be simplified (similar to the reference gene extraction that uses sequence length)
-
-# Extract gene coordinates from the reference file
-gene_loci = {}
-with open(GeneCoordInfo, 'r') as file:
-  for line in file:
-    gene_info = line.strip().split(',')
-    if gene_info[0] == RefSequenceName:
-      gene_loci = {
-        # Gene: (gene_start, gene_end)
-        'GAG': (int(gene_info[1]), int(gene_info[2])),
-        'POL': (int(gene_info[3]), int(gene_info[4])),
-        'VIF': (int(gene_info[5]), int(gene_info[6])),
-        'VPR': (int(gene_info[7]), int(gene_info[8])),
-        'VPU': (int(gene_info[9]), int(gene_info[10])),
-        'ENV': (int(gene_info[11]), int(gene_info[12])),
-        'NEF': (int(gene_info[13]), int(gene_info[14]))
-      }
-      break
-
-# Gene Extraction for reference sequence
-if gene_loci:
-  with open(ref_output_file_name, 'w') as output_file:
-    for gene, (gene_start, gene_end) in gene_loci.items():
-      check_gene = gene + '_check'
-      if locals().get(check_gene) == 'true':
-        if gene_start is not None and gene_end is not None:
-          ref_pos = 0
-          ref_start = 0
-          ref_end = 0
-          for i in xrange(RefSequenceLength):
-            if ReferenceAlignment[RefSequenceNumber][i] != '-':
-              ref_pos += 1
-            if ref_pos == gene_start:
-              ref_start = i
-            if ref_pos == gene_end:
-              ref_end = i
-              break
-          if ref_start is not None and ref_end is not None:
-            reference_sequence = ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1].ungap('-')
-            output_file.write('>' + ReferenceAlignment[RefSequenceNumber].id + '_' + gene + '\n' + str(reference_sequence) + '\n')
-
-          # testing - delete after
-          print('ref_start:', ref_start)
-          print('ref_end:', ref_end)
-          print('gene_start:', gene_start)
-          print('gene_end:', gene_end)
-
-# Gene extraction for sample sequence
-# Select which genes to extract
-if gene_loci:
-  with open(output_file_name, 'w') as output_file:
-    for gene, (gene_start, gene_end) in gene_loci.items():
-      check_gene = gene + '_check'
-      if locals().get(check_gene) == 'true':
-        # Iterate over the sequence to determine gene coordinates of the sample sequence
-        consensus_start = None
-        consensus_end = None
-        sequence_pos = 0
-        indel_difference = 0
-        for i in xrange(RefSequenceLength):
-          if ReferenceAlignment[RefSequenceNumber][i] != '-':
-            sequence_pos += 1
-          if sequence_pos == gene_start:
-            consensus_start = i
-          if sequence_pos == gene_end: 
-            consensus_end = i
-            break
-        indel_difference =  (consensus_end + 1 - consensus_start) - (gene_end + 1 - gene_start)
-        if indel_difference != 0:
-          print ('{} Indel(s) detected in {} for {}.'.format(indel_difference, SequenceName, gene))
-        
-        #testing - delete after
-        print('consensus_start:', consensus_start)
-        print('consensus_end:', consensus_end)
-        print('sequence_pos:', sequence_pos)
-        print('indel_difference:', indel_difference)
-
-        # Write the gene sequence to file unless it contains '?'
-        if consensus_start is not None and consensus_end is not None:
-          gene_sequence = ReferenceAlignment[0].seq[consensus_start:consensus_end + 1]
-          if '?' in gene_sequence:
-            print ('Gene {} contains \'?\' characters indicating missing coverage. Skipping.'.format(gene))
-            with open('MissingCoverage.txt', 'a') as file:
-              file.write(SequenceName + '_' + gene + '\n')
-            continue
-          else:
-            output_file.write('>' + SequenceName + '_' + gene + '\n' + str(gene_sequence) + '\n')
-          
-        else:
-          print ('Gene {} not found in alignment.'.format(gene)) # untested output 
-else:
-  print ('Could not find sys.argv[2] in the provided references.') # untested output
-
-# Check length is expected
-
-### Take the extracted genes and reference and extract to individual files
-# Is there a way to avoid doing this? But I think VIRULIGN requires a .fasta (or xml) input
-# Can also just output them individually in the previous steps but having them together seemed useful
-# Optionally delete temp/single gene files after? Maybe if option is switched on to keep single gene
-  # files then don't name to temp, otherwise name temp_ and delete after
-
-# Extract the sample sequences to individual fastas for VIRULIGN processing
-# maybe make as temp_ files and deleted after processing
-multi_fasta_sample = SequenceName + '_GenesExtracted.fasta'
-
-for record in SeqIO.parse(multi_fasta_sample, 'fasta'):
-  individual_file = 'temp_{}_only.fasta'.format(record.id)
-  with open(individual_file, 'w') as file:
-    file.write('>' + str(record.id) + '\n' + str(record.seq))
-
-# Extract the reference sequences to individual fastas for VIRULIGN processing
-multi_fasta_ref = SequenceName + '_Reference_GenesExtracted.fasta'
-
-for record in SeqIO.parse(multi_fasta_ref, 'fasta'):
-  individual_file = 'temp_{}_Reference_only.fasta'.format(record.id)
-  with open(individual_file, 'w') as file:
-    file.write('>' + str(record.id) + '\n' + str(record.seq))
-
-# Return error if the [Sample]_GenesExtracted.fasta file is empty
-if os.path.getsize(multi_fasta_sample) == 0:
-  print('{} is empty. This can happen if all genes being analysed have missing coverage (? characters). Check MissingCoverage.txt. Now quitting.'.format(multi_fasta_sample))
-  sys.exit(1)
-
-"""
-
-python2 -c "$Python_Extract_Genes" "$ReferenceAlignment" "$RefSequenceName_shell" "$GeneCoordInfo" "$GAG" "$POL" "$VIF" "$VPR" "$VPU" "$ENV" "$NEF" "$Remap"
-
-# add warning if some are added to missing coverage - ie if not empty
+Python_Extract_Genes= # Now removed - clear all references
+"$python2" "$CC_Extract_Genes" "$ReferenceAlignment" "$RefSequenceName_shell" "$GeneCoordInfo" "$GAG" "$POL" "$VIF" "$VPR" "$VPU" "$ENV" "$NEF" "$SingleSequence"
 
 ###################################################################################
-# No longer needed due to mafft extraction - leaving in temporarily in case code is useful later
-
-# Summary: 
-# BLASTn full sequence to gene to find closest reference then extract gene and reference 
-
-
-# ReferencePOL="/Users/s.blundell/shiver-unpaired/CodonCorrectionReferences/POL/HIV1_ALL_2021_pol_DNA.fasta"
-
-# ### BLASTn the target sequence to a specific gene
-#   # Call as function to avoid specific file names
-# SampleSequence="/Users/s.blundell/codon-awareness/HIV-COM/HIV_COM_B.FR_shifted.fasta"
-# blastn -query "$SampleSequence" -db ~/shiver/CodonCorrectionReferences/POL/blast_db_pol_dna -outfmt \
-# "10 qseqid qseq evalue sseqid pident qlen qstart qend sstart send frames" \
-# -out POL_blastn.out -max_target_seqs 1
-
-# blast_output="POL_blastn.out"
-
-# # Find the sseqid associated with the longest BLAST fragment (intended as the closest match)
-# ClosestMatch=$(awk 'BEGIN { longest_fragment=0 } { if (length($2) > longest_fragment) { longest_fragment=length($2); \
-# closest_match=$4 } } END { print closest_match }' FS=',' "$blast_output")
-
-# echo "ClosestMatch:" "$ClosestMatch" # TESTING
-
-# ### Extract the closest BLAST hit to a reference .fasta file
-# python2 - "$ReferencePOL" "$ClosestMatch" <<END
-# import sys
-# from Bio import SeqIO
-# from Bio.SeqRecord import SeqRecord
-
-# ReferenceSequence = None
-# with open(sys.argv[1], "r") as handle:
-#   for record in SeqIO.parse(handle, "fasta"):
-#     if record.id == sys.argv[2]:
-#       ReferenceSequence = record.seq
-#       break
-
-# if ReferenceSequence:
-#   output_file = "ReferencePOLExtracted.fasta"
-#   ungapped_record = SeqRecord(id=record.id, seq=ReferenceSequence.ungap("-"), description="")
-#   with open(output_file, "w") as output_handle:
-#     SeqIO.write([ungapped_record], output_handle, "fasta")
-# else:
-#     # check how to print properly
-#     print("Sequence", sys.argv[2], "was not found within the reference .fasta file.")
-# END
-
-# ### Extract the gene from the BLASTn output
-# # REMOVE/skip if you already have specific genes, eg POPART data. 
-# # Set up as function to avoid file paths
-# # Extract qstart and qend from each line and get the min/max
-# SequenceStart=$(awk -F',' '{print $7}' "$blast_output" | sort -n | head -n 1)
-# SequenceEnd=$(awk -F',' '{print $8}' "$blast_output" | sort -rn | head -n 1)
-
-# # Extract the sequence between qstart and qend, i.e. the full gene
-# python2 - "$SequenceStart" "$SequenceEnd" "$SampleSequence" <<END
-# import sys
-# from Bio import SeqIO
-
-# # Some key files
-# sample_file = sys.argv[3]
-# output_fasta = "BlastExtractedSequence.fasta"
-
-# with open(sample_file, 'r') as blast_file:
-#   first_line = blast_file.readline().strip()
-#   sequence_id = first_line.split(',')[0][1:]  
-
-# # Read the fasta file and extract the gene
-# sequences_dict = SeqIO.to_dict(SeqIO.parse(sample_file, "fasta"))
-# gene_sequence = sequences_dict[sequence_id][int(sys.argv[1]):int(sys.argv[2])]
-
-# with open(output_fasta, "w") as output_handle:
-#     SeqIO.write(gene_sequence, output_handle, "fasta")
-# END
-
-# SamplePOLGene="BlastExtractedSequence.fasta"
-
-# ReferencePOLGene="ReferencePOLExtracted.fasta"
-###################################################################################
-
-### Run VIRULIGN
 
 # Make a directory for the failed alignments
   # Add path check error messages
+  # TODO eventually remove this and similar - I created a separate FailedAlignments.txt 
 if [ ! -d "FailedVIRULIGN" ]; then
   mkdir FailedVIRULIGN
 fi
 
 # Determine VIRULIGN options
-# Probably far better ways to structure this section - return to
 Nucleotides=false
 AminoAcids=false
 Mutations=false
@@ -501,16 +308,16 @@ See the VIRULIGN tutorial for more information on these options.
 (4) MutationTable: A CSV file where each mutation present at a specific position is given as a separate column in Boolean representation.
 "
 
+# Select VIRULIGN options
 VirulignOutput=("Nucleotides" "AminoAcids" "Mutations" "MutationTable")
-
-if [[ "$5" == "all" ]]; then 
+if [[ "$VirulignOptions" == "all" ]]; then 
   Nucleotides=true
   AminoAcids=true
   Mutations=true
   MutationTable=true
 else
-  # Select gene output based on VirulignOPtions args
-  IFS=',' read -ra listed_options <<< "$5"
+  # Select alignment output based on VirulignOptions args
+  IFS=',' read -ra listed_options <<< "$VirulignOptions"
   for option in "${listed_options[@]}"; do
     # Could convert to all upper/lowercase here (and change variable names) for conistency
     if [[ " ${VirulignOutput[*]} " == *" $option "* ]]; then # Are * necessary for my data? For this and genes
@@ -523,18 +330,17 @@ else
   done
 fi
 
-# Print chosen options
+# Print chosen virulign options
 listed_options=()
 for option in "${VirulignOutput[@]}"; do
   if [ "${!option}" = true ]; then
     listed_options+=(" $option")
   fi
 done
-
 if [ "${#listed_options[@]}" -gt 0 ]; then
   echo "Outputting files for chosen options: ${listed_options[@]}"
 else
-  echo "Problem with virulign options. Quitting." >&2
+  echo "Problem with chosen virulign options. Quitting." >&2
   exit 1
 fi
 
@@ -545,23 +351,39 @@ FailedDebug=""
 FileAppend=""
 
 # Define a function to call virulign
-# Addended _func because otherwise it would presumably overwrite variables in rest of script? or can they be the same
 function run_virulign {
   export_alphabet_func="$1"
   export_kind_func="$2"
   FailedDebug_func="$3"
   FileAppend_func="$4"
 
+  # Find sample and reference files
   for gene in "${genes[@]}"; do
     if [ "${!gene}" = true ]; then
       SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
       ReferenceGene=$(find . -type f -name "temp_${RefSequenceName_shell}_${gene}_Reference_only.fasta")
 
-      # Run VIRULIGN
-      $VirulignLocation $ReferenceGene $SampleGene --exportKind $export_kind_func --exportAlphabet $export_alphabet_func --exportReferenceSequence yes --exportWithInsertions yes $FailedDebug_func > HIV_${gene}$FileAppend_func
-    
+      if [ -n "$SampleGene" ]; then
+        # Run VIRULIGN
+        v_output=$( { $VirulignLocation $ReferenceGene $SampleGene --exportKind $export_kind_func --exportAlphabet $export_alphabet_func --exportReferenceSequence yes --exportWithInsertions yes $FailedDebug_func; } 2>&1 > HIV_${gene}$FileAppend_func )
+        echo "$v_output"
+
+        # Check for errors
+        # should only add if not already listed
+        ErrorFile="FailedAlignment.txt"
+        if echo "$v_output" | grep -qi 'error'; then
+          error_line=$(echo "$v_output" | grep -i 'error')
+          echo "$error_line" >> "$ErrorFile"
+        fi
+      else
+        echo "Skipping virulign analysis of ${gene} due to missing coverage."
+      fi
     fi
   done
+
+  if [[ -s "$ErrorFile" ]]; then
+    echo "Not all alignments were successful, check $ErrorFile"
+  fi
 }
 
 ### Define virulign command options based on chosen output options
@@ -569,7 +391,6 @@ if [[ "$Nucleotides" == "true" ]]; then
   export_alphabet="Nucleotides"
   export_kind="GlobalAlignment"
   FailedDebug="--nt-debug FailedVIRULIGN"
-  # Currently only using this for Nucleotides. Could make diff file names for each failed output but need to consider how useful this is
   FileAppend="_Nucl_corrected.fasta"
 
   run_virulign "$export_alphabet" "$export_kind" "$FailedDebug" "$FileAppend" || { echo "Problem running virulign. Quitting." >&2; exit 1; }
@@ -610,7 +431,6 @@ fi
 
 
 # Print frameshift info to file
-# can only happen if mutations is enabled
 # TODO if sequence_name already in file return error
 # Could be set up to return more meaningful info
 if [[ ! -f "Frameshifts.txt"  ]] && [[ "$Mutations" == "true" ]]; then
@@ -632,20 +452,25 @@ elif [[ "$Mutations" == "false" ]]; then
   echo "To list frameshifts found in the sample enable the 'Mutations' virulign option."
 fi
 
+# delete frameshifts.txt if only contains header? 
+
+# Delete temp_ files
+# could add a config variable with optional keep temp files, or for some
+# rm -f temp_*
+
 # Delete Failed directory if empty
 # Remove Directory not empty message (expected behaviour)
 # However - I haven't found a sequence that didn't enter failed even when the output looks right. 
 # In my last test the only sample sequence that entered (in addition to the reference genes) was the one without an alignment error
 if [ -d FailedVIRULIGN ]; then
-  rmdir FailedVIRULIGN
+  rmdir FailedVIRULIGN || echo "Some sequences failed to align correctly. Check FailedVIRULIGN."
 fi
 
+# Warn if some genes have missing coverage
+if [[ -s "MissingCoverage.txt" ]]; then
+  echo "Some genes were not analysed due to missing coverage, check 'MissingCoverage.txt'."
+fi
 
-
-# For virulign:
-# Current setup adds insertions to the reference where new codons are added in the sample
-# nt-debug is only added to nucleotide sequence atm, could set it up so it's done for at least one
-  # of the commands, eg if only doing AA or mutations. Can have different folder names to do multiple
 
 # After correcting the gene, do we update the full genome consensus?
 
@@ -665,6 +490,3 @@ fi
 
 # output of virulign: if nucl corrected contains one sequence return as failed
 
-# set up help
-
-cd ../ # Return to ~/shiver. temp for testing

@@ -8,14 +8,13 @@ set -e
 
 UsageInstructions="Arguments for this script:
 (1) A sample file containing the sequence to be corrected as the first sequence;
-(2) A file of gene coordinates - NB this requires specific formatting/order (see note in code)
-(3) The filepath for the virulign binaries
-(4) The export options for virulign separated by ',' and enclosed by double quotes. One of more of Mutations, MutationTable, \
+(2) The filepath for the virulign binaries
+(3) The export options for virulign separated by ',' and enclosed by double quotes. One of more of Mutations, MutationTable, \
 Nucleotides, or Amino Acids, or use 'all' to generate all four.
-(5) The chosen genes to analyse for the sample separated by ',' and enclosed by double quotes. \
+(4) The chosen genes to analyse for the sample separated by ',' and enclosed by double quotes. \
 One or more of gag, pol, env, vpr, vif, vpu, or nef, or use 'all' to analyse all.
-(6) The init directory.
-(7) The directory where output files will be created.
+(5) The init directory.
+(6) The directory where output files will be created.
 "
 # Write help text to explain the different export options
 
@@ -23,19 +22,18 @@ One or more of gag, pol, env, vpr, vif, vpu, or nef, or use 'all' to analyse all
 source "$HOME/shiver/config.sh"
 
 ### Check arguments
-ExpectedArgs=7
-if [ $# -ne "$ExpectedArgs" ]; then
+ExpectedArgs=6
+if [[ $# -ne "$ExpectedArgs" ]]; then
   echo "$UsageInstructions"
   echo "Incorrect number of arguments provided, expected:" "$ExpectedArgs". "Quitting." >&2
   exit 1
 else
   SampleFile=$1
-  GeneCoordInfo=$2
-  VirulignLocation=$3
-  VirulignOptions=$4
-  GenesToAnalyse=$5
-  InitDir=$6
-  OutputDir=$7
+  VirulignLocation=$2
+  VirulignOptions=$3
+  GenesToAnalyse=$4
+  InitDir=$5
+  OutputDir=$6
 fi
 
 # Colours
@@ -46,48 +44,37 @@ GREEN="\033[92m"
 GREY="\033[37m"
 END="\033[0m"
 
-
 # Other variables
 ReferenceFile="$InitDir/CC_References.fasta"
+GeneCoordInfo="$InitDir/CC_Coords.fasta"
 
 # Check init script has been run
-BLASTnDB_Path="$InitDir/BLASTnDB"
-if [[ ! -d "$BLASTnDB_Path" ]]; then
-  echo "No BLASTn database found. Please run CodonCorrectionInit.sh before running this script. Quitting." >&2
+if [[ ! -s "$ReferenceFile" ]] || [ ! -s "$GeneCoordInfo" ]]; then
+  echo "Reference file and coordinates file are not found in the init directory. Please run CodonCorrectionInit.sh before running this script. Quitting." >&2
   exit 1
 fi
 
 # Check if file exists
 # Call as a function and do for all
-if ! [ -f "$SampleFile" ]; then
+if ! [[ -f "$SampleFile" ]]; then
   echo "The provided sample file '$SampleFile' does not exist. Check the file path is correct."
   exit 1
 # also check other files
 fi
 
-# Check sample and reference are .fasta files
+# Check sample is a .fasta file
 if [[ "$SampleFile" != *.fasta ]]; then 
   echo "Sample file $SampleFile is not a fasta file. Quitting." >&2
   exit 1
 fi
-# Check reference file is a .fasta
-if [[ "$ReferenceFile" != *.fasta ]]; then 
-  echo "Reference file $ReferenceFile is not a fasta file. Quitting." >&2
-  exit 1
-fi
 
-### Check the sample and reference files
-# Count sequence number in reference and sample
-Ref_SeqNumber=$(grep '^>' "$ReferenceFile" | wc -l | awk '{$1=$1};1')
-if [[ "$Ref_SeqNumber" == 0 ]]; then
-  echo "Reference file $ReferenceFile contains no sequences. Quitting." >&2
-  exit 1
-fi
+# Count sequence number in sample
 Sample_SeqNumber=$(grep '^>' "$SampleFile" | wc -l | awk '{$1=$1};1')
 if [[ "$Sample_SeqNumber" == 0 ]]; then
   echo "Reference file $ReferenceFile contains no sequences. Quitting." >&2
   exit 1
 fi
+
 # Determine whether to use mafft pairwise or AlignMoreSeqs - perhaps implement more rigourous checks later
 if [[ "$Sample_SeqNumber" == 1 ]]; then
   SingleSequence=true # Will be funneled into mafft pairwise alignment
@@ -188,12 +175,12 @@ fi
 # Print chosen genes
 listed_genes=()
 for gene in "${genes[@]}"; do
-  if [ "${!gene}" = true ]; then
+  if [[ "${!gene}" = true ]]; then
     listed_genes+=(" $gene")
   fi
 done
 
-if [ "${#listed_genes[@]}" -gt 0 ]; then
+if [[ "${#listed_genes[@]}" -gt 0 ]]; then
   echo -e "${BLUE}Outputting files for chosen options: ${listed_genes[@]} ${END}"
 else
   echo "No genes selected for codon correction. Quitting."
@@ -339,11 +326,11 @@ fi
 # Print chosen virulign options
 listed_options=()
 for option in "${VirulignOutput[@]}"; do
-  if [ "${!option}" = true ]; then
+  if [[ "${!option}" = true ]]; then
     listed_options+=(" $option")
   fi
 done
-if [ "${#listed_options[@]}" -gt 0 ]; then
+if [[ "${#listed_options[@]}" -gt 0 ]]; then
   echo -e "${BLUE}Outputting files for chosen options: ${listed_options[@]} ${END}"
 else
   echo -e "${RED}Problem with chosen virulign options. Quitting.${END}" >&2
@@ -371,11 +358,11 @@ function run_virulign {
 
   # Find sample and reference files
   for gene in "${genes[@]}"; do
-    if [ "${!gene}" == true ]; then
+    if [[ "${!gene}" == true ]]; then
       SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
       ReferenceGene=$(find . -type f -name "temp_${RefSequenceName_shell}_${gene}_Reference_only.fasta")
 
-      if [ -n "$SampleGene" ]; then
+      if [[ -n "$SampleGene" ]]; then
         # Run VIRULIGN
         v_output=$( { $VirulignLocation $ReferenceGene $SampleGene --exportKind $export_kind_func --exportAlphabet $export_alphabet_func --exportReferenceSequence yes \
           --exportWithInsertions yes --maxFrameShifts $MaxFrameshifts; } 2>&1 > HIV_${gene}$FileAppend_func )
@@ -401,7 +388,7 @@ function run_virulign {
 function call_virulign {
   ### Define virulign command options based on chosen output options
   for option in "${VirulignOutput[@]}"; do
-    if [ "${!option}" == "true" ]; then
+    if [[ "${!option}" == "true" ]]; then
       # Set variables for each virulign output option
       case "$option" in
         "Nucleotides")
@@ -449,23 +436,75 @@ call_virulign || { echo "Problem calling virulign. Quitting." >&2; exit 1; } # M
 
 
 # Check for single sequences in output (indicates failed as they should be paired)
-if [[ "$Nucleotides" == "true" ]]; then
-  for gene in "${genes[@]}"; do
-    if [ -f  "HIV_${gene}_Nucl_corrected.fasta" ]; then
-      sequence_num=$(grep ">" "HIV_${gene}_Nucl_corrected.fasta" | wc -l)
-      if [ "$sequence_num" -lt 2 ]; then
+for gene in "${genes[@]}"; do
+  # Check Nucleotides aligned successfully
+  if [[ "$Nucleotides" == "true" ]]; then
+    if [[ -f  "HIV_${gene}_Nucl_corrected.fasta" ]]; then
+      sequence_num_nucl=$(grep ">" "HIV_${gene}_Nucl_corrected.fasta" | wc -l)
+      if [[ "$sequence_num_nucl" -lt 2 ]]; then
         # Set gene value to false so it's not used for subsequent analysis
         eval "$gene=false"
-        echo -e "${YELLOW}Due to failed alignment ${gene} will be omitted from further processing.${END}"
+        echo -e "${YELLOW}Due to failed nucleotide alignment ${gene} will be omitted from further processing.${END}"
         # If not already in the failed alignments error file, then note the error
         if ! grep -qE "^${SequenceName_shell}_${gene}" "$ErrorFile"; then
-          echo "${SequenceName_shell}_${gene} did not produce an alignment due to an unspecified error." >> "$ErrorFile"
+          echo "${SequenceName_shell}_${gene} failed to produce an alignment." >> "$ErrorFile"
         fi
+        continue
       fi
     fi
-  done
-fi
-# do for other three outputs
+  fi
+  # Check amino acids aligned successfully
+  if [[ "$AminoAcids" == "true" ]]; then
+    if [[ -f  "HIV_${gene}_AminoAcids_corrected.fasta" ]]; then
+      sequence_num_AA=$(grep ">" "HIV_${gene}_AminoAcids_corrected.fasta" | wc -l)
+      if [[ "$sequence_num_AA" -lt 2 ]]; then
+        # Set gene value to false so it's not used for subsequent analysis
+        eval "$gene=false"
+        echo -e "${YELLOW}Due to failed amino acid alignment ${gene} will be omitted from further processing.${END}"
+        # If not already in the failed alignments error file, then note the error
+        if ! grep -qE "^${SequenceName_shell}_${gene}" "$ErrorFile"; then
+          echo "${SequenceName_shell}_${gene} failed to produce an alignment." >> "$ErrorFile"
+        fi
+        continue
+      fi
+    fi
+  fi
+  # Check Mutations file analysed both sequences 
+  if [[ "$Mutations" == "true" ]]; then
+    # Extract frameshift information
+    if [[ -f "HIV_${gene}_Mutations.csv" ]]; then
+      MutationCheck=$(awk -F ',' 'NR==3 {print $2}' "HIV_${gene}_Mutations.csv")
+      # Check if the alignment failed
+      if [[ "$MutationCheck" == "Failure" ]]; then
+        # Set gene value to false so it's not used for subsequent analysis
+        eval "$gene=false"
+        echo -e "${YELLOW}Due to failed nucleotide alignment ${gene} will be omitted from further processing.${END}"
+        # If not already in the failed alignments error file, then note the error
+        if ! grep -qE "^${SequenceName_shell}_${gene}" "$ErrorFile"; then
+          echo "${SequenceName_shell}_${gene} failed to produce an alignment." >> "$ErrorFile"
+        fi
+        continue
+      fi
+    fi
+  fi
+  # Check Mutation table contains both sequences
+  if [[ "$MutationTable" == "true" ]]; then
+    # Count lines
+    if [[ -f "HIV_${gene}_MutationTable.csv" ]]; then
+      mt_line_count=$(cat "HIV_${gene}_MutationTable.csv" | wc -l)
+      if [[ "$mt_line_count" -eq 2 ]]; then
+        # Set gene value to false so it's not used for subsequent analysis
+        eval "$gene=false"
+        echo -e "${YELLOW}Due to failed amino acid alignment ${gene} will be omitted from further processing.${END}"
+        # If not already in the failed alignments error file, then note the error
+        if ! grep -qE "^${SequenceName_shell}_${gene}" "$ErrorFile"; then
+          echo "${SequenceName_shell}_${gene} failed to produce an alignment." >> "$ErrorFile"
+        fi
+        continue  
+      fi
+    fi
+  fi
+done
 
 # Function to add length to the reference
   # Adds codon-correct number of N's to the reference file (currently just adds to same temp file, could be a separate file)
@@ -478,7 +517,7 @@ function add_length {
   ReferenceGene=$(find . -type f -name "temp_${RefSequenceName_shell}_${gene}_Reference_only.fasta")
   NsToAdd=""
 
-  if [ "$LengthChange" -lt 0 ]; then
+  if [[ "$LengthChange" -lt 0 ]]; then
     echo -e "${YELLOW}The VIRULIGN-corrected $Gene sequence has a change in length of $LengthChange${END}"
     echo "${SequenceName_shell}_$Gene had a change in length of $LengthChange before correction.">> "$LengthFile"
     # Convert to positive number
@@ -527,14 +566,16 @@ function add_length {
 if [[ "$Nucleotides" == "true" ]]; then
   LengthFile="FailedLengthSeqs.txt"
   for gene in "${genes[@]}"; do
-    if [ "${!gene}" = true ]; then
+    if [[ "${!gene}" = true ]]; then
       SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
       # Determine lengths - ignore gaps and N to determine only 'real' changes in lengths, ie false truncation/extension
-      if [ -s "HIV_${gene}_Nucl_corrected.fasta" ] && [ -f "$SampleGene" ]; then
-        extracted_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; next} found { gsub("-", "", $0); len+=length($0) } END{print len}' "$SampleGene") # add error checks to these if failed
-        v_output_sample_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; next} found { gsub("-", "", $0); gsub("N", "", $0); len+=length($0) } END{print len}' "HIV_${gene}_Nucl_corrected.fasta")
+      if [[ -s "HIV_${gene}_Nucl_corrected.fasta" ]] && [[ -f "$SampleGene" ]]; then
+        extracted_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; \
+        next} found { gsub("-", "", $0); len+=length($0) } END{print len}' "$SampleGene") # add error checks to these if failed
+        v_output_sample_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; \
+        next} found { gsub("-", "", $0); gsub("N", "", $0); len+=length($0) } END{print len}' "HIV_${gene}_Nucl_corrected.fasta")
         seq_difference=$((v_output_sample_seq_length - extracted_seq_length))
-        if [ "$seq_difference" -lt 0 ]; then
+        if [[ "$seq_difference" -lt 0 ]]; then
           add_length "$seq_difference" "${gene}" || { echo "Problem adding length to reference files. Quitting." >&2; exit 1; }
         fi
       fi
@@ -583,14 +624,16 @@ elif [[ "$Mutations" == "false" ]]; then
 fi
 
 # Delete frameshift if no frameshifts are recorded
-if [ "$( wc -l <Frameshifts.txt )" -eq 1 ]; then
-    rm Frameshifts.txt
-    echo "No frameshifts found within successful alignments for $SequenceName_shell"
+if [[ -f "Frameshifts.txt"  ]] && [[ "$Mutations" == "true" ]]; then
+  if [[ "$( wc -l <Frameshifts.txt )" -eq 1 ]]; then
+      rm Frameshifts.txt
+      echo "No frameshifts found within successful alignments for $SequenceName_shell"
+  fi
 fi
 
 # Delete temp_ files
 # could add a config variable with optional keep temp files, or for some
-# rm -f temp_*
+# rm -f temp_* 
 
 # Warn if some genes have missing coverage
 if [[ -s "MissingCoverage.txt" ]]; then

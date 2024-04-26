@@ -5,11 +5,9 @@ import os
 from Bio import AlignIO
 from Bio import SeqIO
 
-# This script functions within CodonCorrection.sh, to extract the specified genes from both the provided sample file
-# and reference. 
+# This script functions within CodonCorrection.sh, to extract the specified genes from both the provided sample file and reference. 
 
 # Determine position of reference sequence in alignment file
-# add check for RefSequenceNumber is not 0 later
 
 # add any necessary checks before running
 
@@ -55,7 +53,7 @@ with open(GeneCoordInfo, 'r') as file:
       break
 
 # Gene extraction for reference sequence
-gene_reference_gaps = {} # part of my indel detection for testing - remove reference gaps calcs for final code as it's not foolproof (if gaps are in the last section equal to the # of gaps)
+gene_reference_gaps = {} # part of my indel detection for testing - !! remove reference gaps calcs for final code as it's not foolproof (if gaps are in the last section equal to the # of gaps)
 if gene_loci:
   with open(ref_output_file_name, 'w') as output_file:
     for gene, (gene_start, gene_end) in gene_loci.items():

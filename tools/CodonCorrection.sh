@@ -356,16 +356,20 @@ function run_virulign {
   export_kind_func="$2"
   FailedDebug_func="$3"
   FileAppend_func="$4"
+  # Setting a max value for frameshifts arbitrarily due to frameshift errors occuring in highly variable genes
+  # could be adjusted or change based on which gene is being analysed - eg ENV
+  MaxFrameshifts=100
 
   # Find sample and reference files
   for gene in "${genes[@]}"; do
-    if [ "${!gene}" = true ]; then
+    if [ "${!gene}" == true ]; then
       SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
       ReferenceGene=$(find . -type f -name "temp_${RefSequenceName_shell}_${gene}_Reference_only.fasta")
 
       if [ -n "$SampleGene" ]; then
         # Run VIRULIGN
-        v_output=$( { $VirulignLocation $ReferenceGene $SampleGene --exportKind $export_kind_func --exportAlphabet $export_alphabet_func --exportReferenceSequence yes --exportWithInsertions yes $FailedDebug_func; } 2>&1 > HIV_${gene}$FileAppend_func )
+        v_output=$( { $VirulignLocation $ReferenceGene $SampleGene --exportKind $export_kind_func --exportAlphabet $export_alphabet_func --exportReferenceSequence yes \
+          --exportWithInsertions yes --maxFrameShifts $MaxFrameshifts $FailedDebug_func; } 2>&1 > HIV_${gene}$FileAppend_func )
         echo "$v_output"
 
         # Check for errors
@@ -381,55 +385,61 @@ function run_virulign {
       fi
     fi
   done
+}
 
-  if [[ -s "$ErrorFile" ]]; then
-    echo "Not all alignments were successful, check $ErrorFile"
+function call_virulign {
+  ### Define virulign command options based on chosen output options
+  for option in "${VirulignOutput[@]}"; do
+    if [ "${!option}" == "true" ]; then
+      # Set variables for each virulign output option
+      case "$option" in
+        "Nucleotides")
+          export_alphabet="Nucleotides"
+          export_kind="GlobalAlignment"
+          FailedDebug="--nt-debug FailedVIRULIGN"
+          FileAppend="_Nucl_corrected.fasta"
+          ;;
+        "AminoAcids")
+          export_alphabet="AminoAcids"
+          export_kind="GlobalAlignment"
+          FailedDebug=""
+          FileAppend="_AminoAcids_corrected.fasta"
+          ;;
+        "Mutations")
+          export_alphabet="Nucleotides"
+          export_kind="Mutations"
+          FailedDebug=""
+          FileAppend="_Mutations.csv"
+          ;;
+        "MutationTable")
+          export_alphabet="AminoAcids"
+          export_kind="MutationTable"
+          FailedDebug=""
+          FileAppend="_MutationTable.csv"
+          ;;
+      esac
+  
+      if [[ -z $export_alphabet || -z $export_kind || -z $FileAppend ]]; then
+          echo "Error: One or more options are not set. Quitting."
+          exit 1
+      fi
+
+     # Run virulign
+     run_virulign "$export_alphabet" "$export_kind" "$FailedDebug" "$FileAppend" || { echo "Problem running virulign. Quitting." >&2; exit 1; }
+
+    fi
+  done
+
+  # Check options are set correctly # Possibly no longer useful 
+  if [[ -z $export_alphabet || -z $export_kind || -z $FileAppend ]]; then
+      echo "Error: One or more options are not set. Quitting."
+      exit 1
   fi
 }
 
-### Define virulign command options based on chosen output options
-if [[ "$Nucleotides" == "true" ]]; then
-  export_alphabet="Nucleotides"
-  export_kind="GlobalAlignment"
-  FailedDebug="--nt-debug FailedVIRULIGN"
-  FileAppend="_Nucl_corrected.fasta"
+# Call virulign with chosen options
+call_virulign || { echo "Problem calling virulign. Quitting." >&2; exit 1; } # More descriptive vs run function
 
-  run_virulign "$export_alphabet" "$export_kind" "$FailedDebug" "$FileAppend" || { echo "Problem running virulign. Quitting." >&2; exit 1; }
-fi
-
-if [[ "$AminoAcids" == "true" ]]; then
-  export_alphabet="AminoAcids"
-  export_kind="GlobalAlignment"
-  FailedDebug=""
-  FileAppend="_AminoAcids_corrected.fasta"
-
-  run_virulign "$export_alphabet" "$export_kind" "$FailedDebug" "$FileAppend" || { echo "Problem running virulign. Quitting." >&2; exit 1; }
-fi
-
-if [[ "$Mutations" == "true" ]]; then
-  export_alphabet="Nucleotides"
-  export_kind="Mutations"
-  FailedDebug=""
-  FileAppend="_Mutations.csv"
-
-  run_virulign "$export_alphabet" "$export_kind" "$FailedDebug" "$FileAppend" || { echo "Problem running virulign. Quitting." >&2; exit 1; }
-fi
-
-if [[ "$MutationTable" == "true" ]]; then
-  export_alphabet="AminoAcids"
-  export_kind="MutationTable"
-  FailedDebug=""
-  FileAppend="_MutationTable.csv"
-
-  run_virulign "$export_alphabet" "$export_kind" "$FailedDebug" "$FileAppend" || { echo "Problem running virulign. Quitting." >&2; exit 1; }
-fi
-
-# Check options are set correctly
-# move this to before running virulign
-if [[ -z $export_alphabet || -z $export_kind || -z $FileAppend ]]; then
-    echo "Error: One or more options are not set. Quitting."
-    exit 1
-fi
 
 # Check for single sequences in output (indicates failed as they should be paired)
 if [[ "$Nucleotides" == "true" ]]; then
@@ -448,8 +458,65 @@ if [[ "$Nucleotides" == "true" ]]; then
     fi
   done
 fi
-
 # do for other three outputs
+
+# Function to add length to the reference
+  # Adds codon-correct number of N's to the reference file (currently just adds to same temp file, could be a separate file)
+  # Reasion for the function: For some samples if the reference is shorter than the sample sequence, VIRULIGN will prematurely truncate the sequence
+  # to be the same length as the reference. This can be negated by adding indeterminate 'N' bases to the reference. Ideally VIRULIGN would be adjusted 
+  # to not require this (I'm unable to find anything within the present options) - but I don't have the C++ code knowledge to correct this.
+function add_length {
+  LengthChange=$1
+  Gene=$2
+  ReferenceGene=$(find . -type f -name "temp_${RefSequenceName_shell}_${gene}_Reference_only.fasta")
+  NsToAdd=""
+
+  if [ "$LengthChange" -lt 0 ]; then
+    echo "The VIRULIGN-corrected $Gene sequence has a change in length of $LengthChange"
+    echo "${SequenceName_shell}_$Gene had a change in length of $LengthChange before correction.">> "$LengthFile"
+    # Convert to positive number
+    LengthChange=$((LengthChange * -1))
+    # Determine length of N string to add
+    if ((LengthChange % 3 == 0)); then
+      N_Number=$LengthChange
+    elif ((LengthChange % 3 == 1)); then
+      N_Number=$((LengthChange + 2))
+    elif ((LengthChange % 3 == 2)); then
+      N_Number=$((LengthChange + 1))
+    fi
+    # Create N string
+    for ((i=0; i<N_Number; i++)); do
+      NsToAdd+="N"
+    done
+    echo "$(cat $ReferenceGene)$NsToAdd" > $ReferenceGene
+
+    # Delete old virulign results - could also just be renamed
+    rm -f "HIV_${Gene}_Nucl_corrected.fasta"
+    rm -f "HIV_${Gene}_AminoAcids_corrected.fasta"
+    rm -f "HIV_${Gene}_Mutations.csv"
+    rm -f "HIV_${Gene}_MutationTable.csv"
+    
+    # Set all other gene variables to false in order to re-run virulign with only the modified gene references
+    local GAG=false
+    local POL=false
+    local VIF=false
+    local VPR=false
+    local VPU=false
+    local ENV=false
+    local NEF=false
+
+    if [[ "${genes[*]}" == *"$Gene"* ]]; then
+      eval "${Gene}=true"
+    fi
+
+
+    # Call virulign again to analyse using new reference lengths 
+    call_virulign || { echo "Problem calling virulign after length correction. Quitting." >&2; return 1; }
+    # testing
+    echo "Gene value = $Gene = ${!Gene}"
+  fi
+
+}
 
 # Compare sequence length of the extracted sample to final corrected sequence
 if [[ "$Nucleotides" == "true" ]]; then
@@ -457,16 +524,13 @@ if [[ "$Nucleotides" == "true" ]]; then
   for gene in "${genes[@]}"; do
     if [ "${!gene}" = true ]; then
       SampleGene=$(find . -type f -name "temp_${SequenceName_shell}_${gene}_only.fasta")
-      # Determine lengths
+      # Determine lengths - ignore gaps and N to determine only 'real' changes in lengths, ie false truncation/extension
       if [ -s "HIV_${gene}_Nucl_corrected.fasta" ] && [ -f "$SampleGene" ]; then
         extracted_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; next} found { gsub("-", "", $0); len+=length($0) } END{print len}' "$SampleGene") # add error checks to these if failed
-        v_output_sample_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; next} found { gsub("-", "", $0); len+=length($0) } END{print len}' "HIV_${gene}_Nucl_corrected.fasta")
+        v_output_sample_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" '/^>/{if ($0 ~ seq_name "_" gene) found=1; else found=0; next} found { gsub("-", "", $0); gsub("N", "", $0); len+=length($0) } END{print len}' "HIV_${gene}_Nucl_corrected.fasta")
         seq_difference=$((v_output_sample_seq_length - extracted_seq_length))
-        if [ "$seq_difference" != '0' ]; then
-          echo "${gene} sequence length = $extracted_seq_length"
-          echo "Corrected ${gene} sequence length (minus gaps) = $v_output_sample_seq_length" 
-          echo "Corrected ${gene} sequence has a change in length of $seq_difference"
-          echo "${SequenceName_shell}_${gene} had a change in length of $seq_difference" >> "$LengthFile"
+        if [ "$seq_difference" -lt 0 ]; then
+          add_length "$seq_difference" "${gene}" || { echo "Problem adding length to reference files. Quitting." >&2; exit 1; }
         fi
       fi
     fi
@@ -475,10 +539,11 @@ fi
 
 # Error message for truncated/extended sequences
 if [[ -s $LengthFile ]]; then
-  echo "Some sequences were extended or truncated. Check $LengthFile."
+  echo "Virulign output files for truncated sample sequences have been deleted. Virulign has been run again with the reference sequence extended for those genes. Ignore the added \
+terminal N bases in subsequent analysis - the unmodified reference sequence remains in ${SequenceName_shell}_Reference_GenesExtracted.fasta"
+  echo "Check $LengthFile for details of which sequences had their references extended."
+# not sure if this is generated if no length issues; if so, remove it
 fi
-
-# v_output_sample_seq_length=$(awk -v gene="${gene}" -v seq_name="${SequenceName_shell}" 'BEGIN{found=0} { if ($0 ~ "^>" seq_name "_" gene) found=1; if (found) gsub("-", "", $0); len+=length($0); if (found && $0 !~ /^>/) exit } END{print len}' "HIV_${gene}_Nucl_corrected.fasta")
 
 # improve readibility of printed errors/output
 
@@ -504,16 +569,16 @@ elif [[ "$Mutations" == "false" ]]; then
   echo "To list frameshifts found in the sample enable the 'Mutations' virulign option."
 fi
 
-# Check output contains two sequences for each output format - maybe within virulign loop
-
-# Can also do for AA?
-
-
 # delete frameshifts.txt if only contains header? 
 
 # Delete temp_ files
 # could add a config variable with optional keep temp files, or for some
 # rm -f temp_*
+
+# Check if any alignments failed
+if [[ -s "$ErrorFile" ]]; then
+  echo "Not all alignments were successful, check $ErrorFile"
+fi
 
 # Delete Failed directory if empty
 # Remove Directory not empty message (expected behaviour)

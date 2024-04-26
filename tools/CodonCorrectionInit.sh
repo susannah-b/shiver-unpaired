@@ -68,8 +68,24 @@ if [[ "$Ref_SeqNumber" == 0 ]]; then
   exit 1
 fi
 
+# Check GeneCoordInfo
+if [[ "$GeneCoordInfo" != *.txt ]]; then 
+  echo "Gene coordinates file in unexpected format. Please provide as a .txt file. Quitting." >&2
+  exit 1
+fi
+
+# Check GeneCoordInfo header is as expected
+# Not strictly necessary for function but ensures the gene info is formatted in the correct way. But maybe overly strict.
+GC_FirstLine=$(head -n 1 "$GeneCoordInfo")
+GeneCoord_Header="Sequence_name, gag_start, gag_end, pol_start, pol_end, vif_start, vif_end, vpr_start, \
+vpr_end, vpu_start, vpu_end, env_start, env_end, nef_start, nef_end"
+if [[ "$GC_FirstLine" != *"$GeneCoord_Header"* ]]; then
+  echo -e "Expected the gene coordinates file to have the header: '$GeneCoord_Header'\nPlease supply the gene coordinate \
+  data in the correct format. Quitting" >&2
+  exit 1
+fi
+
 # Extract genes for each gene
-# Is my FunctionName arg correctly used here? ie if i add it as plain text it will be read by my .py as args.FunctionName for further use
 $python2 "$PythonFuncs" MakeReferenceDatabase --InitDir "$OutputDirInit" --GeneCoordInfo "$GeneCoordInfo" --GenomeFile "$ReferenceFasta" || { echo "CodonCorrectionInit.sh was unable to extract the reference gene sequences. Quitting." >&2; exit 1; }
 
 # Copy reference file and Gene Coords to working directory
@@ -90,6 +106,9 @@ for gene in "${genes[@]}"; do
   makeblastdb -dbtype nucl -in "$GeneFile" -input_type fasta -out "$BLASTnDB"/"${gene}" || { echo "Unable to create \
   a blast database in $BLASTnDB. Quitting." ; exit 1; }
 done
+
+# Extract HXB2 genes needed in CodonCorrection.sh to extract sample genes
+B.FR.83.HXB2_LAI_IIIB_BRU.K03455, 790, 2292, 2253, 5096, 5041, 5619, 5559, 5850, 6062, 6310, 6225, 8795, 8797, 9168, 
 
 # Can add to this init depending on what data is included with shiver. Currently I have a separate pipeline which takes Nick's all-cds-info file and extracts the accession numbers which are 
 # then used to download the full sequences from LANL. Then it uses the supplied gene fragments with the full genomes to extract gene coordinates (with a separate step for extracting Pol from Gag-Pol)

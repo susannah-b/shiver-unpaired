@@ -251,12 +251,19 @@ AlignContigsToConsensus=false
 KeepPreMappingReads=false
 
 # CodonCorrection.sh variables:
+virulign=~/VIRULIGN/virulign # testing - set to a more 'default' variable before finalising CC.sh
+# Shall we codon-correct the shiver output before remapping?
+CodonCorrect=true
 # The genes that can be analysed by VIRULIGN:
 genes=("GAG" "POL" "VIF" "VPR" "VPU" "ENV" "NEF")
+# Which data should be output by VIRULIGN? Separated by ',' and enclosed by double quotes (see CodonCorrection.sh help for more details)
+VirulignOptions="Nucleotides,Mutations,AminoAcids"
+# Which genes should be corrected? Separated by ',' and enclosed by double quotes (see CodonCorrection.sh help for more details)
+GenesToCorrect="all"
 # Shall we delete temporary files within the CodonCorrection.sh output? 
-DeleteTemp=false
-# Should key messages in the CodonCorrection output be printed in colour?
-EnableColours=true
+CC_DeleteTemp=false
+# Should key messages in the CodonCorrection output be printed in colour?
+CC_EnableColours=true
 
 # Suffixes we'll append to the sample ID for output files.
 # If you change the extension (whatever follows the dot) you might break

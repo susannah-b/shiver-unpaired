@@ -6,6 +6,7 @@ from Bio import AlignIO
 from Bio import SeqIO
 import csv
 import argparse
+from AuxiliaryFunctions import ungap
 
 HelpMessage = "Script containing all the required python functions for Codon_Correction.sh. Each function is called with the relevant \
 optional arguments in the CodonCorrection script and init script."
@@ -90,7 +91,7 @@ def MakeReferenceDatabase(InitDir, GeneCoordInfo, GenomeFile):
                     ref_start = i
                   if ref_pos == gene_end:
                     ref_end = i
-                    gene_sequence = GenomeSeq[ref_start:ref_end + 1].replace("-", "")
+                    gene_sequence = ungap(GenomeSeq[ref_start:ref_end + 1])
                     output_file.write('>' + CoordRefName + '_' + gene_class + '\n' + str(gene_sequence) + '\n')    
                     break
           except IOError:
@@ -162,7 +163,7 @@ def ExtractWithHXB2(AlignmentFile, SingleSeq):
 
             # Write the gene sequence to file unless it contains '?'
             if consensus_start is not None and consensus_end is not None:
-              gene_sequence = HXB2Alignment[0].seq[consensus_start:consensus_end + 1].replace("-", "")
+              gene_sequence = ungap(HXB2Alignment[0].seq[consensus_start:consensus_end + 1])
               if '?' in gene_sequence:
                 print(('Gene {} contains \'?\' characters indicating missing coverage. Skipping.'.format(gene)))
                 with open('MissingCoverage.txt', 'a') as file:
@@ -288,7 +289,7 @@ def ExtractRefandSample(AlignmentToRef, SingleSeq, ReferenceName, GeneCoordInfo,
 
       if ref_start is not None and ref_end is not None:
         # Write the reference sequence to a file
-        reference_sequence = ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1].replace("-", "")
+        reference_sequence = ungap(ReferenceAlignment[RefSequenceNumber].seq[ref_start:ref_end + 1])
         output_file.write('>' + ReferenceAlignment[RefSequenceNumber].id + '_' + Gene + '\n' + str(reference_sequence) + '\n')
       else:
         print('Unable to extract the reference coordinates. Quitting.')
@@ -326,16 +327,16 @@ def ExtractRefandSample(AlignmentToRef, SingleSeq, ReferenceName, GeneCoordInfo,
           print(('Change in length of {} in {}_{} relative to the reference'.format(indel_difference, SequenceName, Gene))) # This can be removed if not useful, it was mostly used when I was debugging length issues
 
         # Write the gene sequence to file unless it contains '?'
-        gene_sequence = ReferenceAlignment[0].seq[consensus_start:consensus_end + 1].replace("-", "")
+        gene_sequence = ungap(ReferenceAlignment[0].seq[consensus_start:consensus_end + 1])
         if '?' in gene_sequence:
-          print(('Gene {} contains \'?\' characters indicating missing coverage. Skipping.'.format(gene)))
+          print(('Gene {} contains \'?\' characters indicating missing coverage. Skipping.'.format(Gene)))
           with open('MissingCoverage.txt', 'a') as file:
             file.write(SequenceName + '_' + Gene + '\n')
         else:
           output_file.write('>' + SequenceName + '_' + Gene + '\n' + str(gene_sequence) + '\n')
 
         # Write the sample gene start to a file for later use in indel position calculation
-        gene_start_full_genome = len(ReferenceAlignment[0].seq[0:consensus_start + 1].replace("-", ""))
+        gene_start_full_genome = len(ungap(ReferenceAlignment[0].seq[0:consensus_start + 1]))
         with open('temp_GeneStarts.csv', 'a', newline='') as csvfile:
           fieldnames = ['Sequence', 'Gene', 'GeneStart']
           writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -500,7 +501,7 @@ def CategoriseIndels(InputFile, OutputCSV, Gene, SequenceName, ReferenceName, Ge
                 return 1  
               # Determine indel position relative to the full reference sample alignment - based on the last 'real' ref base so where gaps occur in the ref the position may be imprecise
               CorrectedAlignment = AlignIO.read(InputFile, 'fasta')
-              ref_indel_pos = len(CorrectedAlignment[0].seq[0:i].replace("-", "")) # For the gene only, not genome
+              ref_indel_pos = len(ungap(CorrectedAlignment[0].seq[0:i])) # For the gene only, not genome
               ref_gene_start_pos = None
               try:
                 with open(GeneCoordInfo, 'r') as file:
@@ -574,7 +575,7 @@ def CategoriseIndels(InputFile, OutputCSV, Gene, SequenceName, ReferenceName, Ge
                       sequence_pos += 1
                     if sequence_pos == genome_indel_pos:
                       hxb2_alignment_pos = j
-                      hxb2_indel_pos = len(HXB2Alignment[1].seq[0:int(hxb2_alignment_pos) + 1].replace("-", ""))
+                      hxb2_indel_pos = len(ungap(HXB2Alignment[1].seq[0:int(hxb2_alignment_pos) + 1]))
                       indels["Indel{}".format(i)].update({"HXB2Position": hxb2_indel_pos})
                       break
               except IOError:

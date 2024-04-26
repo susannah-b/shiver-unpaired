@@ -73,7 +73,7 @@ HXB2File="$DataDir"/'external/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta'
 AlignMoreSeqsTool="$shiver_bin"/'tools/AlignMoreSeqsToPairWithMissingCoverage.py'
 
 # Colours # Can be removed as they don't work in the cluster. For now I've set a variable in the config to disable them
-if [[ "$EnableColours" == "true" ]]; then
+if [[ "$CC_EnableColours" == "true" ]]; then
   RED="\033[91m"
   BLUE="\033[94m"
   YELLOW="\033[93m"
@@ -258,11 +258,6 @@ function align_to_sample {
     "$mafft" --quiet --add "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
   else
     # Capable of handling sequence with unknown coverage in parts. Requires two sequences in the starting sample .fasta
-    echo "AlignmentRef: $AlignmentRef" # testing
-    echo "SampleFile: $SampleFile"
-    echo "OutputAlignment: $OutputAlignment"
-    echo "mafft: $mafft"
-    echo "AlignMoreSeqsTool: $AlignMoreSeqsTool"
     "$python" "$AlignMoreSeqsTool" --x-mafft "$mafft --quiet" "$AlignmentRef" "$SampleFile" > "$OutputAlignment"
   fi
 
@@ -373,6 +368,7 @@ Nucleotides=true
 export_alphabet=""
 export_kind=""
 FileAppend=""
+ErrorFile="FailedAlignment.txt"
 
 # Define a function to call virulign
 function run_virulign {
@@ -399,7 +395,6 @@ function run_virulign {
         echo -e "${GREY}$v_output${END}"
 
         # Check for errors
-        ErrorFile="FailedAlignment.txt"
         touch "$ErrorFile"
         if echo "$v_output" | grep -qi 'error'; then
           error_line=$(echo "$v_output" | grep -i 'error')
@@ -541,10 +536,10 @@ function add_length {
   NsToAdd=""
 
   # Extract the sample sequence from the first round of virulign correction
-  "$python" "$PythonFuncs" ExtractSequence --OutputFile "temp_${SequenceName_shell}_${Gene}_Corrected.txt" --InputFile "HIV_${Gene}_Nucl_corrected.fasta" --SequenceNumber "2" || { echo "Problem extracting the corrected gene sequence. Quitting." >&2; return 1; }
+  "$python" "$PythonFuncs" ExtractSequence --OutputFile "temp_${SequenceName_shell}_${Gene}_Corrected.fasta" --InputFile "HIV_${Gene}_Nucl_corrected.fasta" --SequenceNumber "2" || { echo "Problem extracting the corrected gene sequence. Quitting." >&2; return 1; }
   # Determine if any bases are missing from the start of the virulign output by aligning the extracted and corrected gene
   SampleAlignment="temp_${SequenceName_shell}_${Gene}_SampleAlignment.fasta"
-  "$mafft" --quiet --add "temp_${SequenceName_shell}_${Gene}_only.fasta" "temp_${SequenceName_shell}_${Gene}_Corrected.txt" > "$SampleAlignment"
+  "$mafft" --quiet --add "temp_${SequenceName_shell}_${Gene}_only.fasta" "temp_${SequenceName_shell}_${Gene}_Corrected.fasta" > "$SampleAlignment"
 
   # Count the gaps at the start of the corrected sequence (i.e. the shift in gene positions of the sample sequence)
   PositionShift=0
@@ -650,7 +645,7 @@ fi
 # Check if any alignments failed
 if [[ -s "$ErrorFile" ]]; then
   echo -e "${YELLOW}Not all alignments were successful, check $ErrorFile${END}"
-else
+elif [[ -f "$ErrorFile" ]]; then
   rm "$ErrorFile"
 fi
 
@@ -704,14 +699,14 @@ fi
 
 # Delete temporary files
 # Check that the directory is correct before deleting
-if [[ "$DeleteTemp" == "true" ]]; then
+if [[ "$CC_DeleteTemp" == "true" ]]; then
   CurrentDir=$(pwd)
   if [[ "$CurrentDir" = "$OutputDir" ]]; then
     rm ./temp_*
-    echo "Deleting temporary files. Set DeleteTemp to false in config if choosing to keep these files."
+    echo "Deleting temporary files. Set CC_DeleteTemp to false in config if choosing to keep these files."
   else
     echo "The current directory is not the expected Output Directory '$OutputDir'. Aborting deletion."
   fi
 else
-  echo "Temporary files have not been deleted. To do so, set DeleteTemp to true in the config."
+  echo "Temporary files have not been deleted. To do so, set CC_DeleteTemp to true in the config."
 fi

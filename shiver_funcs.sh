@@ -27,6 +27,8 @@ Code_PrintSeqLengths="$ToolsDir/PrintSeqLengths.py"
 Code_AddSNPsToSeqs="$ToolsDir/AddAllPossibleSNPsToSeqs.py"
 Code_KeepBestLinesInDataFile="$ToolsDir/KeepBestLinesInDataFile.py"
 Code_ConvertFastqToFasta="$ToolsDir/ConvertFastqToFasta.py"
+Code_CodonCorrectionInit="$ToolsDir/CodonCorrectionInit.sh"
+Code_CodonCorrection="$ToolsDir/CodonCorrection.sh"
 
 # For quitting if files don't exist.
 function CheckFilesExist {

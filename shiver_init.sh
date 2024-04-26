@@ -147,3 +147,18 @@ mkdir -p "$IndividualRefDir" || \
 exit 1; }
 "$python" "$Code_SplitFasta" -G "$RefAlignment" "$IndividualRefDir" || { echo "Problem" \
 "splitting $RefAlignment into one file per sequence. Quitting." >&2 ; exit 1; }
+
+# Make the CodonCorrection init directory
+# NB This assumes that the /CodonCorrectionReferences is part of shiver to avoid changing the init arguments for now.
+# If this is not the case, then the reference file and gene coordinates will need to be supplied as an init argument.
+if [[ "$CodonCorrect" == "true" ]]; then
+  CC_RefFile="$ThisDir"/'CodonCorrectionReferences/HIV1_ALL_2020_genome_DNA_no_ambiguity_only_annotated_aligned_no_gap_columns_aligned.fasta'
+  CC_GeneCoords="$ThisDir"/'CodonCorrectionReferences/AnnotatableGenePositions.txt'
+  CC_Init="$OutDir"/'CodonCorrectionInit'
+  "$Code_CodonCorrectionInit" "$CC_RefFile" "$CC_Init" "$CC_GeneCoords" || \
+  { echo "Problem initialising CodonCorrection. Quitting." >&2 ; exit 1; }
+fi
+
+
+
+

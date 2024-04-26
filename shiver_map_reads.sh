@@ -739,4 +739,14 @@ if [[ "$remap" == "true" ]]; then
     { echo 'Problem remapping to the consensus from the first round of mapping.'\
     'Quitting.' >&2 ; exit 1 ; }
   fi
+
+  # Codon-correct the round 2 consensus
+  CC_Init="$InitDir"/'CodonCorrectionInit'
+  echo '########################################Init dir:' "$CC_Init"
+  CC_Output=./'CodonCorrection'
+  CC_Consensus="$NewSID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
+  "$Code_CodonCorrection" "$CC_Consensus" "$virulign" "$CC_Init" "$VirulignOptions" "$GenesToCorrect" "$CC_Output" || \
+  { echo 'Problem codon-correcting the consensus before remapping. Quitting.' >&2 ; exit 1 ; }
+
+
 fi

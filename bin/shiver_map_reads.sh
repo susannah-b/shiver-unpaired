@@ -138,6 +138,12 @@ else
   PrimersToUse="$primers"
 fi
 
+# Check the HXB2 file exists. We'll check later in the code just before it's
+# used but we should crash early if relevant.
+if [[ "$GiveHXB2coords" == "true" ]]; then
+  CheckHXB2fileExists
+fi
+
 # Print how this script was called, and what the config file parameter values
 # were.
 echo '###############################################'
@@ -746,6 +752,5 @@ if [[ "$remap" == "true" ]]; then
   CC_Consensus="$NewSID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
   "$Code_CodonCorrection" "$CC_Consensus" "$virulign" "$CC_Init" "$VirulignOptions" "$GenesToCorrect" "$CC_Output" || \
   { echo 'Problem codon-correcting the consensus before remapping. Quitting.' >&2 ; exit 1 ; }
-
 
 fi

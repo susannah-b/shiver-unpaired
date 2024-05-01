@@ -460,7 +460,7 @@ def CategoriseIndels(InputFile, OutputCSV, Gene, SequenceName, ReferenceName, Ge
             NCount += 1
             # Increase downstream SampleNs by 1 to account for added bases relative to the original gene extraction
             SampleNs = [x + 1 if x > sample_pos else x for x in SampleNs]
-            # Check if the prior base is not a VIRULIGN-added N - in which case it is included in the prior indel
+            # Check if the prior base is not a VIRULIGN-added N - in which case it is included in the prior indel (so only the first base of each indel is used)
             priorbase = sample_pos - 1
             if corrected[i - 1] != 'N' or priorbase in SampleNs:
               if reference[i] == '-':

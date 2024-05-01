@@ -21,7 +21,7 @@
   # 4. MutationTable: will create a CSV file where each mutation present at a specific position is given as a separate column in Boolean representation. The CSV file is 
   #    annotated according to the numerical position in the protein
 
-# Currently only handles uninterrupted genes GAG POL VIF VPR VPU ENV NEF
+# Currently only handles the uninterrupted genes GAG POL VIF VPR VPU ENV and NEF.
 
 set -u
 set -o pipefail
@@ -72,7 +72,7 @@ GeneCoordInfo="$InitDir/CC_Coords.fasta"
 HXB2File="$DataDir"/'external/B.FR.83.HXB2_LAI_IIIB_BRU.K03455.fasta'
 AlignMoreSeqsTool="$shiver_bin"/'tools/AlignMoreSeqsToPairWithMissingCoverage.py'
 
-# Colours # Can be removed as they don't work in the cluster. For now I've set a variable in the config to disable them
+# Colours # NB Make things more readable in the terminal but can be removed e.g. for cluster usage - a variable is set in the config file to disable them
 if [[ "$CC_EnableColours" == "true" ]]; then
   RED="\033[91m"
   BLUE="\033[94m"
@@ -89,7 +89,8 @@ else
   END=""
 fi
 
-# Check init script has been run
+# Check init script has been run # NB this is being triggered with my attempt into calling within shiver, so there is a mismatch in the files somewhere (init file has wrong path,
+#   or this script has wrong init path)
 if [[ ! -s "$ReferenceFile" ]] || [[ ! -s "$GeneCoordInfo" ]]; then
   echo "Reference file and/or the coordinates file are not found in the init directory. Please run CodonCorrectionInit.sh before running this script. Quitting." >&2
   exit 1
@@ -193,7 +194,7 @@ VPU=false
 ENV=false
 NEF=false
 
-genes=("GAG" "POL" "VIF" "VPR" "VPU" "ENV" "NEF")
+genes=("GAG" "POL" "VIF" "VPR" "VPU" "ENV" "NEF") # NB this is now defined in the config but I forgot to remove here - out of time to test so won't remove just in case!  
 
 # Switch on all genes if command set to "all"
 if [[ "$GenesToAnalyse" == "all" ]]; then
@@ -283,7 +284,7 @@ fi
 
 # BLASTn the sample sequences to the corresponding gene database
 function blastn_to_genes() {
-  MaxTargets="$BLASTMatch" # Ensures that enough targets are listed - can be set to a static value instead of an arg, or a minimum of N.
+  MaxTargets="$BLASTMatch" # Ensures that enough targets are listed - could be set to a static value instead of an arg, or a minimum of N.
   for gene in "${genes[@]}"; do
     if [[ "${!gene}" = true ]]; then
       BLASTn_Database="$InitDir/BLASTnDB_${gene}"
@@ -361,7 +362,7 @@ else
   exit 1
 fi
 
-# Override for Nucleotides - in order to correctly analyse length this is always set to true
+# Override for Nucleotides - in order to correctly analyse length this is always set to true # NB should be incorporated into when virulign options are initially set
 Nucleotides=true
 
 # Initialise variables
@@ -377,7 +378,7 @@ function run_virulign {
   FileAppend_func="$3"
   # Setting a max value for frameshifts arbitrarily due to frameshift errors occuring in highly variable genes - although in the gene I tested the same "Frameshift Error"
   # occured within VIRULIGN regardless of this value.
-  MaxFrameshifts=50
+  MaxFrameshifts=20
   GapExtensionPenalty=3.3 # default virulign is 3.3
   GapOpenPenalty=10.0 # default virulign is 10.0
 
@@ -698,7 +699,7 @@ if [[ -s "MissingCoverage.txt" ]]; then
 fi
 
 # Delete temporary files
-# Check that the directory is correct before deleting
+# Check that the directory is correct before deleting as a failsafe
 if [[ "$CC_DeleteTemp" == "true" ]]; then
   CurrentDir=$(pwd)
   if [[ "$CurrentDir" = "$OutputDir" ]]; then

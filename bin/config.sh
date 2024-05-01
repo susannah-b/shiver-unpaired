@@ -5,13 +5,6 @@
 # Note that for boolean variables, only the exact value "true" (all lower case)
 # will be interpreted as true, anything else is taken to mean false.
 
-# Two options only needed for the fully automatic version: the maximum allowed
-# percentage of gaps inside contigs when aligned to their closest reference (too
-# much gap content indicates misalignment, rather than deletions), and the
-# minimum fraction of a contig's length that blasts to HIV.
-MaxContigGappiness=0.05
-MinContigHitFrac=0.9
-
 # What do you have to type into the command line to make these commands execute?
 # (If the binary file lives in a directory that is not included in your $PATH
 # variable, you will need to include the path here.)
@@ -25,8 +18,9 @@ bowtie2_build='bowtie2-build'
 samtools='samtools'
 mafft='mafft'
 fastaq='fastaq'
-# To be able to run trimmomatic simply typing 'trimmomatic' at the command line:
-# 1. copy the three lines below into a file named 'trimmomatic' (no file extension)
+# If shiver is installed with conda, you can run trimmomatic simply typing
+# 'trimmomatic' at the command line. Otherwise, to be able to do that,
+# 1. in a file named 'trimmomatic' (no file extension) copy the next three lines:
 # ThisDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # TheBinary=$(ls "$ThisDir"/trimmomatic-*.jar)
 # java -jar "$TheBinary" "$@" || { echo "Problem running Trimmomatic."; exit 1; }
@@ -249,6 +243,14 @@ AlignContigsToConsensus=false
 # true means the reads in that state don't have 'temp_' prepended to their
 # filenames - handy if you want to keep them. (By request of shiver-pro Tanya!)
 KeepPreMappingReads=false
+
+# Finally, these two options are only needed for the deprecated 'fully automatic'
+# version of shiver (bin/deprecated/shiver_full_auto.sh): the maximum allowed
+# percentage of gaps inside contigs when aligned to their closest reference (too
+# much gap content indicates misalignment, rather than deletions), and the
+# minimum fraction of a contig's length that blasts to HIV.
+MaxContigGappiness=0.05
+MinContigHitFrac=0.9
 
 # CodonCorrection.sh variables:
 virulign=~/VIRULIGN/virulign # testing - set to a more 'default' variable before finalising CC.sh

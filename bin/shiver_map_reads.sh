@@ -742,7 +742,6 @@ if [[ "$remap" == "true" ]]; then
 
   # Codon-correct the round 2 consensus
   CC_Init="$InitDir"/'CodonCorrectionInit'
-  echo '########################################Init dir:' "$CC_Init"
   CC_Output=./'CodonCorrection'
   CC_Consensus="$NewSID"'_consensus_MinCov_'"$MinCov1"'_'"$MinCov2.fasta"
   "$Code_CodonCorrection" "$CC_Consensus" "$virulign" "$CC_Init" "$VirulignOptions" "$GenesToCorrect" "$CC_Output" || \

@@ -68,6 +68,13 @@ def MakeReferenceDatabase(InitDir, GeneCoordInfo, GenomeFile):
           'ENV': (int(gene_info[11]), int(gene_info[12])),
           'NEF': (int(gene_info[13]), int(gene_info[14]))
         }
+        
+        for gene, (start, end) in gene_loci[CoordRefName].items():
+          if end < start:
+            print("Error: for reference", CoordRefName + ", gene", gene,
+            "has an end position before its start position.", file=sys.stderr)
+            exit(1)
+        
         # Find matching genome sequence
         if CoordRefName in genome_records:
           GenomeSeq = genome_records[CoordRefName].seq

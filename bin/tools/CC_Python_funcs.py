@@ -69,10 +69,17 @@ def MakeReferenceDatabase(InitDir, GeneCoordInfo, GenomeFile):
           'NEF': (int(gene_info[13]), int(gene_info[14]))
         }
         
+        # Check start & end coords are OK
         for gene, (start, end) in gene_loci[CoordRefName].items():
           if end < start:
             print("Error: for reference", CoordRefName + ", gene", gene,
             "has an end position before its start position.", file=sys.stderr)
+            exit(1)
+          if (end - start + 1) % 3 != 0:
+            print("Error: for reference", CoordRefName + ", gene", gene,
+            "has length", end - start + 1, "which is not a multiple of 3. This",
+            "is not compatible with use for codon correction.",
+            file=sys.stderr)
             exit(1)
         
         # Find matching genome sequence

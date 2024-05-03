@@ -257,7 +257,7 @@ virulign=~/VIRULIGN/virulign # testing - set to a more 'default' variable before
 # Shall we codon-correct the shiver output before remapping?
 CodonCorrect=true
 # The genes that can be analysed by VIRULIGN:
-genes=("GAG" "POL" "VIF" "VPR" "VPU" "ENV" "NEF")
+genes="GAG POL VIF VPR VPU ENV NEF"
 # Which data should be output by VIRULIGN? Separated by ',' and enclosed by double quotes (see CodonCorrection.sh help for more details)
 VirulignOptions="Nucleotides,Mutations,AminoAcids"
 # Which genes should be corrected? Separated by ',' and enclosed by double quotes (see CodonCorrection.sh help for more details)

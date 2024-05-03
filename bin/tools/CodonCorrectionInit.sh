@@ -4,8 +4,9 @@ set -u
 set -o pipefail
 
 # Find shiver files
-ToolsDir="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
-shiver_bin="$(dirname "$ToolsDir")" # /path/to/shiver/bin
+ToolsDir=$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)
+echo $ToolsDir
+shiver_bin=$(dirname "$ToolsDir") # /path/to/shiver/bin
 source "$shiver_bin"/'config.sh'
 source "$shiver_bin"/'shiver_funcs.sh'
 PythonFuncs="$shiver_bin"/'tools/CC_Python_funcs.py'
@@ -62,7 +63,7 @@ if [[ "$GC_FirstLine" != *"$GeneCoord_Header"* ]]; then
 fi
 
 # Extract each gene to make a BLAST database for each
-$python "$PythonFuncs" MakeReferenceDatabase --InitDir "$OutputDirInit" --GeneCoordInfo "$GeneCoordInfo" --GenomeFile "$ReferenceFasta" \
+"$python" "$PythonFuncs" MakeReferenceDatabase --InitDir "$OutputDirInit" --GeneCoordInfo "$GeneCoordInfo" --GenomeFile "$ReferenceFasta" \
 || { echo "Failed to extract the reference gene sequences. Quitting." >&2; exit 1; }
 
 # Copy reference file and gene coordinates file to working directory
@@ -72,14 +73,14 @@ GeneCoords_Copied="$OutputDirInit"/CC_Coords.fasta
 cp "$GeneCoordInfo" "$GeneCoords_Copied" || { echo "Failed to copy $GeneCoordInfo to the output directory. Quitting." >&2; exit 1; }
 
 # Create a whole genome database to BLASTn to
-for gene in "${genes[@]}"; do
-  BLASTnDB="$OutputDirInit"/BLASTnDB_${gene}
+for gene in $genes; do
+  BLASTnDB="$OutputDirInit"/BLASTnDB_$gene
   if [ ! -d "$BLASTnDB" ]; then
     mkdir "$BLASTnDB"
   fi || { echo "Unable to create database folder. Quitting."  >&2 ; exit 1 ; }
 
   # Make the BLASTn database
-  GeneFile="$OutputDirInit/ReferenceGenes_${gene}.fasta"
-  "$BlastDBcommand" -dbtype nucl -in "$GeneFile" -input_type fasta -out "$BLASTnDB"/"${gene}" -logfile "$BLASTnDB/$gene.log" || { echo "Unable to create \
+  GeneFile="$OutputDirInit/ReferenceGenes_$gene.fasta"
+  "$BlastDBcommand" -dbtype nucl -in "$GeneFile" -input_type fasta -out "$BLASTnDB/$gene" -logfile "$BLASTnDB/$gene.log" || { echo "Unable to create \
   a blast database in $BLASTnDB. Check that the shiver config has the correct file path for 'BLASTDBcommand'. Quitting." ; exit 1; }
 done

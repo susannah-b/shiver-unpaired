@@ -100,12 +100,13 @@ def MakeReferenceDatabase(InitDir, GeneCoordInfo, GenomeFile):
           except ValueError:
             print(('Error: File {} is not in the expected format'.format(OutputFile)))
             raise
-    if sorted(list(gene_loci.keys())) != sorted(list(genome_records.keys())):
-      print("Error: mismatch between the set of references specified in ",
-      GeneCoordInfo, " and the set specified in ", GenomeFile,
-      ". The exact same set of references should be present in the two files.",
-      sep='', file=sys.stderr)
-      exit(1)
+    missing_refs = [ref_ for ref_ in genome_records.keys() if not ref_ in \
+    gene_loci.keys()]
+    if len(missing_refs) > 0:
+      print("Warning: some references have a sequence in", GenomeFile,
+      " but their gene coordinates are not given in ", GeneCoordInfo, 
+      ". They will not be used for codon correction. These references are: ",
+      ' '.join(missing_refs), sep='', file=sys.stderr)
   except IOError:
     print(('Error: Could not open file {}'.format(GeneCoordInfo)))
     raise

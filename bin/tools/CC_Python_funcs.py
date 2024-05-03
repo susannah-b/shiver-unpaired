@@ -57,7 +57,13 @@ def MakeReferenceDatabase(InitDir, GeneCoordInfo, GenomeFile):
         if len(gene_info) != 15:
           print('Error: The gene coordinate file has an unexpected number of fields. Quitting.')
           exit(1)
-        CoordRefName = gene_info[0]      
+        
+        CoordRefName = gene_info[0]
+        if CoordRefName in gene_loci:
+          print('Error: encountered reference', CoordRefName,
+          'a second time in', GeneCoordInfo, file=sys.stderr)
+          exit(1)
+        
         gene_loci[CoordRefName] = {
           # Gene: (gene_start, gene_end)
           'GAG': (int(gene_info[1]), int(gene_info[2])),

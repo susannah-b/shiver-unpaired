@@ -47,15 +47,7 @@ mkdir -p "$OutputDirInit" && cd "$OutputDirInit" ||
 { echo "Could not mkdir then cd to $OutputDirInit. Quitting." >&2 ; exit 1 ; }
 
 # Check the reference file contains sequences
-Ref_SeqNumber=$(grep '^>' "$ReferenceFasta" | wc -l | awk '{$1=$1};1')
-if [[ "$Ref_SeqNumber" == 0 ]]; then
-  echo "Reference file $ReferenceFasta contains no sequences. Quitting." >&2
-  exit 1
-fi
-
-# Count sequence number in reference file
-Ref_SeqNumber=$(grep '^>' "$ReferenceFasta" | wc -l | awk '{$1=$1};1')
-if [[ "$Ref_SeqNumber" == 0 ]]; then
+if ! grep -e '^>' "$ReferenceFasta" > /dev/null; then
   echo "Reference file $ReferenceFasta contains no sequences. Quitting." >&2
   exit 1
 fi

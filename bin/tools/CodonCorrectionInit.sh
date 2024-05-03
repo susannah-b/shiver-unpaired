@@ -7,6 +7,7 @@ set -o pipefail
 ToolsDir="$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)"
 shiver_bin="$(dirname "$ToolsDir")" # /path/to/shiver/bin
 source "$shiver_bin"/'config.sh'
+source "$shiver_bin"/'shiver_funcs.sh'
 PythonFuncs="$shiver_bin"/'tools/CC_Python_funcs.py'
 
 # This script is to be run once prior to the use of CodonCorrection.sh. The current version of the init assumes the presence of a whole genome 
@@ -35,6 +36,8 @@ ReferenceFasta="$1"
 OutputDirInit="$2"
 GeneCoordInfo="$3"
 
+CheckFilesExist "$ReferenceFasta" "$GeneCoordInfo"
+
 # Check the output directory and cd
 if [[ -d "$OutputDirInit" ]]; then
   echo "$OutputDirInit exists already; quitting to prevent overwriting." >&2
@@ -43,21 +46,10 @@ fi
 mkdir -p "$OutputDirInit" && cd "$OutputDirInit" ||
 { echo "Could not mkdir then cd to $OutputDirInit. Quitting." >&2 ; exit 1 ; }
 
-## Check the reference file is a fasta
-if [[ -f "$ReferenceFasta" ]]; then
-  if [[ "$ReferenceFasta" != *.fasta ]]; then 
-    echo "Reference file $ReferenceFasta is not a fasta file. Quitting." >&2
-    exit 1
-  fi
-
-  # Check the reference file contains sequences
-  Ref_SeqNumber=$(grep '^>' "$ReferenceFasta" | wc -l | awk '{$1=$1};1')
-  if [[ "$Ref_SeqNumber" == 0 ]]; then
-    echo "Reference file $ReferenceFasta contains no sequences. Quitting." >&2
-    exit 1
-  fi
-else
-  echo "Reference file $ReferenceFasta does not exist. Check specified filepath. Quitting." >&2
+# Check the reference file contains sequences
+Ref_SeqNumber=$(grep '^>' "$ReferenceFasta" | wc -l | awk '{$1=$1};1')
+if [[ "$Ref_SeqNumber" == 0 ]]; then
+  echo "Reference file $ReferenceFasta contains no sequences. Quitting." >&2
   exit 1
 fi
 
@@ -65,17 +57,6 @@ fi
 Ref_SeqNumber=$(grep '^>' "$ReferenceFasta" | wc -l | awk '{$1=$1};1')
 if [[ "$Ref_SeqNumber" == 0 ]]; then
   echo "Reference file $ReferenceFasta contains no sequences. Quitting." >&2
-  exit 1
-fi
-
-# Check GeneCoordInfo
-if [[ -f "$GeneCoordInfo" ]]; then
-  if [[ "$GeneCoordInfo" != *.txt ]]; then 
-    echo "Gene coordinates file in unexpected format. Please provide as a .txt file. Quitting." >&2
-    exit 1
-  fi
-else
-  echo "Gene coordinate file $GeneCoordInfo does not exist. Quitting." >&2
   exit 1
 fi
 

@@ -80,6 +80,6 @@ for gene in "${genes[@]}"; do
 
   # Make the BLASTn database
   GeneFile="$OutputDirInit/ReferenceGenes_${gene}.fasta"
-  "$BlastDBcommand" -dbtype nucl -in "$GeneFile" -input_type fasta -out "$BLASTnDB"/"${gene}" || { echo "Unable to create \
+  "$BlastDBcommand" -dbtype nucl -in "$GeneFile" -input_type fasta -out "$BLASTnDB"/"${gene}" -logfile "$BLASTnDB/$gene.log" || { echo "Unable to create \
   a blast database in $BLASTnDB. Check that the shiver config has the correct file path for 'BLASTDBcommand'. Quitting." ; exit 1; }
 done
